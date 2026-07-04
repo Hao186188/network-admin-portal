@@ -1,4 +1,4 @@
-# Mạng 3 Hub - Network Administration Class Portal 
+# Mạng 3 Hub - Network Administration Class Portal.
  
 ## Giới thiệu 
 Website học tập dành cho lớp Quản trị Mạng 3, Trường Cao đẳng Nghề Kiên Giang. 
