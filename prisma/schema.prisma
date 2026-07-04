@@ -1,0 +1,77 @@
+// This is your Prisma schema file, 
+// learn more about it in the docs: https://pris.ly/d/prisma-schema 
+ 
+generator client { 
+  provider = "prisma-client-js" 
+} 
+ 
+datasource db { 
+  provider = "postgresql" 
+  url      = env("DATABASE_URL") 
+} 
+ 
+model User { 
+  id            String    @id @default(cuid()) 
+  name          String 
+  email         String    @unique 
+  password      String? 
+  role          Role      @default(STUDENT) 
+  image         String? 
+  bio           String? 
+  studentId     String? 
+  createdAt     DateTime  @default(now()) 
+  updatedAt     DateTime  @updatedAt 
+  documents     Document[] 
+  submissions   Submission[] 
+  comments      Comment[] 
+} 
+ 
+enum Role { 
+  ADMIN 
+  TEACHER 
+  STUDENT 
+} 
+ 
+model Document { 
+  id          String   @id @default(cuid()) 
+  title       String 
+  description String? 
+  url         String 
+  type        String 
+  size        Int? 
+  tags        String[] 
+  downloads   Int      @default(0) 
+  views       Int      @default(0) 
+  userId      String 
+  createdAt   DateTime @default(now()) 
+  updatedAt   DateTime @updatedAt 
+  user        User     @relation(fields: [userId], references: [id]) 
+  comments    Comment[] 
+} 
+ 
+model Submission { 
+  id        String   @id @default(cuid()) 
+  title     String 
+  url       String 
+  status    String   @default("PENDING") 
+  grade     Float? 
+  feedback  String? 
+  userId    String 
+  createdAt DateTime @default(now()) 
+  updatedAt DateTime @updatedAt 
+  user      User     @relation(fields: [userId], references: [id]) 
+} 
+ 
+model Comment { 
+  id        String   @id @default(cuid()) 
+  content   String 
+  userId    String 
+  documentId String? 
+  parentId  String? 
+  createdAt DateTime @default(now()) 
+  updatedAt DateTime @updatedAt 
+  user      User     @relation(fields: [userId], references: [id]) 
+  document  Document? @relation(fields: [documentId], references: [id]) 
+  parent    Comment?  @relation("CommentReplies", fields: [parentId], references: [id]) 
+  replies   Comment[] @relation("CommentReplies") 
+} 

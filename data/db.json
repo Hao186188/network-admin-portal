@@ -1,0 +1,58 @@
+{
+  "users": [
+    {
+      "id": "1",
+      "name": "Admin",
+      "email": "admin@cdngk.edu.vn",
+      "password": "$2a$12$K8p9yL5Zq7XwY2rV4nB6dO8uJ7kL3mN5pQ7rS9tU1vW3xY4zA5bC6dE7fG8hI9",
+      "role": "ADMIN",
+      "image": "",
+      "studentId": "ADMIN001",
+      "bio": "Quản trị viên hệ thống",
+      "createdAt": "2026-07-04T00:00:00.000Z",
+      "updatedAt": "2026-07-04T00:00:00.000Z"
+    },
+    {
+      "id": "2",
+      "name": "Nguyễn Ngọc Thanh",
+      "email": "thanh.nn@cdngk.edu.vn",
+      "password": "$2a$12$K8p9yL5Zq7XwY2rV4nB6dO8uJ7kL3mN5pQ7rS9tU1vW3xY4zA5bC6dE7fG8hI9",
+      "role": "TEACHER",
+      "image": "",
+      "studentId": "GV001",
+      "bio": "Giảng viên chủ nhiệm lớp Quản trị Mạng 3",
+      "createdAt": "2026-07-04T00:00:00.000Z",
+      "updatedAt": "2026-07-04T00:00:00.000Z"
+    },
+    {
+      "id": "3",
+      "name": "Võ Nhật Hào",
+      "email": "hao.vn@cdngk.edu.vn",
+      "password": "$2a$12$K8p9yL5Zq7XwY2rV4nB6dO8uJ7kL3mN5pQ7rS9tU1vW3xY4zA5bC6dE7fG8hI9",
+      "role": "STUDENT",
+      "image": "",
+      "studentId": "CD220001",
+      "bio": "Sinh viên lớp Quản trị Mạng 3",
+      "createdAt": "2026-07-04T00:00:00.000Z",
+      "updatedAt": "2026-07-04T00:00:00.000Z"
+    },
+    {
+      "name": "Võ Nhật Hào",
+      "email": "vonhathaoqtm3k14@gmail.com",
+      "password": "$2b$12$Syd1EXP6xt7iGGmCRGb1zuIMkDIlA0W3FPiru.TOf2MOV5AuN6Nfq",
+      "role": "STUDENT",
+      "image": "",
+      "studentId": "",
+      "bio": "",
+      "id": "b3f70d25-d153-4123-af94-b47a96f058b0",
+      "createdAt": "2026-07-04T07:13:46.080Z",
+      "updatedAt": "2026-07-04T07:13:46.081Z"
+    }
+  ],
+  "documents": [],
+  "submissions": [],
+  "forumPosts": [],
+  "forumComments": [],
+  "postLikes": [],
+  "comments": []
+}

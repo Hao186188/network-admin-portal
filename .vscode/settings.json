@@ -1,0 +1,19 @@
+{
+  "json.schemaDownload.enable": true,
+  "json.validate.enable": true,
+  "typescript.validate.enable": true,
+  "javascript.validate.enable": true,
+  "tailwindCSS.validate": true,
+  "css.validate": false,
+  "editor.quickSuggestions": {
+    "strings": true
+  },
+  "files.associations": {
+    "*.css": "tailwindcss"
+  },
+  "editor.codeActionsOnSave": {
+    "source.fixAll": "always",
+    "source.organizeImports": "always"
+  },
+  "typescript.preferences.importModuleSpecifier": "relative"
+}
