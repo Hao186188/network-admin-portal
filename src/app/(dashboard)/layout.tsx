@@ -1,10 +1,9 @@
 // src/app/(dashboard)/layout.tsx
-// Vai trò: Layout cho các trang Dashboard
+// Vai trò: Layout cho Dashboard - KHÔNG CÓ SIDEBAR
 
 "use client";
 
-import { Navbar } from "@/components/layout/navbar";
-import { Sidebar } from "@/components/layout/sidebar";
+import { NavbarClient } from "@/components/layout/navbar-client";
 
 export default function DashboardLayout({
   children,
@@ -12,12 +11,9 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="min-h-screen bg-gray-50/50 dark:bg-gray-900/50">
-      <Sidebar />
-      <div className="lg:ml-[280px]">
-        <Navbar />
-        <main className="pt-16 md:pt-20 p-4 md:p-8">{children}</main>
-      </div>
+    <div className="min-h-screen bg-background">
+      <NavbarClient />
+      <main className="pt-16 md:pt-20">{children}</main>
     </div>
   );
 }

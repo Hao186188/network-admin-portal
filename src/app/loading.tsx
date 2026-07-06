@@ -1,41 +1,42 @@
 // src/app/loading.tsx
+// Vai trò: Loading page cho toàn bộ ứng dụng
 
-"use client"
+"use client";
 
-import { motion } from "framer-motion"
-import { useEffect, useState } from "react"
+import { motion } from "framer-motion";
+import { useEffect, useState } from "react";
 
 export default function Loading() {
-  const [progress, setProgress] = useState(0)
+  const [progress, setProgress] = useState(0);
 
   useEffect(() => {
     const timer = setInterval(() => {
       setProgress((oldProgress) => {
         if (oldProgress === 100) {
-          return 0
+          return 0;
         }
-        const diff = Math.random() * 10
-        return Math.min(oldProgress + diff, 100)
-      })
-    }, 200)
+        const diff = Math.random() * 10;
+        return Math.min(oldProgress + diff, 100);
+      });
+    }, 200);
 
     return () => {
-      clearInterval(timer)
-    }
-  }, [])
+      clearInterval(timer);
+    };
+  }, []);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
       <div className="text-center max-w-sm w-full px-4">
         {/* Logo Animation */}
         <motion.div
-          animate={{ 
+          animate={{
             rotate: 360,
-            scale: [1, 1.1, 1]
+            scale: [1, 1.1, 1],
           }}
-          transition={{ 
+          transition={{
             rotate: { duration: 2, repeat: Infinity, ease: "linear" },
-            scale: { duration: 1, repeat: Infinity, ease: "easeInOut" }
+            scale: { duration: 1, repeat: Infinity, ease: "easeInOut" },
           }}
           className="w-20 h-20 rounded-2xl bg-gradient-to-r from-primary-500 to-secondary-500 flex items-center justify-center shadow-2xl shadow-primary-500/30 mx-auto mb-6"
         >
@@ -80,7 +81,11 @@ export default function Loading() {
           className="mt-6 p-4 bg-gray-100/50 dark:bg-gray-700/50 rounded-xl"
         >
           <p className="text-xs text-gray-500 dark:text-gray-400">
-            💡 Mẹo: Sử dụng phím tắt <kbd className="px-2 py-1 bg-gray-200 dark:bg-gray-600 rounded text-xs font-mono">⌘K</kbd> để tìm kiếm nhanh
+            💡 Mẹo: Sử dụng phím tắt{" "}
+            <kbd className="px-2 py-1 bg-gray-200 dark:bg-gray-600 rounded text-xs font-mono">
+              ⌘K
+            </kbd>{" "}
+            để tìm kiếm nhanh
           </p>
         </motion.div>
 
@@ -110,5 +115,5 @@ export default function Loading() {
         </motion.div>
       </div>
     </div>
-  )
+  );
 }

@@ -3,7 +3,9 @@
 
 "use client";
 
+import { AnimatedCounter } from "@/components/common/animated-counter";
 import { Button } from "@/components/ui/button";
+import { useStats } from "@/hooks/use-stats";
 import { motion, useAnimation, useInView } from "framer-motion";
 import {
   ArrowRight,
@@ -28,13 +30,6 @@ const floatingIcons = [
   { Icon: Zap, x: 40, y: 30, delay: 4.5 },
 ];
 
-const stats = [
-  { value: "50+", label: "Tài liệu học tập" },
-  { value: "30+", label: "Bài giảng" },
-  { value: "25+", label: "Sinh viên" },
-  { value: "10+", label: "Dự án thực tế" },
-];
-
 // Tạo particles với giá trị cố định để tránh hydration error
 const generateParticles = () => {
   const particles = [];
@@ -57,6 +52,7 @@ export function HeroSection() {
   const isInView = useInView(ref, { once: true });
   const [mounted, setMounted] = useState(false);
   const particles = generateParticles();
+  const stats = useStats();
 
   useEffect(() => {
     setMounted(true);
@@ -75,6 +71,34 @@ export function HeroSection() {
       isEven: index % 2 === 0,
     };
   });
+
+  // Stats data với icon
+  const statsData = [
+    {
+      value: stats.documents,
+      label: "Tài liệu học tập",
+      icon: FileText,
+      suffix: "+",
+    },
+    {
+      value: stats.lectures,
+      label: "Bài giảng",
+      icon: Video,
+      suffix: "+",
+    },
+    {
+      value: stats.students,
+      label: "Sinh viên",
+      icon: Zap,
+      suffix: "+",
+    },
+    {
+      value: stats.projects,
+      label: "Dự án thực tế",
+      icon: Network,
+      suffix: "+",
+    },
+  ];
 
   return (
     <section className="relative min-h-screen flex items-center overflow-hidden pt-20 pb-12 lg:py-0">
@@ -113,7 +137,7 @@ export function HeroSection() {
           className="absolute inset-0 opacity-100"
           style={{
             backgroundImage: `
-              radial-gradient(circle at 1px 1px, rgba(59, 130, 246, 0.08) 1px, transparent 0)
+              radial-gradient(circle at 1px 1px, rgba(59, 130, 246, 0.06) 1px, transparent 0)
             `,
             backgroundSize: "40px 40px",
           }}
@@ -125,7 +149,7 @@ export function HeroSection() {
         floatingIcons.map(({ Icon, x, y, delay }, index) => (
           <motion.div
             key={`floating-${index}`}
-            className="absolute hidden lg:block text-primary-400/30 dark:text-primary-300/20"
+            className="absolute hidden lg:block text-primary-400/20 dark:text-primary-300/15"
             style={{ left: `calc(50% + ${x}%)`, top: `calc(50% + ${y}%)` }}
             animate={{
               y: [0, -20, 0],
@@ -169,7 +193,7 @@ export function HeroSection() {
               }}
               className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary-100/80 dark:bg-primary-900/30 backdrop-blur-sm border border-primary-200/50 dark:border-primary-700/50"
             >
-              <Sparkles className="w-4 h-4 text-primary-500" />
+              <Sparkles className="w-4 h-4 text-primary-600 dark:text-primary-400" />
               <span className="text-sm font-medium text-primary-700 dark:text-primary-300">
                 Lớp Quản trị Mạng 3
               </span>
@@ -187,7 +211,7 @@ export function HeroSection() {
                 Kết nối tri thức
               </span>
               <br />
-              <span className="text-gray-900 dark:text-white">
+              <span className="text-gray-800 dark:text-white">
                 Làm chủ hệ thống mạng
               </span>
             </motion.h1>
@@ -220,7 +244,7 @@ export function HeroSection() {
               </Link>
               <Link href="#">
                 <Button
-                  className="border-2 border-primary-200 dark:border-primary-700"
+                  className="border-2 border-primary-200 dark:border-primary-700 text-gray-700 dark:text-white hover:bg-primary-50 dark:hover:bg-primary-900/20"
                   size="lg"
                   variant="glass"
                 >
@@ -245,7 +269,7 @@ export function HeroSection() {
               ].map((item, index) => (
                 <Link href={item.href} key={index}>
                   <Button
-                    className="gap-2 hover:bg-primary-50 dark:hover:bg-primary-900/20"
+                    className="gap-2 text-gray-600 dark:text-gray-300 hover:bg-primary-50 dark:hover:bg-primary-900/20 hover:text-primary-600 dark:hover:text-primary-400"
                     size="sm"
                     variant="ghost"
                   >
@@ -256,18 +280,22 @@ export function HeroSection() {
               ))}
             </motion.div>
 
-            {/* Stats */}
+            {/* Stats với animation số chạy */}
             <motion.div
               variants={{
                 hidden: { opacity: 0, y: 20 },
                 visible: { opacity: 1, y: 0 },
               }}
-              className="grid grid-cols-2 md:grid-cols-4 gap-6 pt-8 border-t border-gray-200 dark:border-gray-700"
+              className="grid grid-cols-2 md:grid-cols-4 gap-6 pt-8 border-t border-gray-200/50 dark:border-gray-700/50"
             >
-              {stats.map((stat, index) => (
-                <div key={index} className="space-y-1">
-                  <div className="text-2xl font-bold text-primary-600 dark:text-primary-400">
-                    {stat.value}
+              {statsData.map((stat, index) => (
+                <div key={index} className="space-y-1 text-center">
+                  <div className="text-3xl font-bold text-primary-600 dark:text-primary-400">
+                    <AnimatedCounter
+                      target={stat.value}
+                      suffix={stat.suffix}
+                      duration={2}
+                    />
                   </div>
                   <div className="text-sm text-gray-500 dark:text-gray-400">
                     {stat.label}
@@ -300,9 +328,9 @@ export function HeroSection() {
                         repeat: Infinity,
                         ease: "easeInOut",
                       }}
-                      className="w-64 h-64 rounded-full bg-gradient-to-r from-primary-500/20 to-secondary-500/20 border border-primary-300/30 backdrop-blur-sm flex items-center justify-center z-10"
+                      className="w-64 h-64 rounded-full bg-gradient-to-r from-primary-500/10 to-secondary-500/10 dark:from-primary-500/5 dark:to-secondary-500/5 border border-primary-300/30 dark:border-primary-700/30 backdrop-blur-sm flex items-center justify-center z-10"
                     >
-                      <div className="w-32 h-32 rounded-full bg-gradient-to-r from-primary-500 to-secondary-500 shadow-2xl shadow-primary-500/30 flex items-center justify-center">
+                      <div className="w-32 h-32 rounded-full bg-gradient-to-r from-primary-500 to-secondary-500 shadow-2xl shadow-primary-500/30 dark:shadow-primary-500/20 flex items-center justify-center">
                         <Network className="w-16 h-16 text-white" />
                       </div>
                     </motion.div>
@@ -322,16 +350,16 @@ export function HeroSection() {
                       {orbitingNodes.map((node, index) => (
                         <div
                           key={`orbit-${index}`}
-                          className="absolute rounded-full bg-white dark:bg-gray-800 shadow-xl border border-primary-200 dark:border-primary-700 flex items-center justify-center w-12 h-12"
+                          className="absolute rounded-full bg-white/90 dark:bg-gray-800/90 shadow-xl border border-primary-200/50 dark:border-primary-700/50 flex items-center justify-center w-12 h-12 backdrop-blur-sm"
                           style={{
                             transform: `translate(${node.x}px, ${node.y}px)`,
                           }}
                         >
                           <div className="hover:scale-125 transition-transform duration-200 flex items-center justify-center w-full h-full">
                             {node.isEven ? (
-                              <Server className="w-6 h-6 text-primary-500" />
+                              <Server className="w-6 h-6 text-primary-500 dark:text-primary-400" />
                             ) : (
-                              <Shield className="w-6 h-6 text-secondary-500" />
+                              <Shield className="w-6 h-6 text-secondary-500 dark:text-secondary-400" />
                             )}
                           </div>
                         </div>
@@ -352,16 +380,16 @@ export function HeroSection() {
                     ease: "linear",
                   }}
                 >
-                  <div className="absolute inset-0 border-2 border-primary-200/20 rounded-full scale-[0.85]" />
-                  <div className="absolute inset-0 border-2 border-secondary-200/20 rounded-full scale-[1.1]" />
-                  <div className="absolute inset-0 border-2 border-accent-200/20 rounded-full scale-[1.35]" />
+                  <div className="absolute inset-0 border-2 border-primary-200/15 dark:border-primary-700/15 rounded-full scale-[0.85]" />
+                  <div className="absolute inset-0 border-2 border-secondary-200/15 dark:border-secondary-700/15 rounded-full scale-[1.1]" />
+                  <div className="absolute inset-0 border-2 border-accent-200/15 dark:border-accent-700/15 rounded-full scale-[1.35]" />
                 </motion.div>
 
                 {/* Floating Particles */}
                 {particles.map((particle, index) => (
                   <motion.div
                     key={`particle-${index}`}
-                    className="absolute rounded-full bg-primary-400/40 dark:bg-primary-300/30"
+                    className="absolute rounded-full bg-primary-400/30 dark:bg-primary-300/20"
                     style={{
                       width: particle.size,
                       height: particle.size,
@@ -369,7 +397,7 @@ export function HeroSection() {
                     animate={{
                       x: particle.x,
                       y: particle.y,
-                      opacity: [0, 1, 0],
+                      opacity: [0, 0.6, 0],
                       scale: [0, 1, 0],
                     }}
                     transition={{
@@ -407,7 +435,7 @@ export function HeroSection() {
           <span className="text-xs font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wider">
             Scroll
           </span>
-          <ArrowRight className="w-4 h-4 text-gray-400 rotate-90" />
+          <ArrowRight className="w-4 h-4 text-gray-400 dark:text-gray-500 rotate-90" />
         </div>
       </motion.div>
     </section>

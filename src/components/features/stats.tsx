@@ -1,17 +1,19 @@
 // src/components/features/stats.tsx
-// Vai trò: Hiển thị thống kê
+// Vai trò: Hiển thị thống kê với animation số chạy
 
 "use client";
 
+import { AnimatedCounter } from "@/components/common/animated-counter";
 import { Card, CardContent } from "@/components/ui/card";
 import { motion } from "framer-motion";
 import { LucideIcon } from "lucide-react";
 
 interface StatsProps {
   stats: {
-    value: string;
+    value: number;
     label: string;
     icon: LucideIcon;
+    suffix?: string;
   }[];
 }
 
@@ -25,17 +27,19 @@ export function Stats({ stats }: StatsProps) {
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.5, delay: index * 0.1 }}
         >
-          <Card className="text-center hover:shadow-2xl transition-shadow">
+          <Card className="text-center hover:shadow-2xl transition-shadow border-border">
             <CardContent className="p-6">
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-r from-primary-500 to-secondary-500 flex items-center justify-center mx-auto mb-3">
+              <div className="w-12 h-12 rounded-xl bg-gradient-to-r from-primary to-secondary flex items-center justify-center mx-auto mb-3">
                 <stat.icon className="w-6 h-6 text-white" />
               </div>
-              <div className="text-3xl font-bold bg-gradient-to-r from-primary-600 to-secondary-500 bg-clip-text text-transparent">
-                {stat.value}
+              <div className="text-3xl font-bold gradient-text">
+                <AnimatedCounter
+                  target={stat.value}
+                  suffix={stat.suffix || "+"}
+                  duration={2}
+                />
               </div>
-              <p className="text-sm text-gray-500 dark:text-gray-400">
-                {stat.label}
-              </p>
+              <p className="text-sm text-muted-foreground mt-1">{stat.label}</p>
             </CardContent>
           </Card>
         </motion.div>

@@ -1,5 +1,5 @@
 // src/app/layout.tsx
-// Vai trò: Layout chính - BỌC TOÀN BỘ ỨNG DỤNG VỚI SESSION PROVIDER
+// Vai trò: Layout chính - KHÔNG CHỨA SCRIPT
 
 import type { Metadata } from "next";
 import { Inter, Poppins } from "next/font/google";
@@ -22,15 +22,6 @@ export const metadata: Metadata = {
   title: "Mạng 3 Hub - Quản trị Mạng 3",
   description: "Nền tảng học tập hiện đại dành cho sinh viên Quản trị Mạng 3",
   metadataBase: new URL("http://localhost:3000"),
-  openGraph: {
-    title: "Mạng 3 Hub - Quản trị Mạng 3",
-    description: "Nền tảng học tập hiện đại dành cho sinh viên Quản trị Mạng 3",
-    url: "http://localhost:3000",
-    siteName: "Mạng 3 Hub",
-    images: [{ url: "/og-image.png", width: 1200, height: 630 }],
-    locale: "vi_VN",
-    type: "website",
-  },
 };
 
 export default function RootLayout({

@@ -1,5 +1,5 @@
 // src/components/cards/feature-card.tsx
-// Vai trò: Card hiển thị tính năng
+// Vai trò: Card hiển thị tính năng - HỖ TRỢ DARK MODE
 
 "use client";
 
@@ -28,17 +28,17 @@ export function FeatureCard({
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5, delay }}
     >
-      <Card className="h-full group hover:shadow-2xl transition-all duration-300 hover:-translate-y-2">
+      <Card className="h-full group hover:shadow-2xl transition-all duration-300 hover:-translate-y-2 border-border">
         <CardContent className="p-6 text-center">
           <div
             className={`w-16 h-16 rounded-2xl bg-gradient-to-r ${color} flex items-center justify-center mx-auto mb-4 shadow-lg group-hover:scale-110 transition-transform`}
           >
             <Icon className="w-8 h-8 text-white" />
           </div>
-          <h3 className="text-lg font-semibold mb-2">{title}</h3>
-          <p className="text-sm text-gray-500 dark:text-gray-400">
-            {description}
-          </p>
+          <h3 className="text-lg font-semibold text-foreground mb-2">
+            {title}
+          </h3>
+          <p className="text-sm text-muted-foreground">{description}</p>
         </CardContent>
       </Card>
     </motion.div>

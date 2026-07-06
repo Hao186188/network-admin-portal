@@ -1,14 +1,16 @@
 // src/components/layout/navbar.tsx
-// Vai trò: Navbar trên cùng với auto margin theo sidebar
+// Vai trò: Navbar - HỖ TRỢ DARK MODE VỚI SEARCH & NOTIFICATIONS
 
 "use client";
 
+import { Notifications } from "@/components/common/notifications";
+import { Search } from "@/components/common/search";
+import { useTheme } from "@/components/providers/theme-provider";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   Award,
-  Bell,
   Bell as BellIcon,
   BookMarked,
   BookOpen,
@@ -27,14 +29,11 @@ import {
   MessageCircle,
   Moon,
   Package,
-  Search,
   Sparkles,
   Sun,
-  User,
-  X,
+  User
 } from "lucide-react";
-import { signOut, useSession } from "next-auth/react";
-import { useTheme } from "next-themes";
+import { signOut } from "next-auth/react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -57,14 +56,31 @@ const mobileNavItems = [
   { name: "Liên hệ", href: "/contact", icon: Mail },
 ];
 
-export function Navbar() {
+interface NavbarProps {
+  session?: {
+    user?: {
+      name?: string | null;
+      email?: string | null;
+      image?: string | null;
+      role?: string;
+    };
+  } | null;
+  status?: "loading" | "authenticated" | "unauthenticated";
+}
+
+export function Navbar({
+  session: propSession,
+  status: propStatus = "unauthenticated",
+}: NavbarProps) {
   const [isScrolled, setIsScrolled] = useState(false);
   const { theme, setTheme } = useTheme();
-  const { data: session, status } = useSession();
   const pathname = usePathname();
   const [mounted, setMounted] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [sidebarWidth, setSidebarWidth] = useState(280);
+
+  const session = propSession;
+  const status = propStatus;
+  const isAuthenticated = status === "authenticated";
 
   useEffect(() => {
     setMounted(true);
@@ -73,22 +89,6 @@ export function Navbar() {
     };
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
-
-  // Lắng nghe sự thay đổi của sidebar
-  useEffect(() => {
-    const handleSidebarToggle = (e: CustomEvent) => {
-      setSidebarWidth(e.detail.isCollapsed ? 80 : 280);
-    };
-    window.addEventListener(
-      "sidebar-toggle",
-      handleSidebarToggle as EventListener,
-    );
-    return () =>
-      window.removeEventListener(
-        "sidebar-toggle",
-        handleSidebarToggle as EventListener,
-      );
   }, []);
 
   // Ẩn navbar trên auth pages
@@ -101,49 +101,59 @@ export function Navbar() {
     return null;
   }
 
-  const isAuthenticated = status === "authenticated";
+  if (!mounted) {
+    return null;
+  }
 
   return (
     <header
       className={cn(
-        "fixed top-0 right-0 z-40 transition-all duration-300",
+        "fixed top-0 left-0 right-0 z-40 transition-all duration-300",
         isScrolled
-          ? "bg-white/80 dark:bg-gray-900/80 backdrop-blur-md border-b border-gray-200/50 dark:border-gray-700/50 shadow-lg"
+          ? "bg-background/80 backdrop-blur-md border-b border-border shadow-lg"
           : "bg-transparent",
-        "left-0",
       )}
-      style={{ left: `${sidebarWidth}px` }}
     >
-      <nav className="h-16 md:h-20 px-4 md:px-6 flex items-center justify-between">
-        {/* Left - Page Title */}
-        <div className="flex items-center gap-3">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="lg:hidden"
-            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+      <nav className="h-16 md:h-20 px-4 md:px-6 flex items-center justify-between max-w-7xl mx-auto">
+        {/* Left - Logo */}
+        <Link href="/" className="flex items-center gap-2 group">
+          <motion.div
+            whileHover={{ rotate: 180 }}
+            transition={{ duration: 0.5 }}
+            className="w-10 h-10 rounded-xl bg-gradient-to-r from-primary to-secondary flex items-center justify-center shadow-lg shadow-primary/25 group-hover:shadow-primary/40 transition-shadow"
           >
-            <Menu className="w-5 h-5" />
-          </Button>
-          <h1 className="text-lg font-semibold text-gray-900 dark:text-white truncate">
-            {pathname?.split("/")[1]?.toUpperCase() || "TRANG CHỦ"}
-          </h1>
+            <Sparkles className="w-5 h-5 text-white" />
+          </motion.div>
+          <div className="hidden sm:block">
+            <span className="text-lg font-bold gradient-text">Mạng 3 Hub</span>
+            <span className="text-xs text-muted-foreground block -mt-1">
+              Quản trị Mạng
+            </span>
+          </div>
+        </Link>
+
+        {/* Center - Navigation Desktop */}
+        <div className="hidden lg:flex items-center gap-1">
+          {mobileNavItems.slice(0, 8).map((item) => (
+            <Link key={item.name} href={item.href}>
+              <motion.div
+                whileHover={{ y: -2 }}
+                className={cn(
+                  "px-3 py-2 rounded-lg text-sm font-medium transition-colors",
+                  pathname === item.href
+                    ? "text-primary bg-primary/10"
+                    : "text-foreground/70 hover:text-foreground hover:bg-muted",
+                )}
+              >
+                {item.name}
+              </motion.div>
+            </Link>
+          ))}
         </div>
 
         {/* Right - Actions */}
         <div className="flex items-center gap-1 md:gap-2">
-          {/* Search */}
-          <Button
-            variant="ghost"
-            size="icon"
-            className="relative hover:bg-gray-100/50 dark:hover:bg-gray-800/50"
-            aria-label="Search"
-          >
-            <Search className="w-5 h-5" />
-            <kbd className="hidden md:block absolute -top-1 -right-1 text-[10px] bg-gray-200 dark:bg-gray-700 px-1 rounded text-gray-500 dark:text-gray-400">
-              ⌘K
-            </kbd>
-          </Button>
+          <Search />
 
           {/* Theme Toggle */}
           {mounted && (
@@ -151,7 +161,7 @@ export function Navbar() {
               variant="ghost"
               size="icon"
               onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-              className="hover:bg-gray-100/50 dark:hover:bg-gray-800/50"
+              className="hover:bg-muted"
               aria-label="Toggle theme"
             >
               <Sun className="h-5 w-5 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
@@ -159,25 +169,16 @@ export function Navbar() {
             </Button>
           )}
 
-          {/* Notifications */}
-          <Button
-            variant="ghost"
-            size="icon"
-            className="relative hover:bg-gray-100/50 dark:hover:bg-gray-800/50"
-            aria-label="Notifications"
-          >
-            <Bell className="w-5 h-5" />
-            <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full animate-pulse" />
-          </Button>
+          <Notifications />
 
           {/* Auth Section */}
-          {isAuthenticated ? (
+          {isAuthenticated && session ? (
             <div className="flex items-center gap-2">
               <div className="hidden md:flex items-center gap-2">
-                <div className="w-8 h-8 rounded-full bg-gradient-to-r from-primary-500 to-secondary-500 flex items-center justify-center text-white text-sm font-bold">
+                <div className="w-8 h-8 rounded-full bg-gradient-to-r from-primary to-secondary flex items-center justify-center text-white text-sm font-bold">
                   {session.user?.name?.charAt(0) || "U"}
                 </div>
-                <span className="text-sm font-medium text-gray-700 dark:text-gray-300 hidden lg:inline">
+                <span className="text-sm font-medium text-foreground hidden lg:inline">
                   {session.user?.name}
                 </span>
               </div>
@@ -185,7 +186,7 @@ export function Navbar() {
                 variant="ghost"
                 size="sm"
                 onClick={() => signOut()}
-                className="gap-2 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-500"
+                className="gap-2 hover:bg-destructive/10 hover:text-destructive"
               >
                 <LogOut className="w-4 h-4" />
                 <span className="hidden md:inline">Đăng xuất</span>
@@ -197,7 +198,7 @@ export function Navbar() {
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="gap-2 hover:bg-primary-50 dark:hover:bg-primary-900/20"
+                  className="gap-2 hover:bg-primary/10"
                 >
                   <LogIn className="w-4 h-4" />
                   <span className="hidden md:inline">Đăng nhập</span>
@@ -206,8 +207,7 @@ export function Navbar() {
               <Link href="/register">
                 <Button
                   size="sm"
-                  variant="gradient"
-                  className="gap-2 hidden sm:flex"
+                  className="gap-2 hidden sm:flex bg-primary text-primary-foreground hover:bg-primary/90"
                 >
                   <User className="w-4 h-4" />
                   Đăng ký
@@ -215,6 +215,16 @@ export function Navbar() {
               </Link>
             </div>
           )}
+
+          {/* Mobile Menu Button */}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="lg:hidden hover:bg-muted"
+            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+          >
+            <Menu className="w-5 h-5" />
+          </Button>
         </div>
       </nav>
 
@@ -222,52 +232,29 @@ export function Navbar() {
       <AnimatePresence>
         {isMobileMenuOpen && (
           <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 z-50 lg:hidden"
-            onClick={() => setIsMobileMenuOpen(false)}
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            className="lg:hidden overflow-hidden border-t border-border bg-background/95 backdrop-blur-md"
           >
-            <motion.div
-              initial={{ x: "-100%" }}
-              animate={{ x: 0 }}
-              exit={{ x: "-100%" }}
-              transition={{ type: "spring", damping: 20 }}
-              className="fixed left-0 top-0 h-full w-72 bg-white dark:bg-gray-900 shadow-2xl z-50"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="p-4 border-b border-gray-200/50 dark:border-gray-700/50 flex items-center justify-between">
-                <Link href="/" className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-lg bg-gradient-to-r from-primary-500 to-secondary-500 flex items-center justify-center">
-                    <Sparkles className="w-4 h-4 text-white" />
-                  </div>
-                  <span className="font-bold text-sm">Mạng 3 Hub</span>
-                </Link>
-                <Button
-                  variant="ghost"
-                  size="icon"
+            <div className="p-4 space-y-1 max-h-[80vh] overflow-y-auto">
+              {mobileNavItems.map((item) => (
+                <Link
+                  key={item.name}
+                  href={item.href}
+                  className={cn(
+                    "flex items-center gap-3 px-4 py-3 rounded-xl transition-colors",
+                    pathname === item.href
+                      ? "bg-primary/10 text-primary"
+                      : "text-foreground/70 hover:text-foreground hover:bg-muted",
+                  )}
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
-                  <X className="w-5 h-5" />
-                </Button>
-              </div>
-              <div className="p-4 space-y-1 overflow-y-auto h-[calc(100vh-8rem)]">
-                {mobileNavItems.map((item) => {
-                  const IconComponent = item.icon;
-                  return (
-                    <Link
-                      key={item.name}
-                      href={item.href}
-                      className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-gray-100/50 dark:hover:bg-gray-800/50 transition-colors"
-                      onClick={() => setIsMobileMenuOpen(false)}
-                    >
-                      <IconComponent className="w-5 h-5 text-gray-500" />
-                      <span className="text-sm">{item.name}</span>
-                    </Link>
-                  );
-                })}
-              </div>
-            </motion.div>
+                  <item.icon className="w-5 h-5" />
+                  <span className="text-sm font-medium">{item.name}</span>
+                </Link>
+              ))}
+            </div>
           </motion.div>
         )}
       </AnimatePresence>

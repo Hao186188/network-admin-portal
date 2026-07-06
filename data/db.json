@@ -47,6 +47,18 @@
       "id": "b3f70d25-d153-4123-af94-b47a96f058b0",
       "createdAt": "2026-07-04T07:13:46.080Z",
       "updatedAt": "2026-07-04T07:13:46.081Z"
+    },
+    {
+      "name": "nhật hào",
+      "email": "vonhathao1862007@gmail.com",
+      "password": "$2b$12$ADMgN21gDtuXGmxDFBx9reykbbZuCxjpuVwvc6utsc3BWza0E5yr.",
+      "role": "STUDENT",
+      "image": "",
+      "studentId": "",
+      "bio": "",
+      "id": "cc3b4d6e-5f47-4c09-a7c8-56300b393e4c",
+      "createdAt": "2026-07-05T05:37:27.808Z",
+      "updatedAt": "2026-07-05T05:37:27.808Z"
     }
   ],
   "documents": [],
