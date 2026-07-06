@@ -1,5 +1,5 @@
 // src/lib/db/supabase-client.ts
-// Vai trò: Supabase client - CÓ LOG DEBUG
+// Vai trò: Supabase client - THÊM CHECK KẾT NỐI
 
 import { createClient } from "@supabase/supabase-js";
 
@@ -28,3 +28,21 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
 });
 
 export const isSupabaseEnabled = !!supabaseUrl && !!supabaseAnonKey;
+
+// Test connection
+export async function testSupabaseConnection() {
+  try {
+    const { data, error } = await supabase
+      .from("users")
+      .select("count", { count: "exact", head: true });
+    if (error) {
+      console.error("❌ Supabase connection test failed:", error);
+      return false;
+    }
+    console.log("✅ Supabase connection test passed!");
+    return true;
+  } catch (error) {
+    console.error("❌ Supabase connection test error:", error);
+    return false;
+  }
+}

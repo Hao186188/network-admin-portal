@@ -1,5 +1,5 @@
 // src/lib/auth.ts
-// Vai trò: Cấu hình NextAuth - QUAN TRỌNG: PHẢI CÓ ĐẦY ĐỦ
+// Vai trò: Cấu hình NextAuth - FIX LỖI
 
 import { supabase } from "@/lib/db/supabase-client";
 import bcrypt from "bcryptjs";
@@ -25,27 +25,32 @@ export const authOptions: NextAuthOptions = {
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
-        if (!credentials?.email || !credentials?.password) {
-          throw new Error("Vui lòng nhập email và mật khẩu");
-        }
-
         try {
+          if (!credentials?.email || !credentials?.password) {
+            throw new Error("Vui lòng nhập email và mật khẩu");
+          }
+
+          console.log("🔍 Looking for user:", credentials.email);
+
           // Tìm user trong database
           const { data: users, error } = await supabase
             .from("users")
             .select("*")
-            .eq("email", credentials.email);
+            .eq("email", credentials.email.toLowerCase().trim());
 
           if (error) {
-            console.error("Supabase error:", error);
+            console.error("❌ Supabase error:", error);
             throw new Error("Lỗi kết nối database");
           }
 
           const user = users?.[0];
 
           if (!user) {
+            console.log("❌ User not found:", credentials.email);
             throw new Error("Email không tồn tại");
           }
+
+          console.log("✅ User found:", user.id);
 
           // Kiểm tra mật khẩu
           const isValid = await bcrypt.compare(
@@ -54,8 +59,11 @@ export const authOptions: NextAuthOptions = {
           );
 
           if (!isValid) {
+            console.log("❌ Invalid password for:", credentials.email);
             throw new Error("Mật khẩu không đúng");
           }
+
+          console.log("✅ Login successful for:", user.email);
 
           return {
             id: user.id,
@@ -65,7 +73,7 @@ export const authOptions: NextAuthOptions = {
             image: user.image,
           };
         } catch (error) {
-          console.error("Auth error:", error);
+          console.error("❌ Auth error:", error);
           throw error;
         }
       },
@@ -97,5 +105,5 @@ export const authOptions: NextAuthOptions = {
     maxAge: 30 * 24 * 60 * 60, // 30 days
   },
   secret: process.env.NEXTAUTH_SECRET,
-  debug: process.env.NODE_ENV === "development",
+  debug: true, // Enable debug mode
 };

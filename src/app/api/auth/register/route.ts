@@ -1,5 +1,5 @@
 // src/app/api/auth/register/route.ts
-// Vai trò: API đăng ký - SỬA LỖI 400, 500
+// Vai trò: API đăng ký - FIX LỖI 500
 
 import { supabase } from "@/lib/db/supabase-client";
 import bcrypt from "bcryptjs";
@@ -9,6 +9,8 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
     const { name, email, password, role = "STUDENT" } = body;
+
+    console.log("📝 Register request:", { name, email, role });
 
     // Validate input
     if (!name || !email || !password) {
@@ -25,17 +27,26 @@ export async function POST(request: Request) {
       );
     }
 
+    // Kiểm tra kết nối Supabase
+    if (!supabase) {
+      console.error("❌ Supabase client not initialized");
+      return NextResponse.json(
+        { message: "Lỗi kết nối database" },
+        { status: 500 },
+      );
+    }
+
     // Kiểm tra email đã tồn tại
     const { data: existingUser, error: checkError } = await supabase
       .from("users")
       .select("email")
-      .eq("email", email)
-      .single();
+      .eq("email", email.toLowerCase().trim())
+      .maybeSingle();
 
-    if (checkError && checkError.code !== "PGRST116") {
-      console.error("Check user error:", checkError);
+    if (checkError) {
+      console.error("❌ Check user error:", checkError);
       return NextResponse.json(
-        { message: "Lỗi kiểm tra email" },
+        { message: "Lỗi kiểm tra email: " + checkError.message },
         { status: 500 },
       );
     }
@@ -67,12 +78,14 @@ export async function POST(request: Request) {
       .single();
 
     if (insertError) {
-      console.error("Insert user error:", insertError);
+      console.error("❌ Insert user error:", insertError);
       return NextResponse.json(
-        { message: "Lỗi tạo tài khoản" },
+        { message: "Lỗi tạo tài khoản: " + insertError.message },
         { status: 500 },
       );
     }
+
+    console.log("✅ User created successfully:", newUser.id);
 
     return NextResponse.json(
       {
@@ -87,9 +100,12 @@ export async function POST(request: Request) {
       { status: 201 },
     );
   } catch (error) {
-    console.error("Register error:", error);
+    console.error("❌ Register error:", error);
     return NextResponse.json(
-      { message: "Có lỗi xảy ra khi đăng ký" },
+      {
+        message:
+          error instanceof Error ? error.message : "Có lỗi xảy ra khi đăng ký",
+      },
       { status: 500 },
     );
   }
