@@ -13,15 +13,15 @@ import { useAssignments } from "@/hooks/use-assignments";
 import { useToast } from "@/hooks/use-toast";
 import { motion } from "framer-motion";
 import {
-    AlertCircle,
-    ArrowLeft,
-    CheckCircle,
-    Clock,
-    Download,
-    File,
-    Star,
-    Upload,
-    Users,
+  AlertCircle,
+  ArrowLeft,
+  CheckCircle,
+  Clock,
+  Download,
+  File,
+  Star,
+  Upload,
+  Users,
 } from "lucide-react";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
@@ -194,7 +194,7 @@ export default function AssignmentDetailPage() {
   if (loading) {
     return (
       <>
-        <Navbar session={session} status={status} />
+        <Navbar />
         <div className="min-h-screen bg-gradient-to-br from-gray-50 via-gray-100 to-gray-200 dark:from-gray-950 dark:via-gray-900 dark:to-gray-800 pt-16 md:pt-20">
           <div className="max-w-4xl mx-auto p-4 md:p-8">
             <Skeleton className="h-12 w-48 mb-4" />
@@ -209,7 +209,7 @@ export default function AssignmentDetailPage() {
   if (error || !assignment) {
     return (
       <>
-        <Navbar session={session} status={status} />
+        <Navbar />
         <div className="min-h-screen bg-gradient-to-br from-gray-50 via-gray-100 to-gray-200 dark:from-gray-950 dark:via-gray-900 dark:to-gray-800 pt-16 md:pt-20">
           <div className="max-w-4xl mx-auto p-4 md:p-8">
             <Card className="border-destructive">
@@ -252,7 +252,7 @@ export default function AssignmentDetailPage() {
 
   return (
     <>
-      <Navbar session={session} status={status} />
+      <Navbar />
       <div className="min-h-screen bg-gradient-to-br from-gray-50 via-gray-100 to-gray-200 dark:from-gray-950 dark:via-gray-900 dark:to-gray-800 pt-16 md:pt-20">
         <div className="max-w-4xl mx-auto p-4 md:p-8">
           {/* Back Button */}
