@@ -1,15 +1,25 @@
 // src/proxy.ts
-// Vai trò: Proxy để bảo vệ routes - FIX LỖI REDIRECT
+// Vai trò: Middleware bảo vệ routes - ĐƠN GIẢN HÓA
 
 import { withAuth } from "next-auth/middleware";
 import { NextResponse } from "next/server";
 
 export default withAuth(
-  function proxy(req) {
+  function middleware(req) {
     const token = req.nextauth.token;
     const path = req.nextUrl.pathname;
 
-    // Public routes - không cần đăng nhập
+    // Cho phép API routes và static files
+    if (
+      path.startsWith("/_next") ||
+      path.startsWith("/api/auth") ||
+      path.startsWith("/api/test") ||
+      path.match(/\.(svg|png|jpg|jpeg|gif|webp|css|js|ico|json)$/)
+    ) {
+      return NextResponse.next();
+    }
+
+    // Public routes
     const publicRoutes = [
       "/",
       "/about",
@@ -22,35 +32,35 @@ export default withAuth(
       "/terms",
     ];
 
-    // Auth routes - cho phép truy cập không cần token
-    if (path.startsWith("/api/auth")) {
-      return NextResponse.next();
-    }
-
-    // Public routes
-    if (publicRoutes.includes(path)) {
+    if (
+      publicRoutes.includes(path) ||
+      publicRoutes.some((route) => path.startsWith(route))
+    ) {
       return NextResponse.next();
     }
 
     // Kiểm tra đăng nhập
     if (!token) {
+      console.log("🔒 Redirect to login - No token for path:", path);
       const loginUrl = new URL("/login", req.url);
       loginUrl.searchParams.set("callbackUrl", path);
       return NextResponse.redirect(loginUrl);
     }
 
+    console.log("🔑 Middleware - User:", token.email, "Role:", token.role);
+
     // ADMIN ONLY routes
-    const adminRoutes = ["/admin", "/admin/users", "/admin/settings"];
-    if (adminRoutes.some((route) => path.startsWith(route))) {
+    if (path.startsWith("/admin")) {
       if (token.role !== "ADMIN") {
+        console.log("🚫 Access denied - Not admin:", token.role);
         return NextResponse.redirect(new URL("/dashboard", req.url));
       }
     }
 
     // TEACHER and ADMIN routes
-    const teacherRoutes = ["/submissions", "/submissions/grade"];
-    if (teacherRoutes.some((route) => path.startsWith(route))) {
+    if (path.startsWith("/submissions")) {
       if (token.role !== "TEACHER" && token.role !== "ADMIN") {
+        console.log("🚫 Access denied - Not teacher:", token.role);
         return NextResponse.redirect(new URL("/dashboard", req.url));
       }
     }
@@ -68,6 +78,6 @@ export default withAuth(
 
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|css|js)$).*)",
+    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|css|js|json)$).*)",
   ],
 };

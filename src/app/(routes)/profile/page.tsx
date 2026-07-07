@@ -1,5 +1,5 @@
 // src/app/(routes)/profile/page.tsx
-// Vai trò: Trang hồ sơ cá nhân - FIX LỖI
+// Vai trò: Trang hồ sơ cá nhân - FIX TYPE ERRORS
 
 "use client";
 
@@ -22,19 +22,39 @@ import {
   Edit,
   FileText,
   Globe,
+  GraduationCap,
   LinkIcon,
   Mail,
   Phone,
   RefreshCw,
-  Shield,
+  Settings,
   Star,
   TrendingUp,
   User,
+  UserCog,
   Users,
 } from "lucide-react";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { useState } from "react";
+
+// Mở rộng type stats để hỗ trợ role-specific
+interface ExtendedStats {
+  submissions: number;
+  projects: number;
+  averageGrade: number;
+  certificates: number;
+  progress: number;
+  // Admin stats
+  totalUsers?: number;
+  totalTeachers?: number;
+  totalStudents?: number;
+  totalAssignments?: number;
+  // Teacher stats
+  teachingClasses?: number;
+  createdAssignments?: number;
+  pendingSubmissions?: number;
+}
 
 export default function ProfilePage() {
   const { data: session, status } = useSession();
@@ -43,10 +63,22 @@ export default function ProfilePage() {
     useProfile();
   const [isEditing, setIsEditing] = useState(false);
 
+  // Cast stats to extended type
+  const extendedStats = stats as ExtendedStats;
+
+  const userRole = session?.user?.role || "STUDENT";
+  const isAdmin = userRole === "ADMIN";
+  const isTeacher = userRole === "TEACHER";
+  const isStudent = userRole === "STUDENT";
+
   const getRoleBadge = (role: string) => {
     const config = {
-      ADMIN: { color: "bg-red-500", icon: Crown, label: "Admin" },
-      TEACHER: { color: "bg-blue-500", icon: Shield, label: "Giảng viên" },
+      ADMIN: { color: "bg-red-500", icon: Crown, label: "Quản trị viên" },
+      TEACHER: {
+        color: "bg-blue-500",
+        icon: GraduationCap,
+        label: "Giảng viên",
+      },
       STUDENT: { color: "bg-green-500", icon: User, label: "Học sinh" },
     };
     const {
@@ -55,8 +87,8 @@ export default function ProfilePage() {
       label,
     } = config[role as keyof typeof config] || config.STUDENT;
     return (
-      <Badge className={`${color} text-white border-0 gap-1`}>
-        <Icon className="w-3 h-3" />
+      <Badge className={`${color} text-white border-0 gap-1 text-sm px-3 py-1`}>
+        <Icon className="w-4 h-4" />
         {label}
       </Badge>
     );
@@ -165,6 +197,348 @@ export default function ProfilePage() {
     );
   }
 
+  // Render role-specific stats
+  const renderRoleStats = () => {
+    if (isAdmin) {
+      return (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {[
+            {
+              label: "Tổng người dùng",
+              value: extendedStats.totalUsers || 0,
+              icon: Users,
+            },
+            {
+              label: "Giảng viên",
+              value: extendedStats.totalTeachers || 0,
+              icon: GraduationCap,
+            },
+            {
+              label: "Học sinh",
+              value: extendedStats.totalStudents || 0,
+              icon: User,
+            },
+            {
+              label: "Bài tập",
+              value: extendedStats.totalAssignments || 0,
+              icon: FileText,
+            },
+          ].map((stat, index) => (
+            <Card key={index}>
+              <CardContent className="p-4 flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center">
+                  <stat.icon className="w-5 h-5 text-primary-500" />
+                </div>
+                <div>
+                  <div className="text-xl font-bold">{stat.value}</div>
+                  <div className="text-xs text-gray-500 dark:text-gray-400">
+                    {stat.label}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      );
+    }
+
+    if (isTeacher) {
+      return (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {[
+            {
+              label: "Lớp đang dạy",
+              value: extendedStats.teachingClasses || 0,
+              icon: Users,
+            },
+            {
+              label: "Học sinh",
+              value: extendedStats.totalStudents || 0,
+              icon: User,
+            },
+            {
+              label: "Bài tập đã tạo",
+              value: extendedStats.createdAssignments || 0,
+              icon: FileText,
+            },
+            {
+              label: "Bài nộp chờ chấm",
+              value: extendedStats.pendingSubmissions || 0,
+              icon: Clock,
+            },
+          ].map((stat, index) => (
+            <Card key={index}>
+              <CardContent className="p-4 flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-secondary-100 dark:bg-secondary-900/30 flex items-center justify-center">
+                  <stat.icon className="w-5 h-5 text-secondary-500" />
+                </div>
+                <div>
+                  <div className="text-xl font-bold">{stat.value}</div>
+                  <div className="text-xs text-gray-500 dark:text-gray-400">
+                    {stat.label}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      );
+    }
+
+    // Student stats
+    return (
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {[
+          { label: "Bài đã nộp", value: stats.submissions, icon: FileText },
+          { label: "Dự án", value: stats.projects, icon: Award },
+          {
+            label: "Điểm TB",
+            value: stats.averageGrade + "/10",
+            icon: TrendingUp,
+          },
+          { label: "Chứng chỉ", value: stats.certificates, icon: Star },
+        ].map((stat, index) => (
+          <Card key={index}>
+            <CardContent className="p-4 flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center">
+                <stat.icon className="w-5 h-5 text-primary-500" />
+              </div>
+              <div>
+                <div className="text-xl font-bold">{stat.value}</div>
+                <div className="text-xs text-gray-500 dark:text-gray-400">
+                  {stat.label}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    );
+  };
+
+  // Render role-specific sections
+  const renderRoleSections = () => {
+    if (isAdmin) {
+      return (
+        <>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.3 }}
+          >
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <UserCog className="w-5 h-5 text-primary-500" />
+                  Quản trị hệ thống
+                  <Badge variant="secondary" className="ml-2">
+                    Admin Panel
+                  </Badge>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                  <Link href="/admin">
+                    <Button variant="outline" className="w-full gap-2">
+                      <Users className="w-4 h-4" />
+                      Quản lý người dùng
+                    </Button>
+                  </Link>
+                  <Link href="/admin/settings">
+                    <Button variant="outline" className="w-full gap-2">
+                      <Settings className="w-4 h-4" />
+                      Cài đặt hệ thống
+                    </Button>
+                  </Link>
+                  <Link href="/admin/reports">
+                    <Button variant="outline" className="w-full gap-2">
+                      <FileText className="w-4 h-4" />
+                      Báo cáo thống kê
+                    </Button>
+                  </Link>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        </>
+      );
+    }
+
+    if (isTeacher) {
+      return (
+        <>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.3 }}
+          >
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <GraduationCap className="w-5 h-5 text-secondary-500" />
+                  Quản lý giảng dạy
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                  <Link href="/assignments/create">
+                    <Button variant="outline" className="w-full gap-2">
+                      <FileText className="w-4 h-4" />
+                      Tạo bài tập
+                    </Button>
+                  </Link>
+                  <Link href="/submissions">
+                    <Button variant="outline" className="w-full gap-2">
+                      <Clock className="w-4 h-4" />
+                      Chấm điểm
+                    </Button>
+                  </Link>
+                  <Link href="/courses/manage">
+                    <Button variant="outline" className="w-full gap-2">
+                      <BookOpen className="w-4 h-4" />
+                      Quản lý môn học
+                    </Button>
+                  </Link>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        </>
+      );
+    }
+
+    // Student sections
+    return (
+      <>
+        {/* Courses Progress */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.3 }}
+        >
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <BookOpen className="w-5 h-5 text-primary-500" />
+                Môn học đang theo học
+                <Badge variant="secondary" className="ml-2">
+                  {courses.length} môn
+                </Badge>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {courses.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <BookOpen className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                  <p>Chưa đăng ký môn học nào</p>
+                  <Link href="/courses">
+                    <Button variant="outline" size="sm" className="mt-2">
+                      Khám phá môn học
+                    </Button>
+                  </Link>
+                </div>
+              ) : (
+                courses.map((course, index) => (
+                  <div key={course.id}>
+                    <div className="flex justify-between mb-1">
+                      <div>
+                        <span className="text-sm font-medium">
+                          {course.name}
+                        </span>
+                        <span className="text-xs text-muted-foreground ml-2">
+                          {course.code}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-gray-500">
+                          {course.grade.toFixed(1)}/10
+                        </span>
+                        <Badge variant="outline" className="text-xs">
+                          {course.progress}%
+                        </Badge>
+                        <Badge
+                          variant={
+                            course.status === "active" ? "success" : "secondary"
+                          }
+                          className="text-xs"
+                        >
+                          {course.status === "active"
+                            ? "Đang học"
+                            : "Hoàn thành"}
+                        </Badge>
+                      </div>
+                    </div>
+                    <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                      <motion.div
+                        className="h-2 rounded-full bg-gradient-to-r from-primary-500 to-secondary-500"
+                        initial={{ width: 0 }}
+                        animate={{ width: `${course.progress}%` }}
+                        transition={{
+                          duration: 1,
+                          delay: 0.5 + index * 0.2,
+                        }}
+                      />
+                    </div>
+                  </div>
+                ))
+              )}
+            </CardContent>
+          </Card>
+        </motion.div>
+
+        {/* Recent Activities */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.4 }}
+        >
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Clock className="w-5 h-5 text-secondary-500" />
+                Hoạt động gần đây
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {activities.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <Clock className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                  <p>Chưa có hoạt động nào</p>
+                </div>
+              ) : (
+                activities.map((activity, index) => (
+                  <div
+                    key={activity.id}
+                    className="flex items-center justify-between p-3 rounded-xl bg-gray-50/50 dark:bg-gray-700/50"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div
+                        className={`w-2 h-2 rounded-full ${
+                          activity.type === "grade"
+                            ? "bg-green-500"
+                            : "bg-blue-500"
+                        }`}
+                      />
+                      <span className="text-sm text-gray-700 dark:text-gray-300">
+                        {activity.action}
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        {activity.description}
+                      </span>
+                    </div>
+                    <span className="text-xs text-gray-500">
+                      {formatTime(activity.created_at)}
+                    </span>
+                  </div>
+                ))
+              )}
+            </CardContent>
+          </Card>
+        </motion.div>
+      </>
+    );
+  };
+
   return (
     <>
       <Navbar />
@@ -186,18 +560,20 @@ export default function ProfilePage() {
                 Quản lý thông tin và tiến độ học tập
               </p>
             </div>
-            <Button
-              size="lg"
-              className="gap-2"
-              onClick={() => setIsEditing(!isEditing)}
-            >
-              <Edit className="w-4 h-4" />
-              {isEditing ? "Hủy chỉnh sửa" : "Chỉnh sửa hồ sơ"}
-            </Button>
+            <div className="flex items-center gap-3">
+              <Button
+                size="lg"
+                className="gap-2"
+                onClick={() => setIsEditing(!isEditing)}
+              >
+                <Edit className="w-4 h-4" />
+                {isEditing ? "Hủy chỉnh sửa" : "Chỉnh sửa hồ sơ"}
+              </Button>
+            </div>
           </motion.div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Profile Card */}
+            {/* Profile Card - HIỂN THỊ VAI TRÒ */}
             <motion.div
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
@@ -252,28 +628,34 @@ export default function ProfilePage() {
 
                   <div className="mt-6 pt-6 border-t border-gray-200/50 dark:border-gray-700/50">
                     <div className="flex justify-around">
-                      <div className="text-center">
-                        <div className="text-2xl font-bold text-primary-500">
-                          {stats.progress}%
-                        </div>
-                        <div className="text-xs text-gray-500 dark:text-gray-400">
-                          Tiến độ
-                        </div>
-                      </div>
-                      <div className="text-center">
-                        <div className="text-2xl font-bold text-secondary-500">
-                          {stats.averageGrade}/10
-                        </div>
-                        <div className="text-xs text-gray-500 dark:text-gray-400">
-                          Điểm TB
-                        </div>
-                      </div>
+                      {isStudent && (
+                        <>
+                          <div className="text-center">
+                            <div className="text-2xl font-bold text-primary-500">
+                              {stats.progress}%
+                            </div>
+                            <div className="text-xs text-gray-500 dark:text-gray-400">
+                              Tiến độ
+                            </div>
+                          </div>
+                          <div className="text-center">
+                            <div className="text-2xl font-bold text-secondary-500">
+                              {stats.averageGrade}/10
+                            </div>
+                            <div className="text-xs text-gray-500 dark:text-gray-400">
+                              Điểm TB
+                            </div>
+                          </div>
+                        </>
+                      )}
                       <div className="text-center">
                         <div className="text-2xl font-bold text-accent-500">
-                          {stats.submissions}
+                          {isAdmin
+                            ? extendedStats.totalUsers || 0
+                            : stats.submissions}
                         </div>
                         <div className="text-xs text-gray-500 dark:text-gray-400">
-                          Bài nộp
+                          {isAdmin ? "Người dùng" : "Bài nộp"}
                         </div>
                       </div>
                     </div>
@@ -299,174 +681,21 @@ export default function ProfilePage() {
               </Card>
             </motion.div>
 
-            {/* Main Content */}
+            {/* Main Content - PHÂN QUYỀN */}
             <div className="lg:col-span-2 space-y-6">
-              {/* Stats */}
+              {/* Stats - PHÂN QUYỀN */}
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5, delay: 0.2 }}
-                className="grid grid-cols-2 md:grid-cols-4 gap-4"
               >
-                {[
-                  {
-                    label: "Bài đã nộp",
-                    value: stats.submissions,
-                    icon: FileText,
-                  },
-                  { label: "Dự án", value: stats.projects, icon: Award },
-                  {
-                    label: "Điểm TB",
-                    value: stats.averageGrade + "/10",
-                    icon: TrendingUp,
-                  },
-                  { label: "Chứng chỉ", value: stats.certificates, icon: Star },
-                ].map((stat, index) => (
-                  <Card key={index}>
-                    <CardContent className="p-4 flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center">
-                        <stat.icon className="w-5 h-5 text-primary-500" />
-                      </div>
-                      <div>
-                        <div className="text-xl font-bold">{stat.value}</div>
-                        <div className="text-xs text-gray-500 dark:text-gray-400">
-                          {stat.label}
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
+                {renderRoleStats()}
               </motion.div>
 
-              {/* Courses Progress */}
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: 0.3 }}
-              >
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <BookOpen className="w-5 h-5 text-primary-500" />
-                      Môn học đang theo học
-                      <Badge variant="secondary" className="ml-2">
-                        {courses.length} môn
-                      </Badge>
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    {courses.length === 0 ? (
-                      <div className="text-center py-8 text-muted-foreground">
-                        <BookOpen className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                        <p>Chưa đăng ký môn học nào</p>
-                        <Link href="/courses">
-                          <Button variant="outline" size="sm" className="mt-2">
-                            Khám phá môn học
-                          </Button>
-                        </Link>
-                      </div>
-                    ) : (
-                      courses.map((course, index) => (
-                        <div key={course.id}>
-                          <div className="flex justify-between mb-1">
-                            <div>
-                              <span className="text-sm font-medium">
-                                {course.name}
-                              </span>
-                              <span className="text-xs text-muted-foreground ml-2">
-                                {course.code}
-                              </span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <span className="text-sm text-gray-500">
-                                {course.grade.toFixed(1)}/10
-                              </span>
-                              <Badge variant="outline" className="text-xs">
-                                {course.progress}%
-                              </Badge>
-                              <Badge
-                                variant={
-                                  course.status === "active"
-                                    ? "success"
-                                    : "secondary"
-                                }
-                                className="text-xs"
-                              >
-                                {course.status === "active"
-                                  ? "Đang học"
-                                  : "Hoàn thành"}
-                              </Badge>
-                            </div>
-                          </div>
-                          <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                            <motion.div
-                              className="h-2 rounded-full bg-gradient-to-r from-primary-500 to-secondary-500"
-                              initial={{ width: 0 }}
-                              animate={{ width: `${course.progress}%` }}
-                              transition={{
-                                duration: 1,
-                                delay: 0.5 + index * 0.2,
-                              }}
-                            />
-                          </div>
-                        </div>
-                      ))
-                    )}
-                  </CardContent>
-                </Card>
-              </motion.div>
+              {/* Role-specific sections */}
+              {renderRoleSections()}
 
-              {/* Recent Activities */}
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: 0.4 }}
-              >
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Clock className="w-5 h-5 text-secondary-500" />
-                      Hoạt động gần đây
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-3">
-                    {activities.length === 0 ? (
-                      <div className="text-center py-8 text-muted-foreground">
-                        <Clock className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                        <p>Chưa có hoạt động nào</p>
-                      </div>
-                    ) : (
-                      activities.map((activity, index) => (
-                        <div
-                          key={activity.id}
-                          className="flex items-center justify-between p-3 rounded-xl bg-gray-50/50 dark:bg-gray-700/50"
-                        >
-                          <div className="flex items-center gap-3">
-                            <div
-                              className={`w-2 h-2 rounded-full ${
-                                activity.type === "grade"
-                                  ? "bg-green-500"
-                                  : "bg-blue-500"
-                              }`}
-                            />
-                            <span className="text-sm text-gray-700 dark:text-gray-300">
-                              {activity.action}
-                            </span>
-                            <span className="text-xs text-muted-foreground">
-                              {activity.description}
-                            </span>
-                          </div>
-                          <span className="text-xs text-gray-500">
-                            {formatTime(activity.created_at)}
-                          </span>
-                        </div>
-                      ))
-                    )}
-                  </CardContent>
-                </Card>
-              </motion.div>
-
-              {/* Saved Documents */}
+              {/* Saved Documents - HIỂN THỊ CHO TẤT CẢ */}
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}

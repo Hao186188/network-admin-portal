@@ -1,5 +1,5 @@
 // src/app/layout.tsx
-// Vai trò: Layout chính - KHÔNG CHỨA SCRIPT
+// Vai trò: Layout chính
 
 import type { Metadata } from "next";
 import { Inter, Poppins } from "next/font/google";
@@ -21,7 +21,9 @@ const poppins = Poppins({
 export const metadata: Metadata = {
   title: "Mạng 3 Hub - Quản trị Mạng 3",
   description: "Nền tảng học tập hiện đại dành cho sinh viên Quản trị Mạng 3",
-  metadataBase: new URL("http://localhost:3000"),
+  metadataBase: new URL(
+    process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000",
+  ),
 };
 
 export default function RootLayout({

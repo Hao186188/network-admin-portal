@@ -1,5 +1,5 @@
 // src/app/(routes)/assignments/[id]/page.tsx
-// Vai trò: Trang xem chi tiết bài tập - BẢN HOÀN CHỈNH
+// Vai trò: Trang xem chi tiết bài tập - FIX LOGIC
 
 "use client";
 
@@ -19,13 +19,15 @@ import {
   Clock,
   Download,
   File,
+  RefreshCw,
   Star,
   Upload,
   Users,
+  XCircle,
 } from "lucide-react";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 interface Assignment {
@@ -95,12 +97,13 @@ const submissionStatusConfig = {
   REJECTED: {
     label: "Không đạt",
     color: "text-red-500 bg-red-500/10",
-    icon: AlertCircle,
+    icon: XCircle,
   },
 };
 
 export default function AssignmentDetailPage() {
   const params = useParams();
+  const router = useRouter();
   const { toast } = useToast();
   const { data: session, status } = useSession();
   const {
@@ -115,35 +118,50 @@ export default function AssignmentDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   const assignmentId = params.id as string;
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setLoading(true);
-        const [assignmentData, submissionsData] = await Promise.all([
-          getAssignmentDetail(assignmentId),
-          getAssignmentSubmissions(assignmentId),
-        ]);
-        setAssignment(assignmentData);
-        setSubmissions(submissionsData);
-      } catch (err) {
-        console.error("Error fetching assignment:", err);
-        setError("Không thể tải thông tin bài tập");
-      } finally {
-        setLoading(false);
-      }
-    };
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+      const [assignmentData, submissionsData] = await Promise.all([
+        getAssignmentDetail(assignmentId),
+        getAssignmentSubmissions(assignmentId),
+      ]);
+      setAssignment(assignmentData);
+      setSubmissions(submissionsData);
+    } catch (err) {
+      console.error("Error fetching assignment:", err);
+      setError("Không thể tải thông tin bài tập");
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  useEffect(() => {
     if (assignmentId) {
       fetchData();
     }
-  }, [assignmentId, getAssignmentDetail, getAssignmentSubmissions]);
+  }, [assignmentId]);
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    await fetchData();
+    setIsRefreshing(false);
+    toast.success("Đã cập nhật dữ liệu!");
+  };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
-      setSelectedFile(e.target.files[0]);
+      const file = e.target.files[0];
+      // Kiểm tra file size (max 50MB)
+      if (file.size > 50 * 1024 * 1024) {
+        toast.error("File quá lớn, vui lòng chọn file nhỏ hơn 50MB");
+        e.target.value = "";
+        return;
+      }
+      setSelectedFile(file);
     }
   };
 
@@ -165,15 +183,8 @@ export default function AssignmentDetailPage() {
         user_id: session.user.id,
       });
       toast.success("🎉 Nộp bài thành công!");
-
-      // Refresh data
-      const [assignmentData, submissionsData] = await Promise.all([
-        getAssignmentDetail(assignmentId),
-        getAssignmentSubmissions(assignmentId),
-      ]);
-      setAssignment(assignmentData);
-      setSubmissions(submissionsData);
       setSelectedFile(null);
+      await fetchData();
     } catch (error: any) {
       console.error("Submit error:", error);
       toast.error(error?.message || "Có lỗi xảy ra khi nộp bài");
@@ -245,10 +256,15 @@ export default function AssignmentDetailPage() {
   const isTeacher =
     session?.user?.role === "TEACHER" || session?.user?.role === "ADMIN";
   const isStudent = session?.user?.role === "STUDENT";
-  const hasSubmitted = submissions.some((s) => s.user_id === session?.user?.id);
+
+  // Kiểm tra xem user hiện tại đã nộp bài chưa
   const userSubmission = submissions.find(
     (s) => s.user_id === session?.user?.id,
   );
+  const hasSubmitted = !!userSubmission;
+
+  // Kiểm tra trạng thái bài nộp của user
+  const userSubmissionStatus = userSubmission?.status;
 
   return (
     <>
@@ -260,6 +276,7 @@ export default function AssignmentDetailPage() {
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.3 }}
+            className="flex items-center justify-between"
           >
             <Link href="/assignments">
               <Button variant="ghost" className="gap-2 mb-4 hover:bg-muted">
@@ -267,6 +284,18 @@ export default function AssignmentDetailPage() {
                 Quay lại danh sách
               </Button>
             </Link>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="gap-2 mb-4"
+              onClick={handleRefresh}
+              disabled={isRefreshing}
+            >
+              <div className={`w-4 h-4 ${isRefreshing ? "animate-spin" : ""}`}>
+                <RefreshCw className="w-4 h-4" />
+              </div>
+              Làm mới
+            </Button>
           </motion.div>
 
           {/* Assignment Info */}
@@ -362,69 +391,127 @@ export default function AssignmentDetailPage() {
                   <div className="border-t border-border pt-6">
                     <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
                       <Upload className="w-5 h-5 text-primary" />
-                      {hasSubmitted ? "Đã nộp bài" : "Nộp bài tập"}
+                      {hasSubmitted ? "Bài đã nộp" : "Nộp bài tập"}
                     </h3>
 
                     {hasSubmitted && userSubmission ? (
-                      <div className="p-4 rounded-xl bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800">
+                      <div
+                        className={`p-4 rounded-xl ${
+                          userSubmissionStatus === "APPROVED"
+                            ? "bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800"
+                            : userSubmissionStatus === "REJECTED"
+                              ? "bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800"
+                              : "bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-800"
+                        }`}
+                      >
                         <div className="flex items-center gap-3">
-                          <CheckCircle className="w-6 h-6 text-green-500" />
-                          <div>
-                            <p className="font-medium text-green-700 dark:text-green-400">
-                              Bạn đã nộp bài thành công!
+                          {userSubmissionStatus === "APPROVED" ? (
+                            <CheckCircle className="w-6 h-6 text-green-500" />
+                          ) : userSubmissionStatus === "REJECTED" ? (
+                            <XCircle className="w-6 h-6 text-red-500" />
+                          ) : (
+                            <Clock className="w-6 h-6 text-yellow-500" />
+                          )}
+                          <div className="flex-1">
+                            <p
+                              className={`font-medium ${
+                                userSubmissionStatus === "APPROVED"
+                                  ? "text-green-700 dark:text-green-400"
+                                  : userSubmissionStatus === "REJECTED"
+                                    ? "text-red-700 dark:text-red-400"
+                                    : "text-yellow-700 dark:text-yellow-400"
+                              }`}
+                            >
+                              {userSubmissionStatus === "APPROVED"
+                                ? "✅ Đã được chấm điểm!"
+                                : userSubmissionStatus === "REJECTED"
+                                  ? "❌ Cần chỉnh sửa"
+                                  : "⏳ Đang chờ chấm điểm"}
                             </p>
-                            <p className="text-sm text-green-600 dark:text-green-300">
+                            <p className="text-sm text-muted-foreground">
                               File: {userSubmission.file_name}
                             </p>
-                            <p className="text-xs text-green-600 dark:text-green-300">
+                            <p className="text-xs text-muted-foreground">
                               Ngày nộp:{" "}
                               {new Date(
                                 userSubmission.created_at,
                               ).toLocaleString("vi-VN")}
                             </p>
-                            {userSubmission.status === "APPROVED" && (
+                            {userSubmissionStatus === "APPROVED" && (
                               <div className="mt-2">
                                 <Badge variant="success" className="gap-1">
                                   <Star className="w-3 h-3" />
-                                  Điểm: {userSubmission.grade}
+                                  Điểm: {userSubmission.grade}/10
                                 </Badge>
                                 {userSubmission.feedback && (
                                   <p className="text-sm text-green-600 dark:text-green-300 mt-1">
-                                    Nhận xét: {userSubmission.feedback}
+                                    📝 Nhận xét: {userSubmission.feedback}
                                   </p>
                                 )}
                               </div>
                             )}
-                            {userSubmission.status === "PENDING" && (
-                              <Badge variant="warning" className="mt-1">
-                                Đang chờ chấm điểm
-                              </Badge>
+                            {userSubmissionStatus === "REJECTED" && (
+                              <div className="mt-2">
+                                <Badge variant="destructive" className="gap-1">
+                                  <XCircle className="w-3 h-3" />
+                                  Điểm: {userSubmission.grade}/10
+                                </Badge>
+                                {userSubmission.feedback && (
+                                  <p className="text-sm text-red-600 dark:text-red-300 mt-1">
+                                    📝 Nhận xét: {userSubmission.feedback}
+                                  </p>
+                                )}
+                              </div>
                             )}
-                            {userSubmission.status === "REJECTED" && (
-                              <Badge variant="destructive" className="mt-1">
-                                Cần chỉnh sửa
+                            {userSubmissionStatus === "PENDING" && (
+                              <Badge variant="warning" className="mt-1">
+                                <Clock className="w-3 h-3 mr-1" />
+                                Đang chờ giảng viên chấm điểm
                               </Badge>
                             )}
                           </div>
                         </div>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="mt-3 gap-2"
-                          onClick={() =>
-                            handleDownload(
-                              userSubmission.file_url,
-                              userSubmission.file_name,
-                            )
-                          }
-                        >
-                          <Download className="w-4 h-4" />
-                          Tải bài đã nộp
-                        </Button>
+                        <div className="mt-3 flex gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="gap-2"
+                            onClick={() =>
+                              handleDownload(
+                                userSubmission.file_url,
+                                userSubmission.file_name,
+                              )
+                            }
+                          >
+                            <Download className="w-4 h-4" />
+                            Tải bài đã nộp
+                          </Button>
+                          {userSubmissionStatus === "REJECTED" && (
+                            <Button
+                              size="sm"
+                              className="gap-2"
+                              onClick={() => {
+                                setSelectedFile(null);
+                                // Reset file input
+                                const fileInput = document.getElementById(
+                                  "file-upload",
+                                ) as HTMLInputElement;
+                                if (fileInput) fileInput.value = "";
+                                // Focus vào upload area
+                                document
+                                  .getElementById("upload-area")
+                                  ?.scrollIntoView({ behavior: "smooth" });
+                              }}
+                            >
+                              <Upload className="w-4 h-4" />
+                              Nộp lại bài
+                            </Button>
+                          )}
+                        </div>
                       </div>
                     ) : (
-                      <div className="space-y-4">
-                        <div className="border-2 border-dashed rounded-xl p-6 text-center">
+                      <div className="space-y-4" id="upload-area">
+                        <div className="border-2 border-dashed rounded-xl p-6 text-center hover:border-primary/50 transition-colors">
                           <input
                             type="file"
                             onChange={handleFileChange}
@@ -468,7 +555,7 @@ export default function AssignmentDetailPage() {
                         <Button
                           className="w-full gap-2"
                           onClick={handleSubmit}
-                          disabled={isSubmitting || !selectedFile}
+                          disabled={isSubmitting || !selectedFile || isOverdue}
                         >
                           {isSubmitting ? (
                             <>
@@ -478,10 +565,15 @@ export default function AssignmentDetailPage() {
                           ) : (
                             <>
                               <Upload className="w-4 h-4" />
-                              Nộp bài
+                              {isOverdue ? "Đã quá hạn nộp" : "Nộp bài"}
                             </>
                           )}
                         </Button>
+                        {isOverdue && (
+                          <p className="text-sm text-destructive text-center">
+                            ⚠️ Bài tập đã quá hạn nộp
+                          </p>
+                        )}
                       </div>
                     )}
                   </div>
@@ -494,7 +586,7 @@ export default function AssignmentDetailPage() {
                       <Users className="w-5 h-5 text-primary" />
                       Danh sách bài nộp ({submissions.length})
                     </h3>
-                    <div className="space-y-3">
+                    <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2">
                       {submissions.map((sub) => {
                         const subStatus =
                           submissionStatusConfig[
@@ -536,7 +628,13 @@ export default function AssignmentDetailPage() {
                               {sub.status === "APPROVED" && (
                                 <Badge variant="success" className="gap-1">
                                   <Star className="w-3 h-3" />
-                                  {sub.grade}
+                                  {sub.grade}/10
+                                </Badge>
+                              )}
+                              {sub.status === "REJECTED" && (
+                                <Badge variant="destructive" className="gap-1">
+                                  <XCircle className="w-3 h-3" />
+                                  {sub.grade}/10
                                 </Badge>
                               )}
                               <Button

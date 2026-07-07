@@ -1,5 +1,5 @@
 // src/app/(routes)/assignments/page.tsx
-// Vai trò: Quản lý và hiển thị danh sách bài tập - BẢN HOÀN CHỈNH
+// Vai trò: Quản lý và hiển thị danh sách bài tập - FIX LOGIC
 
 "use client";
 
@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAssignments } from "@/hooks/use-assignments";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/lib/db/supabase-client";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   AlertCircle,
@@ -483,7 +484,7 @@ const AssignmentSkeleton = () => (
 );
 
 // ============================================
-// MODAL: CREATE ASSIGNMENT
+// MODAL: CREATE ASSIGNMENT - FIX LOGIC
 // ============================================
 function CreateAssignmentModal({
   isOpen,
@@ -495,7 +496,7 @@ function CreateAssignmentModal({
   onSuccess: () => void;
 }) {
   const { toast } = useToast();
-  const { createAssignment, uploadFile } = useAssignments();
+  const { createAssignment } = useAssignments();
   const { data: session } = useSession();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -503,14 +504,37 @@ function CreateAssignmentModal({
   const [type, setType] = useState("Bài tập");
   const [dueDate, setDueDate] = useState("");
   const [points, setPoints] = useState(10);
-  const [totalStudents, setTotalStudents] = useState(25);
+  const [totalStudents, setTotalStudents] = useState(0);
   const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
+  // Reset form khi modal đóng
+  const resetForm = () => {
+    setTitle("");
+    setDescription("");
+    setSubject("Quản trị Mạng 3");
+    setType("Bài tập");
+    setDueDate("");
+    setPoints(10);
+    setTotalStudents(0);
+    setAttachedFiles([]);
+    setIsLoading(false);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title.trim() || !description.trim() || !dueDate) {
-      toast.error("Vui lòng nhập đầy đủ thông tin");
+
+    // Validate
+    if (!title.trim()) {
+      toast.error("Vui lòng nhập tiêu đề bài tập");
+      return;
+    }
+    if (!description.trim()) {
+      toast.error("Vui lòng nhập mô tả bài tập");
+      return;
+    }
+    if (!dueDate) {
+      toast.error("Vui lòng chọn hạn nộp");
       return;
     }
     if (!session?.user?.id) {
@@ -518,32 +542,56 @@ function CreateAssignmentModal({
       return;
     }
 
+    // Kiểm tra hạn nộp phải trong tương lai
+    const dueDateObj = new Date(dueDate);
+    if (dueDateObj < new Date()) {
+      toast.error("Hạn nộp phải là thời gian trong tương lai");
+      return;
+    }
+
+    // Kiểm tra điểm số hợp lệ
+    if (points < 0 || points > 100) {
+      toast.error("Điểm số phải từ 0 đến 100");
+      return;
+    }
+
     setIsLoading(true);
     try {
-      const result = await createAssignment({
+      // Lấy số lượng sinh viên thực tế từ database
+      const { data: students, error: countError } = await supabase
+        .from("users")
+        .select("id")
+        .eq("role", "STUDENT");
+
+      if (countError) {
+        console.error("Error fetching student count:", countError);
+      }
+
+      const actualTotalStudents = students?.length || totalStudents || 0;
+
+      const assignmentData = {
         title: title.trim(),
         description: description.trim(),
         subject,
         type,
         due_date: new Date(dueDate).toISOString(),
         points,
-        total_students: totalStudents,
+        total_students: actualTotalStudents,
         user_id: session.user.id,
         attachments: attachedFiles,
-      });
+        status: "pending",
+        submissions: 0,
+      };
+
+      const result = await createAssignment(assignmentData);
 
       if (result) {
-        toast.success("Đã tạo bài tập thành công!");
+        toast.success("✅ Đã tạo bài tập thành công!");
+        resetForm();
         onSuccess();
         onClose();
-        setTitle("");
-        setDescription("");
-        setSubject("Quản trị Mạng 3");
-        setType("Bài tập");
-        setDueDate("");
-        setPoints(10);
-        setTotalStudents(25);
-        setAttachedFiles([]);
+      } else {
+        toast.error("Không thể tạo bài tập, vui lòng thử lại");
       }
     } catch (error: any) {
       console.error("Create error:", error);
@@ -567,7 +615,14 @@ function CreateAssignmentModal({
           <h2 className="text-2xl font-bold gradient-text flex items-center gap-2">
             <FileText className="w-6 h-6 text-primary" /> Tạo bài tập mới
           </h2>
-          <Button variant="ghost" size="icon" onClick={onClose}>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => {
+              resetForm();
+              onClose();
+            }}
+          >
             <X className="w-5 h-5" />
           </Button>
         </div>
@@ -594,7 +649,7 @@ function CreateAssignmentModal({
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Nhập mô tả bài tập..."
+              placeholder="Nhập mô tả chi tiết bài tập..."
               rows={4}
               className="w-full px-4 py-2 rounded-xl border border-input bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary resize-none"
               required
@@ -618,6 +673,9 @@ function CreateAssignmentModal({
                   "Bảo mật Mạng",
                   "Linux Server",
                   "Mạng máy tính",
+                  "Python",
+                  "Docker",
+                  "Network Automation",
                 ].map((s) => (
                   <option key={s} value={s}>
                     {s}
@@ -680,9 +738,13 @@ function CreateAssignmentModal({
                 value={totalStudents}
                 onChange={(e) => setTotalStudents(Number(e.target.value))}
                 className="w-full"
-                min={1}
+                min={0}
                 disabled={isLoading}
+                placeholder="Tự động tính"
               />
+              <p className="text-xs text-muted-foreground mt-1">
+                Để trống để tự động lấy số sinh viên
+              </p>
             </div>
           </div>
 
@@ -695,14 +757,20 @@ function CreateAssignmentModal({
               onFilesChange={setAttachedFiles}
               disabled={isLoading}
             />
+            <p className="text-xs text-muted-foreground mt-1">
+              Tải lên tài liệu, đề bài hoặc file hướng dẫn
+            </p>
           </div>
 
-          <div className="flex gap-3 pt-4">
+          <div className="flex gap-3 pt-4 border-t border-border">
             <Button
               type="button"
               variant="outline"
               className="flex-1"
-              onClick={onClose}
+              onClick={() => {
+                resetForm();
+                onClose();
+              }}
               disabled={isLoading}
             >
               Hủy
@@ -773,11 +841,21 @@ function SubmitAssignmentModal({
       toast.error("Vui lòng đăng nhập để nộp bài");
       return;
     }
+    if (!assignment) {
+      toast.error("Không tìm thấy bài tập");
+      return;
+    }
+
+    // Kiểm tra file size (max 50MB)
+    if (file.size > 50 * 1024 * 1024) {
+      toast.error("File quá lớn, vui lòng chọn file nhỏ hơn 50MB");
+      return;
+    }
 
     setIsUploading(true);
     try {
       await submitAssignment({
-        assignment_id: assignment!.id,
+        assignment_id: assignment.id,
         file: file,
         user_id: session.user.id,
       });
@@ -820,6 +898,9 @@ function SubmitAssignmentModal({
             </p>
             <p className="text-xs text-muted-foreground mt-1">
               Hạn nộp: {new Date(assignment.due_date).toLocaleString("vi-VN")}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Điểm tối đa: {assignment.points || 10} điểm
             </p>
           </div>
 
@@ -934,7 +1015,8 @@ export default function AssignmentsPage() {
   const filteredAssignments = assignments.filter((item: Assignment) => {
     const matchesSearch =
       item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.description.toLowerCase().includes(searchQuery.toLowerCase());
+      item.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      item.subject.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesStatus =
       selectedStatus === "Tất cả" || item.status === selectedStatus;
     const matchesType = selectedType === "Tất cả" || item.type === selectedType;
@@ -957,6 +1039,11 @@ export default function AssignmentsPage() {
       toast.info("Bạn đã nộp bài tập này rồi");
       return;
     }
+    // Kiểm tra hạn nộp
+    if (new Date(assignment.due_date) < new Date()) {
+      toast.error("Bài tập đã quá hạn nộp");
+      return;
+    }
     setSelectedAssignment(assignment);
     setIsSubmitModalOpen(true);
   };
@@ -965,8 +1052,15 @@ export default function AssignmentsPage() {
     router.push(`/assignments/${assignment.id}`);
   };
 
-  const handleCreateSuccess = () => refresh();
-  const handleSubmitSuccess = () => refresh();
+  const handleCreateSuccess = () => {
+    refresh();
+    toast.success("Đã cập nhật danh sách bài tập");
+  };
+
+  const handleSubmitSuccess = () => {
+    refresh();
+    toast.success("Đã cập nhật danh sách bài tập");
+  };
 
   const statusLabels: Record<string, string> = {
     pending: "Chưa nộp",
@@ -1047,7 +1141,7 @@ export default function AssignmentsPage() {
               <div className="relative flex-1">
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
                 <Input
-                  placeholder="Tìm kiếm bài tập..."
+                  placeholder="Tìm kiếm bài tập theo tên, mô tả hoặc môn học..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="pl-12 pr-12"
@@ -1191,7 +1285,8 @@ export default function AssignmentsPage() {
                 </p>
                 {!searchQuery &&
                   selectedStatus === "Tất cả" &&
-                  selectedType === "Tất cả" && (
+                  selectedType === "Tất cả" &&
+                  isTeacher && (
                     <Button
                       className="mt-4 gap-2"
                       onClick={() => setIsCreateModalOpen(true)}
@@ -1302,14 +1397,17 @@ export default function AssignmentsPage() {
                               }}
                               disabled={
                                 assignment.status === "submitted" ||
-                                assignment.status === "graded"
+                                assignment.status === "graded" ||
+                                isOverdue
                               }
                             >
                               <Upload className="w-4 h-4" />
                               {assignment.status === "submitted" ||
                               assignment.status === "graded"
                                 ? "Đã nộp"
-                                : "Nộp bài"}
+                                : isOverdue
+                                  ? "Quá hạn"
+                                  : "Nộp bài"}
                             </Button>
                             <Button variant="outline" size="icon">
                               <Download className="w-4 h-4" />
@@ -1393,14 +1491,17 @@ export default function AssignmentsPage() {
                                 }}
                                 disabled={
                                   assignment.status === "submitted" ||
-                                  assignment.status === "graded"
+                                  assignment.status === "graded" ||
+                                  isOverdue
                                 }
                               >
                                 <Upload className="w-4 h-4" />
                                 {assignment.status === "submitted" ||
                                 assignment.status === "graded"
                                   ? "Đã nộp"
-                                  : "Nộp bài"}
+                                  : isOverdue
+                                    ? "Quá hạn"
+                                    : "Nộp bài"}
                               </Button>
                               <Button
                                 variant="outline"
@@ -1425,7 +1526,9 @@ export default function AssignmentsPage() {
 
       <CreateAssignmentModal
         isOpen={isCreateModalOpen}
-        onClose={() => setIsCreateModalOpen(false)}
+        onClose={() => {
+          setIsCreateModalOpen(false);
+        }}
         onSuccess={handleCreateSuccess}
       />
       <SubmitAssignmentModal

@@ -1,5 +1,5 @@
 // src/app/(auth)/login/page.tsx
-// Vai trò: Trang đăng nhập - FIX LỖI
+// Vai trò: Trang đăng nhập - FIX AUTO LOGIN
 
 "use client";
 
@@ -17,14 +17,16 @@ import {
   Sparkles,
   User,
 } from "lucide-react";
-import { signIn } from "next-auth/react";
+import { signIn, useSession } from "next-auth/react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useState } from "react";
 
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { toast } = useToast();
+  const { data: session, status } = useSession();
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [loginType, setLoginType] = useState<"email" | "username">("email");
@@ -32,21 +34,49 @@ export default function LoginPage() {
     identifier: "",
     password: "",
   });
+  const [mounted, setMounted] = useState(false);
+
+  const callbackUrl = searchParams?.get("callbackUrl") || "/dashboard";
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Kiểm tra nếu đang logout thì không redirect
+  useEffect(() => {
+    if (mounted && status === "authenticated" && session?.user) {
+      const isLoggingOut = sessionStorage.getItem("isLoggingOut");
+      if (isLoggingOut === "true") {
+        sessionStorage.removeItem("isLoggingOut");
+        return;
+      }
+      console.log("✅ Already logged in, redirecting to:", callbackUrl);
+      router.replace(callbackUrl);
+    }
+  }, [status, session, router, callbackUrl, mounted]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
+    if (!formData.identifier.trim() || !formData.password) {
+      toast.error("Vui lòng nhập đầy đủ thông tin");
+      return;
+    }
 
+    setIsLoading(true);
     try {
+      console.log("🔐 Attempting login with:", formData.identifier.trim());
+
       const result = await signIn("credentials", {
         identifier: formData.identifier.trim(),
         password: formData.password,
         redirect: false,
+        callbackUrl: callbackUrl,
       });
 
       console.log("🔐 Login result:", result);
 
       if (result?.error) {
+        console.error("❌ Login error:", result.error);
         toast.error("Email/Tên đăng nhập hoặc mật khẩu không đúng");
         setIsLoading(false);
         return;
@@ -54,8 +84,8 @@ export default function LoginPage() {
 
       if (result?.ok) {
         toast.success("Đăng nhập thành công!");
-        // Chuyển hướng thủ công
-        window.location.href = "/dashboard";
+        sessionStorage.removeItem("isLoggingOut");
+        window.location.href = callbackUrl;
       } else {
         toast.error("Đăng nhập thất bại, vui lòng thử lại");
       }
@@ -66,6 +96,22 @@ export default function LoginPage() {
       setIsLoading(false);
     }
   };
+
+  if (!mounted) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center p-4">
+        <div className="w-full max-w-md">
+          <div className="bg-background rounded-2xl shadow-2xl p-8 border border-border">
+            <div className="text-center">
+              <div className="w-12 h-12 rounded-xl bg-muted animate-pulse mx-auto mb-4" />
+              <div className="h-8 w-32 bg-muted animate-pulse mx-auto mb-2" />
+              <div className="h-4 w-48 bg-muted animate-pulse mx-auto" />
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center p-4">
@@ -91,7 +137,6 @@ export default function LoginPage() {
                 </p>
               </div>
 
-              {/* Login Type Toggle */}
               <div className="flex gap-2 mb-4">
                 <button
                   type="button"

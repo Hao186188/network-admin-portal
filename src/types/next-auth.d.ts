@@ -1,25 +1,26 @@
 // src/types/next-auth.d.ts
-// Vai trò: Type definitions cho NextAuth
+// Vai trò: Type definitions for NextAuth
 
-import "next-auth";
-import "next-auth/jwt";
+import { DefaultSession } from "next-auth";
 
 declare module "next-auth" {
-  interface User {
-    id: string;
-    role: string;
-    username?: string;
-  }
-
   interface Session {
     user: {
       id: string;
-      name?: string | null;
-      email?: string | null;
-      image?: string | null;
       role: string;
-      username?: string;
-    };
+      username: string;
+      phone: string;
+      student_id: string;
+    } & DefaultSession["user"];
+  }
+
+  interface User {
+    id: string;
+    role: string;
+    username: string;
+    phone: string;
+    student_id: string;
+    image?: string;
   }
 }
 
@@ -27,8 +28,9 @@ declare module "next-auth/jwt" {
   interface JWT {
     id: string;
     role: string;
-    username?: string;
-    email?: string;
-    name?: string;
+    username: string;
+    phone: string;
+    student_id: string;
+    picture?: string;
   }
 }

@@ -1,5 +1,5 @@
 // src/app/(routes)/submissions/page.tsx
-// Vai trò: Quản lý bài nộp và chấm điểm - DÀNH CHO GIÁO VIÊN
+// Vai trò: Quản lý bài nộp và chấm điểm - FIX LOGIC
 
 "use client";
 
@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useSubmissions } from "@/hooks/use-submissions";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/lib/db/supabase-client";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   AlertCircle,
@@ -30,25 +31,19 @@ import {
   XCircle,
 } from "lucide-react";
 import { useSession } from "next-auth/react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
-interface Submission {
-  id: string;
-  assignment_id: string;
-  user_id: string;
-  file_url: string;
-  file_name: string;
-  file_size: number;
-  status: "PENDING" | "APPROVED" | "REJECTED";
-  grade: number;
-  feedback: string;
-  created_at: string;
-  updated_at: string;
+// IMPORT TYPE TỪ HOOK ĐỂ ĐỒNG BỘ
+import type { Submission as HookSubmission } from "@/hooks/use-submissions";
+
+// MỞ RỘNG TYPE CHO COMPONENT
+interface Submission extends HookSubmission {
   user?: {
     name: string;
     email: string;
   };
   assignment?: {
+    id: string;
     title: string;
     subject: string;
     type: string;
@@ -74,7 +69,7 @@ const statusConfig = {
   },
 };
 
-// Grade Modal
+// Grade Modal - FIX: Cập nhật state ngay sau khi chấm điểm
 function GradeModal({
   isOpen,
   onClose,
@@ -87,10 +82,18 @@ function GradeModal({
   onSuccess: () => void;
 }) {
   const { toast } = useToast();
-  const { gradeSubmission } = useSubmissions();
+  const { gradeSubmission, refresh } = useSubmissions();
   const [grade, setGrade] = useState<number>(0);
   const [feedback, setFeedback] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+
+  // Reset form khi mở modal
+  useEffect(() => {
+    if (isOpen && submission) {
+      setGrade(0);
+      setFeedback("");
+    }
+  }, [isOpen, submission]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -103,13 +106,46 @@ function GradeModal({
 
     setIsLoading(true);
     try {
-      await gradeSubmission(submission.id, grade, feedback);
-      toast.success("Đã chấm điểm thành công!");
+      // Chấm điểm
+      const result = await gradeSubmission(submission.id, grade, feedback);
+
+      if (!result) {
+        throw new Error("Không thể chấm điểm");
+      }
+
+      // Tạo thông báo cho học sinh
+      const { error: notifError } = await supabase
+        .from("notifications")
+        .insert({
+          title: `Bài tập "${submission.assignment?.title || "không tên"}" đã được chấm điểm`,
+          message: `Bạn đạt ${grade}/10 điểm. ${feedback ? `Nhận xét: ${feedback}` : ""}`,
+          type: "grade",
+          read: false,
+          link: `/assignments/${submission.assignment_id}`,
+          user_id: submission.user_id,
+          created_at: new Date().toISOString(),
+        });
+
+      if (notifError) {
+        console.error("❌ Lỗi tạo thông báo:", notifError);
+      } else {
+        console.log("✅ Đã gửi thông báo cho học sinh:", submission.user?.name);
+      }
+
+      toast.success(`✅ Đã chấm điểm thành công! Học sinh đã được thông báo.`);
+
+      // FIX: Refresh dữ liệu ngay lập tức
+      await refresh();
+
+      // Gọi onSuccess để component cha cập nhật
       onSuccess();
+
+      // Đóng modal
       onClose();
       setGrade(0);
       setFeedback("");
     } catch (error: any) {
+      console.error("Grade error:", error);
       toast.error(error?.message || "Có lỗi xảy ra khi chấm điểm");
     } finally {
       setIsLoading(false);
@@ -138,12 +174,22 @@ function GradeModal({
 
         <div className="space-y-4">
           <div className="p-4 rounded-xl bg-muted/50">
-            <p className="font-medium">{submission.assignment?.title}</p>
+            <p className="font-medium">
+              {submission.assignment?.title || "Bài tập không tên"}
+            </p>
             <p className="text-sm text-muted-foreground">
-              Học sinh: {submission.user?.name}
+              Học sinh: {submission.user?.name || "Unknown"}
             </p>
             <p className="text-sm text-muted-foreground">
               File: {submission.file_name}
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">
+              Trạng thái hiện tại:{" "}
+              <span className="font-medium text-yellow-600">
+                {submission.status === "PENDING"
+                  ? "Chờ chấm"
+                  : submission.status}
+              </span>
             </p>
           </div>
 
@@ -164,6 +210,9 @@ function GradeModal({
                 required
                 disabled={isLoading}
               />
+              <p className="text-xs text-muted-foreground mt-1">
+                Điểm từ 0 đến 10, có thể nhập số thập phân (ví dụ: 7.5)
+              </p>
             </div>
 
             <div>
@@ -200,7 +249,7 @@ function GradeModal({
                 ) : (
                   <>
                     <Star className="w-4 h-4" />
-                    Chấm điểm
+                    Chấm điểm & Gửi thông báo
                   </>
                 )}
               </Button>
@@ -215,18 +264,53 @@ function GradeModal({
 export default function SubmissionsPage() {
   const { data: session, status } = useSession();
   const { toast } = useToast();
-  const { submissions, loading, error, refresh } = useSubmissions();
+  const {
+    submissions: hookSubmissions,
+    loading,
+    error,
+    refresh,
+  } = useSubmissions();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedStatus, setSelectedStatus] = useState<string>("Tất cả");
   const [showFilters, setShowFilters] = useState(false);
   const [selectedSubmission, setSelectedSubmission] =
     useState<Submission | null>(null);
   const [isGradeModalOpen, setIsGradeModalOpen] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [localSubmissions, setLocalSubmissions] = useState<Submission[]>([]);
 
   const isTeacher =
     session?.user?.role === "TEACHER" || session?.user?.role === "ADMIN";
 
-  const filteredSubmissions = submissions.filter((item: Submission) => {
+  // FIX: Cập nhật local state khi hook submissions thay đổi
+  useEffect(() => {
+    setLocalSubmissions(hookSubmissions as Submission[]);
+  }, [hookSubmissions]);
+
+  // Hàm refresh với loading state
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      await refresh();
+      toast.success("Đã cập nhật dữ liệu!");
+    } catch (error) {
+      toast.error("Có lỗi xảy ra khi làm mới dữ liệu");
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
+  // FIX: Hàm xử lý sau khi chấm điểm thành công
+  const handleGradeSuccess = async () => {
+    // Refresh dữ liệu từ hook
+    await refresh();
+    // Cập nhật local state
+    setLocalSubmissions(hookSubmissions as Submission[]);
+    toast.success("Danh sách bài nộp đã được cập nhật!");
+  };
+
+  // Lọc submissions
+  const filteredSubmissions = localSubmissions.filter((item: Submission) => {
     const matchesSearch =
       item.assignment?.title
         ?.toLowerCase()
@@ -277,9 +361,16 @@ export default function SubmissionsPage() {
     }
   };
 
-  const handleGradeSuccess = () => {
-    refresh();
-  };
+  // Đếm số lượng bài theo trạng thái
+  const pendingCount = localSubmissions.filter(
+    (s) => s.status === "PENDING",
+  ).length;
+  const approvedCount = localSubmissions.filter(
+    (s) => s.status === "APPROVED",
+  ).length;
+  const rejectedCount = localSubmissions.filter(
+    (s) => s.status === "REJECTED",
+  ).length;
 
   return (
     <>
@@ -287,7 +378,6 @@ export default function SubmissionsPage() {
       <div className="min-h-screen bg-gradient-to-br from-gray-50 via-gray-100 to-gray-200 dark:from-gray-950 dark:via-gray-900 dark:to-gray-800 pt-16 md:pt-20">
         <div className="max-w-7xl mx-auto p-4 md:p-8 space-y-8">
           {/* Header */}
-
           <motion.div
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -310,6 +400,20 @@ export default function SubmissionsPage() {
               </div>
             </div>
             <div className="flex items-center gap-3 flex-wrap">
+              <div className="flex gap-2">
+                <Badge variant="warning" className="gap-1">
+                  <Clock className="w-3 h-3" />
+                  Chờ chấm: {pendingCount}
+                </Badge>
+                <Badge variant="success" className="gap-1">
+                  <CheckCircle className="w-3 h-3" />
+                  Đã chấm: {approvedCount}
+                </Badge>
+                <Badge variant="destructive" className="gap-1">
+                  <XCircle className="w-3 h-3" />
+                  Cần sửa: {rejectedCount}
+                </Badge>
+              </div>
               <ExportButton
                 type="submissions"
                 filters={{
@@ -325,22 +429,70 @@ export default function SubmissionsPage() {
                 variant="outline"
                 size="sm"
                 className="gap-2"
-                onClick={refresh}
-                disabled={loading}
+                onClick={handleRefresh}
+                disabled={isRefreshing || loading}
               >
                 <RefreshCw
-                  className={`w-4 h-4 ${loading ? "animate-spin" : ""}`}
+                  className={`w-4 h-4 ${isRefreshing || loading ? "animate-spin" : ""}`}
                 />
                 Làm mới
               </Button>
             </div>
           </motion.div>
 
-          {/* Search and Filters */}
+          {/* Stats Cards */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.1 }}
+            className="grid grid-cols-1 md:grid-cols-3 gap-4"
+          >
+            <Card className="bg-yellow-50 dark:bg-yellow-950/20 border-yellow-200 dark:border-yellow-800">
+              <CardContent className="p-4 flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-yellow-700 dark:text-yellow-400">
+                    Chờ chấm
+                  </p>
+                  <p className="text-2xl font-bold text-yellow-700 dark:text-yellow-400">
+                    {pendingCount}
+                  </p>
+                </div>
+                <Clock className="w-10 h-10 text-yellow-500" />
+              </CardContent>
+            </Card>
+            <Card className="bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-800">
+              <CardContent className="p-4 flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-green-700 dark:text-green-400">
+                    Đã chấm
+                  </p>
+                  <p className="text-2xl font-bold text-green-700 dark:text-green-400">
+                    {approvedCount}
+                  </p>
+                </div>
+                <CheckCircle className="w-10 h-10 text-green-500" />
+              </CardContent>
+            </Card>
+            <Card className="bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-800">
+              <CardContent className="p-4 flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-red-700 dark:text-red-400">
+                    Cần sửa
+                  </p>
+                  <p className="text-2xl font-bold text-red-700 dark:text-red-400">
+                    {rejectedCount}
+                  </p>
+                </div>
+                <XCircle className="w-10 h-10 text-red-500" />
+              </CardContent>
+            </Card>
+          </motion.div>
+
+          {/* Search and Filters */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.2 }}
             className="space-y-4"
           >
             <div className="flex flex-col md:flex-row gap-4">
@@ -417,7 +569,7 @@ export default function SubmissionsPage() {
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.2 }}
+            transition={{ duration: 0.5, delay: 0.3 }}
             className="space-y-4"
           >
             {loading ? (
@@ -444,7 +596,7 @@ export default function SubmissionsPage() {
                     Lỗi tải dữ liệu
                   </h3>
                   <p className="text-muted-foreground">{error}</p>
-                  <Button className="mt-4" onClick={refresh}>
+                  <Button className="mt-4" onClick={handleRefresh}>
                     Thử lại
                   </Button>
                 </CardContent>
@@ -535,6 +687,17 @@ export default function SubmissionsPage() {
                                 </div>
                               )}
 
+                              {submission.status === "REJECTED" && (
+                                <div className="flex items-center gap-1 px-3 py-1 rounded-full bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300">
+                                  <XCircle className="w-4 h-4" />
+                                  <span className="font-bold">
+                                    {submission.grade}
+                                  </span>
+                                  <span className="text-sm">/10</span>
+                                </div>
+                              )}
+
+                              {/* CHỈ HIỂN THỊ NÚT CHẤM ĐIỂM CHO BÀI ĐANG CHỜ */}
                               {isTeacher && submission.status === "PENDING" && (
                                 <Button
                                   size="sm"
@@ -544,6 +707,15 @@ export default function SubmissionsPage() {
                                   <Star className="w-4 h-4" />
                                   Chấm điểm
                                 </Button>
+                              )}
+
+                              {/* HIỂN THỊ ĐÃ CHẤM CHO BÀI ĐÃ CHẤM */}
+                              {(submission.status === "APPROVED" ||
+                                submission.status === "REJECTED") && (
+                                <Badge variant="outline" className="gap-1">
+                                  <CheckCircle className="w-3 h-3 text-green-500" />
+                                  Đã chấm
+                                </Badge>
                               )}
 
                               <Button

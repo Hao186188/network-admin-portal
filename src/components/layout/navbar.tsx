@@ -1,5 +1,5 @@
 // src/components/layout/navbar.tsx
-// Vai trò: Navbar - FIX DARK MODE BUTTON
+// Vai trò: Navbar - FIX LOGOUT
 
 "use client";
 
@@ -61,18 +61,18 @@ const adminMobileNavItems = [{ name: "Quản trị", href: "/admin", icon: Crown
 
 export function Navbar() {
   const { data: session, status } = useSession();
+  const pathname = usePathname();
   const [isScrolled, setIsScrolled] = useState(false);
   const { theme, toggleTheme, resolvedTheme } = useTheme();
-  const pathname = usePathname();
-  const [mounted, setMounted] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
-
-  const isAuthenticated = status === "authenticated";
-  const isAdmin = session?.user?.role === "ADMIN";
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     setMounted(true);
+  }, []);
+
+  useEffect(() => {
     const handleScroll = () => {
       setIsScrolled(window.scrollY > 10);
     };
@@ -90,23 +90,60 @@ export function Navbar() {
     return null;
   }
 
+  const isAuthenticated = status === "authenticated" && !!session?.user;
+  const isAdmin = session?.user?.role === "ADMIN";
+
+  // Nếu chưa mount hoặc đang loading
+  if (!mounted || status === "loading") {
+    return (
+      <header className="fixed top-0 left-0 right-0 z-40 bg-background/80 backdrop-blur-md border-b border-border shadow-lg">
+        <nav className="h-16 md:h-20 px-4 md:px-6 flex items-center justify-between max-w-7xl mx-auto">
+          <div className="flex items-center gap-2">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-r from-primary to-secondary flex items-center justify-center shadow-lg">
+              <Sparkles className="w-5 h-5 text-white" />
+            </div>
+            <div className="hidden sm:block">
+              <span className="text-lg font-bold gradient-text">
+                Mạng 3 Hub
+              </span>
+              <span className="text-xs text-muted-foreground block -mt-1">
+                Quản trị Mạng
+              </span>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-full bg-muted animate-pulse" />
+            <div className="w-20 h-9 rounded-lg bg-muted animate-pulse hidden sm:block" />
+          </div>
+        </nav>
+      </header>
+    );
+  }
+
   const allMobileNavItems = [
     ...mobileNavItems,
     ...(isAdmin ? adminMobileNavItems : []),
   ];
 
   const displayName = session?.user?.name || session?.user?.username || "User";
+  const userInitial = displayName.charAt(0).toUpperCase();
 
   const handleLogout = async () => {
     setIsProfileOpen(false);
-    await signOut({
-      redirect: false,
-      callbackUrl: "/login",
-    });
-    window.location.href = "/login";
+    try {
+      // Đánh dấu đang logout
+      sessionStorage.setItem("isLoggingOut", "true");
+
+      // Đăng xuất với redirect
+      await signOut({
+        callbackUrl: "/login",
+      });
+    } catch (error) {
+      console.error("Logout error:", error);
+      window.location.href = "/login";
+    }
   };
 
-  // Kiểm tra theme hiện tại
   const isDark = resolvedTheme === "dark";
 
   return (
@@ -119,7 +156,7 @@ export function Navbar() {
       )}
     >
       <nav className="h-16 md:h-20 px-4 md:px-6 flex items-center justify-between max-w-7xl mx-auto">
-        {/* Left - Logo */}
+        {/* Logo */}
         <Link href="/" className="flex items-center gap-2 group">
           <motion.div
             whileHover={{ rotate: 180 }}
@@ -136,7 +173,7 @@ export function Navbar() {
           </div>
         </Link>
 
-        {/* Center - Navigation Desktop */}
+        {/* Desktop Navigation */}
         <div className="hidden lg:flex items-center gap-1">
           {mobileNavItems.slice(0, 8).map((item) => (
             <Link key={item.name} href={item.href}>
@@ -155,37 +192,33 @@ export function Navbar() {
           ))}
         </div>
 
-        {/* Right - Actions */}
+        {/* Right Actions */}
         <div className="flex items-center gap-1 md:gap-2">
           <Search />
 
-          {/* Theme Toggle - FIXED */}
-          {mounted && (
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={toggleTheme}
-              className="relative hover:bg-muted"
-              aria-label="Toggle theme"
-            >
-              <Sun
-                className={cn(
-                  "h-5 w-5 transition-all duration-300",
-                  isDark ? "rotate-90 scale-0" : "rotate-0 scale-100",
-                )}
-              />
-              <Moon
-                className={cn(
-                  "absolute h-5 w-5 transition-all duration-300",
-                  isDark ? "rotate-0 scale-100" : "rotate-90 scale-0",
-                )}
-              />
-            </Button>
-          )}
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={toggleTheme}
+            className="relative hover:bg-muted"
+            aria-label="Toggle theme"
+          >
+            <Sun
+              className={cn(
+                "h-5 w-5 transition-all duration-300",
+                isDark ? "rotate-90 scale-0" : "rotate-0 scale-100",
+              )}
+            />
+            <Moon
+              className={cn(
+                "absolute h-5 w-5 transition-all duration-300",
+                isDark ? "rotate-0 scale-100" : "rotate-90 scale-0",
+              )}
+            />
+          </Button>
 
           <Notifications />
 
-          {/* Admin Button - Chỉ hiển thị với ADMIN */}
           {isAdmin && (
             <Link href="/admin">
               <Button
@@ -203,8 +236,7 @@ export function Navbar() {
             </Link>
           )}
 
-          {/* Auth Section */}
-          {isAuthenticated && session ? (
+          {isAuthenticated ? (
             <div className="flex items-center gap-2">
               <div className="relative">
                 <Button
@@ -214,14 +246,13 @@ export function Navbar() {
                   onClick={() => setIsProfileOpen(!isProfileOpen)}
                 >
                   <div className="w-8 h-8 rounded-full bg-gradient-to-r from-primary to-secondary flex items-center justify-center text-white text-sm font-bold">
-                    {displayName.charAt(0).toUpperCase()}
+                    {userInitial}
                   </div>
                   <span className="hidden lg:inline text-sm font-medium text-foreground">
                     {displayName}
                   </span>
                 </Button>
 
-                {/* Profile Dropdown */}
                 <AnimatePresence>
                   {isProfileOpen && (
                     <motion.div
@@ -233,13 +264,16 @@ export function Navbar() {
                       <div className="p-2">
                         <div className="px-3 py-2 border-b border-border">
                           <p className="text-sm font-semibold truncate">
-                            {session.user?.name || "User"}
+                            {session?.user?.name || "User"}
                           </p>
                           <p className="text-xs text-muted-foreground truncate">
-                            @{session.user?.username || "username"}
+                            @{session?.user?.username || "username"}
                           </p>
                           <p className="text-xs text-muted-foreground truncate">
-                            {session.user?.email}
+                            {session?.user?.email}
+                          </p>
+                          <p className="text-xs text-muted-foreground truncate">
+                            Vai trò: {session?.user?.role}
                           </p>
                         </div>
                         <Link href="/profile">
@@ -302,7 +336,6 @@ export function Navbar() {
             </div>
           )}
 
-          {/* Mobile Menu Button */}
           <Button
             variant="ghost"
             size="icon"
@@ -314,7 +347,6 @@ export function Navbar() {
         </div>
       </nav>
 
-      {/* Mobile Menu Overlay */}
       <AnimatePresence>
         {isMobileMenuOpen && (
           <motion.div
