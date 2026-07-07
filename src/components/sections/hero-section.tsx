@@ -1,5 +1,5 @@
 // src/components/sections/hero-section.tsx
-// Vai trò: Hiển thị Hero Section với animation và hiệu ứng đẹp mắt
+// Vai trò: Hiển thị Hero Section - FIX HYDRATION ERROR
 
 "use client";
 
@@ -23,6 +23,7 @@ import {
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
+// FIX: Sử dụng giá trị cố định cho floating icons positions
 const floatingIcons = [
   { Icon: Network, x: -20, y: -30, delay: 0 },
   { Icon: Server, x: 30, y: -20, delay: 1.5 },
@@ -30,7 +31,7 @@ const floatingIcons = [
   { Icon: Zap, x: 40, y: 30, delay: 4.5 },
 ];
 
-// Tạo particles với giá trị cố định để tránh hydration error
+// FIX: Tạo particles với giá trị cố định để tránh hydration error
 const generateParticles = () => {
   const particles = [];
   for (let i = 0; i < 15; i++) {
@@ -46,12 +47,28 @@ const generateParticles = () => {
   return particles;
 };
 
+// FIX: Tạo orbiting nodes với giá trị cố định
+const generateOrbitingNodes = () => {
+  return [...Array(6)].map((_, index) => {
+    const angle = (index / 6) * Math.PI * 2;
+    const radius = 145;
+    return {
+      x: Math.cos(angle) * radius,
+      y: Math.sin(angle) * radius,
+      isEven: index % 2 === 0,
+    };
+  });
+};
+
 export function HeroSection() {
   const controls = useAnimation();
   const ref = useRef(null);
   const isInView = useInView(ref, { once: true });
   const [mounted, setMounted] = useState(false);
-  const particles = generateParticles();
+
+  // FIX: Lưu giá trị cố định trong state để tránh re-render
+  const [particles] = useState(() => generateParticles());
+  const [orbitingNodes] = useState(() => generateOrbitingNodes());
   const stats = useStats();
 
   useEffect(() => {
@@ -61,18 +78,7 @@ export function HeroSection() {
     }
   }, [controls, isInView]);
 
-  // Orbiting nodes với giá trị cố định
-  const orbitingNodes = [...Array(6)].map((_, index) => {
-    const angle = (index / 6) * Math.PI * 2;
-    const radius = 145;
-    return {
-      x: Math.cos(angle) * radius,
-      y: Math.sin(angle) * radius,
-      isEven: index % 2 === 0,
-    };
-  });
-
-  // Stats data với icon
+  // Stats data với icon - LẤY DỮ LIỆU THỰC
   const statsData = [
     {
       value: stats.documents,
@@ -280,7 +286,7 @@ export function HeroSection() {
               ))}
             </motion.div>
 
-            {/* Stats với animation số chạy */}
+            {/* Stats với animation số chạy - DỮ LIỆU THỰC */}
             <motion.div
               variants={{
                 hidden: { opacity: 0, y: 20 },
@@ -291,11 +297,15 @@ export function HeroSection() {
               {statsData.map((stat, index) => (
                 <div key={index} className="space-y-1 text-center">
                   <div className="text-3xl font-bold text-primary-600 dark:text-primary-400">
-                    <AnimatedCounter
-                      target={stat.value}
-                      suffix={stat.suffix}
-                      duration={2}
-                    />
+                    {stats.loading ? (
+                      <span className="inline-block w-12 h-8 bg-muted animate-pulse rounded" />
+                    ) : (
+                      <AnimatedCounter
+                        target={stat.value}
+                        suffix={stat.suffix}
+                        duration={2}
+                      />
+                    )}
                   </div>
                   <div className="text-sm text-gray-500 dark:text-gray-400">
                     {stat.label}
@@ -347,23 +357,28 @@ export function HeroSection() {
                         ease: "linear",
                       }}
                     >
-                      {orbitingNodes.map((node, index) => (
-                        <div
-                          key={`orbit-${index}`}
-                          className="absolute rounded-full bg-white/90 dark:bg-gray-800/90 shadow-xl border border-primary-200/50 dark:border-primary-700/50 flex items-center justify-center w-12 h-12 backdrop-blur-sm"
-                          style={{
-                            transform: `translate(${node.x}px, ${node.y}px)`,
-                          }}
-                        >
-                          <div className="hover:scale-125 transition-transform duration-200 flex items-center justify-center w-full h-full">
-                            {node.isEven ? (
-                              <Server className="w-6 h-6 text-primary-500 dark:text-primary-400" />
-                            ) : (
-                              <Shield className="w-6 h-6 text-secondary-500 dark:text-secondary-400" />
-                            )}
+                      {orbitingNodes.map((node, index) => {
+                        // FIX: Tạo transform với giá trị cố định
+                        const tx = Math.round(node.x * 100) / 100;
+                        const ty = Math.round(node.y * 100) / 100;
+                        return (
+                          <div
+                            key={`orbit-${index}`}
+                            className="absolute rounded-full bg-white/90 dark:bg-gray-800/90 shadow-xl border border-primary-200/50 dark:border-primary-700/50 flex items-center justify-center w-12 h-12 backdrop-blur-sm"
+                            style={{
+                              transform: `translate(${tx}px, ${ty}px)`,
+                            }}
+                          >
+                            <div className="hover:scale-125 transition-transform duration-200 flex items-center justify-center w-full h-full">
+                              {node.isEven ? (
+                                <Server className="w-6 h-6 text-primary-500 dark:text-primary-400" />
+                              ) : (
+                                <Shield className="w-6 h-6 text-secondary-500 dark:text-secondary-400" />
+                              )}
+                            </div>
                           </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </motion.div>
                   </div>
                 </div>
@@ -385,34 +400,32 @@ export function HeroSection() {
                   <div className="absolute inset-0 border-2 border-accent-200/15 dark:border-accent-700/15 rounded-full scale-[1.35]" />
                 </motion.div>
 
-                {/* Floating Particles */}
-                {particles.map((particle, index) => (
-                  <motion.div
-                    key={`particle-${index}`}
-                    className="absolute rounded-full bg-primary-400/30 dark:bg-primary-300/20"
-                    style={{
-                      width: particle.size,
-                      height: particle.size,
-                    }}
-                    animate={{
-                      x: particle.x,
-                      y: particle.y,
-                      opacity: [0, 0.6, 0],
-                      scale: [0, 1, 0],
-                    }}
-                    transition={{
-                      duration: particle.duration,
-                      repeat: Infinity,
-                      delay: particle.delay,
-                      ease: "easeInOut",
-                    }}
-                    initial={{
-                      left: "50%",
-                      top: "50%",
-                      transform: "translate(-50%, -50%)",
-                    }}
-                  />
-                ))}
+                {/* Floating Particles - Chỉ render khi mounted */}
+                {mounted &&
+                  particles.map((particle, index) => (
+                    <motion.div
+                      key={`particle-${index}`}
+                      className="absolute rounded-full bg-primary-400/30 dark:bg-primary-300/20"
+                      style={{
+                        width: particle.size,
+                        height: particle.size,
+                        left: "50%",
+                        top: "50%",
+                      }}
+                      animate={{
+                        x: particle.x,
+                        y: particle.y,
+                        opacity: [0, 0.6, 0],
+                        scale: [0, 1, 0],
+                      }}
+                      transition={{
+                        duration: particle.duration,
+                        repeat: Infinity,
+                        delay: particle.delay,
+                        ease: "easeInOut",
+                      }}
+                    />
+                  ))}
               </div>
             </div>
           </motion.div>

@@ -3,6 +3,7 @@
 
 "use client";
 
+import { ExportButton } from "@/components/common/ExportButton";
 import { Footer } from "@/components/layout/footer";
 import { Navbar } from "@/components/layout/navbar";
 import { Badge } from "@/components/ui/badge";
@@ -923,6 +924,10 @@ export default function AssignmentsPage() {
   const [selectedAssignment, setSelectedAssignment] =
     useState<Assignment | null>(null);
 
+  // Kiểm tra quyền - chỉ TEACHER và ADMIN mới tạo được bài tập
+  const isTeacher =
+    session?.user?.role === "TEACHER" || session?.user?.role === "ADMIN";
+
   const uniqueTypes = ["Tất cả", ...new Set(assignments.map((a) => a.type))];
   const statuses = ["Tất cả", "pending", "submitted", "graded"];
 
@@ -971,7 +976,7 @@ export default function AssignmentsPage() {
 
   return (
     <>
-      <Navbar session={session} status={status} />
+      <Navbar />
       <div className="min-h-screen bg-gradient-to-br from-gray-50 via-gray-100 to-gray-200 dark:from-gray-950 dark:via-gray-900 dark:to-gray-800 pt-16 md:pt-20">
         <div className="max-w-7xl mx-auto p-4 md:p-8 space-y-8">
           {/* Header */}
@@ -996,12 +1001,15 @@ export default function AssignmentsPage() {
               </div>
             </div>
             <div className="flex items-center gap-3 flex-wrap">
-              <Button
-                onClick={() => setIsCreateModalOpen(true)}
-                className="gap-2"
-              >
-                <Plus className="w-4 h-4" /> Tạo bài tập
-              </Button>
+              {isTeacher && (
+                <Button
+                  onClick={() => setIsCreateModalOpen(true)}
+                  className="gap-2"
+                >
+                  <Plus className="w-4 h-4" /> Tạo bài tập
+                </Button>
+              )}
+              <ExportButton type="assignments" />
               <Button
                 variant="outline"
                 size="sm"
@@ -1014,6 +1022,17 @@ export default function AssignmentsPage() {
                 />{" "}
                 Làm mới
               </Button>
+              {isTeacher && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-2"
+                  onClick={() => router.push("/submissions")}
+                >
+                  <Users className="w-4 h-4" />
+                  Xem bài nộp
+                </Button>
+              )}
             </div>
           </motion.div>
 

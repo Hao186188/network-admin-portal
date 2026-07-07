@@ -1,10 +1,11 @@
 // src/app/(dashboard)/dashboard/page.tsx
-// Vai trò: Trang Dashboard - VỚI ĐĂNG TIN ĐA CHỨC NĂNG VÀ XEM CHI TIẾT
+// Vai trò: Trang Dashboard - FIX SESSION VÀ LỖI
 
 "use client";
 
 import { FileUpload } from "@/components/common/file-upload";
 import { Footer } from "@/components/layout/footer";
+import { Navbar } from "@/components/layout/navbar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -44,11 +45,11 @@ import {
   UserPlus,
   Users,
   Video,
-  X
+  X,
 } from "lucide-react";
 import { signOut, useSession } from "next-auth/react";
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 // Helper function để format date
 const formatDate = (dateString: string) => {
@@ -636,7 +637,7 @@ function AnnouncementDetailModal({
 // DASHBOARD PAGE CHÍNH
 // ============================================
 export default function DashboardPage() {
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
   const { toast } = useToast();
   const dashboardData = useDashboard();
   const statsData = useStats();
@@ -648,6 +649,7 @@ export default function DashboardPage() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [selectedAnnouncement, setSelectedAnnouncement] = useState<any>(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
   // Modal states
   const [isCreateAnnouncementOpen, setIsCreateAnnouncementOpen] =
@@ -655,6 +657,17 @@ export default function DashboardPage() {
   const [isCreateForumPostOpen, setIsCreateForumPostOpen] = useState(false);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Kiểm tra session
+  useEffect(() => {
+    if (status === "authenticated" && session?.user) {
+      console.log("✅ Session loaded:", session.user.email);
+    }
+  }, [status, session]);
 
   // Dữ liệu thống kê từ database
   const stats = [
@@ -817,8 +830,21 @@ export default function DashboardPage() {
     },
   ];
 
+  // Hiển thị loading nếu chưa mount
+  if (!mounted) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Navbar />
+        <div className="flex items-center justify-center h-[80vh]">
+          <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background flex flex-col">
+      <Navbar />
       <div className="flex-1">
         <div className="space-y-8 p-4 md:p-8 max-w-7xl mx-auto">
           {/* Header */}
@@ -833,6 +859,11 @@ export default function DashboardPage() {
               <p className="text-muted-foreground mt-1">
                 Chào mừng trở lại, {session?.user?.name || "Người dùng"}!
               </p>
+              {session?.user?.email && (
+                <p className="text-xs text-muted-foreground">
+                  {session.user.email}
+                </p>
+              )}
             </div>
             <div className="flex items-center gap-3 flex-wrap">
               <Button

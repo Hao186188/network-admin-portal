@@ -1,3 +1,4 @@
+/* src/app/globals.css */
 @import "tailwindcss-animate";
 @import "shadcn/tailwind.css";
 @tailwind base;
@@ -171,4 +172,11 @@
 .dark input::placeholder,
 .dark textarea::placeholder {
   color: hsl(var(--muted-foreground));
+}
+
+/* Dark mode transition */
+* {
+  transition-property: background-color, border-color, color, fill, stroke;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 200ms;
 }

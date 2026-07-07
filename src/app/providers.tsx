@@ -1,5 +1,5 @@
 // src/app/providers.tsx
-// Vai trò: Wrapper providers - KHÔNG CHỨA SCRIPT
+// Vai trò: Tổng hợp providers cho app
 
 "use client";
 

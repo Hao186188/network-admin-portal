@@ -1,42 +1,32 @@
 // src/lib/auth.ts
-// Vai trò: Cấu hình NextAuth - FIX LỖI
+// Vai trò: Cấu hình NextAuth - FIX LỖI TYPE
 
 import { supabase } from "@/lib/db/supabase-client";
 import bcrypt from "bcryptjs";
 import type { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
-import GitHubProvider from "next-auth/providers/github";
-import GoogleProvider from "next-auth/providers/google";
 
 export const authOptions: NextAuthOptions = {
   providers: [
-    GoogleProvider({
-      clientId: process.env.GOOGLE_CLIENT_ID || "",
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET || "",
-    }),
-    GitHubProvider({
-      clientId: process.env.GITHUB_ID || "",
-      clientSecret: process.env.GITHUB_SECRET || "",
-    }),
     CredentialsProvider({
       name: "credentials",
       credentials: {
-        email: { label: "Email", type: "email" },
+        identifier: { label: "Email or Username", type: "text" },
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
         try {
-          if (!credentials?.email || !credentials?.password) {
-            throw new Error("Vui lòng nhập email và mật khẩu");
+          if (!credentials?.identifier || !credentials?.password) {
+            throw new Error("Vui lòng nhập email/tên đăng nhập và mật khẩu");
           }
 
-          console.log("🔍 Looking for user:", credentials.email);
-
-          // Tìm user trong database
+          // Tìm user theo email hoặc username
           const { data: users, error } = await supabase
             .from("users")
             .select("*")
-            .eq("email", credentials.email.toLowerCase().trim());
+            .or(
+              `email.ilike.${credentials.identifier.trim()},username.ilike.${credentials.identifier.trim()}`,
+            );
 
           if (error) {
             console.error("❌ Supabase error:", error);
@@ -46,11 +36,9 @@ export const authOptions: NextAuthOptions = {
           const user = users?.[0];
 
           if (!user) {
-            console.log("❌ User not found:", credentials.email);
-            throw new Error("Email không tồn tại");
+            console.log("❌ User not found:", credentials.identifier);
+            throw new Error("Email/Tên đăng nhập không tồn tại");
           }
-
-          console.log("✅ User found:", user.id);
 
           // Kiểm tra mật khẩu
           const isValid = await bcrypt.compare(
@@ -59,18 +47,19 @@ export const authOptions: NextAuthOptions = {
           );
 
           if (!isValid) {
-            console.log("❌ Invalid password for:", credentials.email);
+            console.log("❌ Invalid password for:", credentials.identifier);
             throw new Error("Mật khẩu không đúng");
           }
 
-          console.log("✅ Login successful for:", user.email);
+          console.log("✅ Login successful:", user.email);
 
           return {
             id: user.id,
             name: user.name,
             email: user.email,
             role: user.role,
-            image: user.image,
+            image: user.image || "",
+            username: user.username || "",
           };
         } catch (error) {
           console.error("❌ Auth error:", error);
@@ -84,6 +73,9 @@ export const authOptions: NextAuthOptions = {
       if (user) {
         token.id = user.id;
         token.role = user.role;
+        token.username = user.username || "";
+        token.email = user.email || "";
+        token.name = user.name || "";
       }
       return token;
     },
@@ -91,6 +83,9 @@ export const authOptions: NextAuthOptions = {
       if (session?.user) {
         session.user.id = token.id as string;
         session.user.role = token.role as string;
+        session.user.username = (token.username as string) || "";
+        session.user.email = (token.email as string) || "";
+        session.user.name = (token.name as string) || "";
       }
       return session;
     },
@@ -105,5 +100,5 @@ export const authOptions: NextAuthOptions = {
     maxAge: 30 * 24 * 60 * 60, // 30 days
   },
   secret: process.env.NEXTAUTH_SECRET,
-  debug: true, // Enable debug mode
+  debug: process.env.NODE_ENV === "development",
 };

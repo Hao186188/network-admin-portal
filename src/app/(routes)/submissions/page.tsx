@@ -1,319 +1,598 @@
 // src/app/(routes)/submissions/page.tsx
+// Vai trò: Quản lý bài nộp và chấm điểm - DÀNH CHO GIÁO VIÊN
 
 "use client";
 
+import { ExportButton } from "@/components/common/ExportButton";
+import { Footer } from "@/components/layout/footer";
+import { Navbar } from "@/components/layout/navbar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useSubmissions } from "@/hooks/use-submissions";
 import { useToast } from "@/hooks/use-toast";
-import { motion } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import {
-    Calendar,
-    CheckCircle,
-    Clock,
-    Download,
-    Eye,
-    File,
-    Search,
-    Upload,
-    User,
-    XCircle
+  AlertCircle,
+  CheckCircle,
+  ChevronDown,
+  Clock,
+  Download,
+  File,
+  Filter,
+  RefreshCw,
+  Search,
+  Star,
+  Users,
+  X,
+  XCircle,
 } from "lucide-react";
+import { useSession } from "next-auth/react";
 import { useState } from "react";
 
-const submissions = [
-  {
-    id: 1,
-    title: "Lab 3 - Cấu hình VLAN",
-    subject: "Quản trị Mạng 3",
-    submittedDate: "2026-06-20T14:30:00",
-    status: "graded",
-    grade: 8.5,
-    feedback: "Bài làm tốt, cần chú ý cấu hình trunk",
-    file: "lab3_vlan.pkt",
-    size: "2.4 MB",
-  },
-  {
-    id: 2,
-    title: "Bài tập tuần 5 - DHCP",
-    subject: "Quản trị Mạng 3",
-    submittedDate: "2026-06-18T10:15:00",
-    status: "pending",
-    grade: null,
-    feedback: null,
-    file: "dhcp_config.docx",
-    size: "1.2 MB",
-  },
-  {
-    id: 3,
-    title: "Dự án - Mạng doanh nghiệp",
-    subject: "Quản trị Mạng 3",
-    submittedDate: "2026-06-15T16:45:00",
-    status: "rejected",
-    grade: null,
-    feedback: "Cần bổ sung sơ đồ mạng và cấu hình chi tiết",
-    file: "project_network.pkt",
-    size: "5.6 MB",
-  },
-];
+interface Submission {
+  id: string;
+  assignment_id: string;
+  user_id: string;
+  file_url: string;
+  file_name: string;
+  file_size: number;
+  status: "PENDING" | "APPROVED" | "REJECTED";
+  grade: number;
+  feedback: string;
+  created_at: string;
+  updated_at: string;
+  user?: {
+    name: string;
+    email: string;
+  };
+  assignment?: {
+    title: string;
+    subject: string;
+    type: string;
+    due_date: string;
+  };
+}
 
 const statusConfig = {
-  graded: {
-    label: "Đã chấm",
-    icon: CheckCircle,
-    color: "text-green-500 bg-green-500/10",
-  },
-  pending: {
+  PENDING: {
     label: "Đang chờ",
     icon: Clock,
-    color: "text-yellow-500 bg-yellow-500/10",
+    color: "text-yellow-500 bg-yellow-500/10 border-yellow-500/20",
   },
-  rejected: {
+  APPROVED: {
+    label: "Đã chấm",
+    icon: CheckCircle,
+    color: "text-green-500 bg-green-500/10 border-green-500/20",
+  },
+  REJECTED: {
     label: "Cần sửa",
     icon: XCircle,
-    color: "text-red-500 bg-red-500/10",
+    color: "text-red-500 bg-red-500/10 border-red-500/20",
   },
 };
 
-export default function SubmissionsPage() {
+// Grade Modal
+function GradeModal({
+  isOpen,
+  onClose,
+  submission,
+  onSuccess,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  submission: Submission | null;
+  onSuccess: () => void;
+}) {
   const { toast } = useToast();
-  const [searchQuery, setSearchQuery] = useState("");
-  const [filterStatus, setFilterStatus] = useState("Tất cả");
-  const [isDragging, setIsDragging] = useState(false);
+  const { gradeSubmission } = useSubmissions();
+  const [grade, setGrade] = useState<number>(0);
+  const [feedback, setFeedback] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
-  const filteredSubmissions = submissions.filter((sub) => {
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!submission) return;
+
+    if (grade < 0 || grade > 10) {
+      toast.error("Điểm phải từ 0 đến 10");
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      await gradeSubmission(submission.id, grade, feedback);
+      toast.success("Đã chấm điểm thành công!");
+      onSuccess();
+      onClose();
+      setGrade(0);
+      setFeedback("");
+    } catch (error: any) {
+      toast.error(error?.message || "Có lỗi xảy ra khi chấm điểm");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  if (!isOpen || !submission) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+      <motion.div
+        initial={{ opacity: 0, scale: 0.9 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0, scale: 0.9 }}
+        className="bg-background rounded-2xl shadow-2xl w-full max-w-md mx-4 p-6 border border-border"
+      >
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-2xl font-bold gradient-text flex items-center gap-2">
+            <Star className="w-6 h-6 text-primary" />
+            Chấm điểm
+          </h2>
+          <Button variant="ghost" size="icon" onClick={onClose}>
+            <X className="w-5 h-5" />
+          </Button>
+        </div>
+
+        <div className="space-y-4">
+          <div className="p-4 rounded-xl bg-muted/50">
+            <p className="font-medium">{submission.assignment?.title}</p>
+            <p className="text-sm text-muted-foreground">
+              Học sinh: {submission.user?.name}
+            </p>
+            <p className="text-sm text-muted-foreground">
+              File: {submission.file_name}
+            </p>
+          </div>
+
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="text-sm font-medium text-foreground mb-2 block">
+                Điểm <span className="text-destructive">*</span>
+              </label>
+              <Input
+                type="number"
+                value={grade}
+                onChange={(e) => setGrade(Number(e.target.value))}
+                placeholder="Nhập điểm (0-10)"
+                className="w-full"
+                min={0}
+                max={10}
+                step={0.5}
+                required
+                disabled={isLoading}
+              />
+            </div>
+
+            <div>
+              <label className="text-sm font-medium text-foreground mb-2 block">
+                Nhận xét
+              </label>
+              <textarea
+                value={feedback}
+                onChange={(e) => setFeedback(e.target.value)}
+                placeholder="Nhập nhận xét cho học sinh..."
+                rows={4}
+                className="w-full px-4 py-2 rounded-xl border border-input bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary resize-none"
+                disabled={isLoading}
+              />
+            </div>
+
+            <div className="flex gap-3 pt-4">
+              <Button
+                type="button"
+                variant="outline"
+                className="flex-1"
+                onClick={onClose}
+                disabled={isLoading}
+              >
+                Hủy
+              </Button>
+              <Button
+                type="submit"
+                className="flex-1 gap-2"
+                disabled={isLoading}
+              >
+                {isLoading ? (
+                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <>
+                    <Star className="w-4 h-4" />
+                    Chấm điểm
+                  </>
+                )}
+              </Button>
+            </div>
+          </form>
+        </div>
+      </motion.div>
+    </div>
+  );
+}
+
+export default function SubmissionsPage() {
+  const { data: session, status } = useSession();
+  const { toast } = useToast();
+  const { submissions, loading, error, refresh } = useSubmissions();
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedStatus, setSelectedStatus] = useState<string>("Tất cả");
+  const [showFilters, setShowFilters] = useState(false);
+  const [selectedSubmission, setSelectedSubmission] =
+    useState<Submission | null>(null);
+  const [isGradeModalOpen, setIsGradeModalOpen] = useState(false);
+
+  const isTeacher =
+    session?.user?.role === "TEACHER" || session?.user?.role === "ADMIN";
+
+  const filteredSubmissions = submissions.filter((item: Submission) => {
     const matchesSearch =
-      sub.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      sub.subject.toLowerCase().includes(searchQuery.toLowerCase());
+      item.assignment?.title
+        ?.toLowerCase()
+        .includes(searchQuery.toLowerCase()) ||
+      item.user?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      item.file_name?.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesStatus =
-      filterStatus === "Tất cả" || sub.status === filterStatus.toLowerCase();
+      selectedStatus === "Tất cả" || item.status === selectedStatus;
     return matchesSearch && matchesStatus;
   });
 
-  const handleUpload = () => {
-    toast.success("Đang tải lên bài tập...");
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleString("vi-VN", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
   };
 
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(true);
+  const formatFileSize = (bytes: number) => {
+    if (bytes < 1024) return bytes + " B";
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
+    return (bytes / (1024 * 1024)).toFixed(1) + " MB";
   };
 
-  const handleDragLeave = () => {
-    setIsDragging(false);
+  const handleGrade = (submission: Submission) => {
+    setSelectedSubmission(submission);
+    setIsGradeModalOpen(true);
   };
 
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(false);
-    toast.success("File đã được tải lên");
+  const handleDownload = async (url: string, fileName: string) => {
+    try {
+      const response = await fetch(url);
+      const blob = await response.blob();
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(link.href);
+      toast.success("Đã tải file thành công!");
+    } catch (error) {
+      toast.error("Có lỗi xảy ra khi tải file");
+    }
+  };
+
+  const handleGradeSuccess = () => {
+    refresh();
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 p-4 md:p-8">
-      <div className="max-w-7xl mx-auto space-y-8">
-        {/* Header */}
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-          className="flex flex-col md:flex-row md:items-center md:justify-between gap-4"
-        >
-          <div>
-            <h1 className="text-4xl font-bold bg-gradient-to-r from-primary-600 via-secondary-500 to-accent-500 bg-clip-text text-transparent">
-              Nộp Bài Tập
-            </h1>
-            <p className="text-gray-500 dark:text-gray-400 mt-1">
-              Quản lý bài tập đã nộp và kết quả
-            </p>
-          </div>
-          <Button size="lg" className="gap-2" onClick={handleUpload}>
-            <Upload className="w-4 h-4" />
-            Nộp bài mới
-          </Button>
-        </motion.div>
+    <>
+      <Navbar />
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-gray-100 to-gray-200 dark:from-gray-950 dark:via-gray-900 dark:to-gray-800 pt-16 md:pt-20">
+        <div className="max-w-7xl mx-auto p-4 md:p-8 space-y-8">
+          {/* Header */}
 
-        {/* Upload Area */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.1 }}
-        >
-          <Card
-            className={`border-2 border-dashed transition-all duration-300 ${
-              isDragging
-                ? "border-primary-500 bg-primary-50/50 dark:bg-primary-900/20"
-                : "border-gray-300/50 dark:border-gray-700/50"
-            }`}
-            onDragOver={handleDragOver}
-            onDragLeave={handleDragLeave}
-            onDrop={handleDrop}
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+            className="flex flex-col md:flex-row md:items-center md:justify-between gap-4"
           >
-            <CardContent className="p-8 text-center">
-              <div className="flex flex-col items-center gap-4">
-                <div className="w-16 h-16 rounded-full bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center">
-                  <Upload className="w-8 h-8 text-primary-500" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-semibold">
-                    Kéo thả file vào đây
-                  </h3>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">
-                    Hoặc click để chọn file (tối đa 50MB)
-                  </p>
-                </div>
-                <Button variant="outline" className="gap-2">
-                  <Upload className="w-4 h-4" />
-                  Chọn file
+            <div>
+              <h1 className="text-4xl font-bold bg-gradient-to-r from-primary-600 via-secondary-500 to-accent-500 bg-clip-text text-transparent flex items-center gap-3">
+                <File className="w-8 h-8 text-primary" />
+                Bài Nộp
+              </h1>
+              <div className="text-gray-500 dark:text-gray-400 mt-1 flex items-center gap-2">
+                <Users className="w-4 h-4" />
+                <span>Quản lý bài tập đã nộp của học sinh</span>
+                {!loading && (
+                  <Badge variant="secondary" className="ml-2">
+                    {filteredSubmissions.length} bài nộp
+                  </Badge>
+                )}
+              </div>
+            </div>
+            <div className="flex items-center gap-3 flex-wrap">
+              <ExportButton
+                type="submissions"
+                filters={{
+                  status:
+                    selectedStatus !== "Tất cả"
+                      ? (selectedStatus as any)
+                      : "ALL",
+                  from_date: undefined,
+                  to_date: undefined,
+                }}
+              />
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-2"
+                onClick={refresh}
+                disabled={loading}
+              >
+                <RefreshCw
+                  className={`w-4 h-4 ${loading ? "animate-spin" : ""}`}
+                />
+                Làm mới
+              </Button>
+            </div>
+          </motion.div>
+
+          {/* Search and Filters */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.1 }}
+            className="space-y-4"
+          >
+            <div className="flex flex-col md:flex-row gap-4">
+              <div className="relative flex-1">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
+                <Input
+                  placeholder="Tìm kiếm theo tên bài tập, học sinh, file..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-12 pr-12"
+                />
+                {searchQuery && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8"
+                    onClick={() => setSearchQuery("")}
+                  >
+                    <X className="w-4 h-4" />
+                  </Button>
+                )}
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  className="gap-2"
+                  onClick={() => setShowFilters(!showFilters)}
+                >
+                  <Filter className="w-4 h-4" />
+                  Lọc
+                  <ChevronDown
+                    className={`w-4 h-4 transition-transform ${showFilters ? "rotate-180" : ""}`}
+                  />
                 </Button>
               </div>
-            </CardContent>
-          </Card>
-        </motion.div>
+            </div>
 
-        {/* Search and Filter */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.2 }}
-          className="flex flex-col md:flex-row gap-4"
-        >
-          <div className="relative flex-1">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
-            <Input
-              placeholder="Tìm kiếm bài tập..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-12"
-            />
-          </div>
-          <div className="flex gap-2">
-            {["Tất cả", "Đã chấm", "Đang chờ", "Cần sửa"].map((status) => (
-              <Badge
-                key={status}
-                variant={filterStatus === status ? "default" : "outline"}
-                className="cursor-pointer hover:scale-105 transition-transform"
-                onClick={() => setFilterStatus(status)}
-              >
-                {status}
-              </Badge>
-            ))}
-          </div>
-        </motion.div>
-
-        {/* Submissions List */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.3 }}
-          className="space-y-4"
-        >
-          {filteredSubmissions.map((sub, index) => {
-            const StatusIcon =
-              statusConfig[sub.status as keyof typeof statusConfig].icon;
-            const statusInfo =
-              statusConfig[sub.status as keyof typeof statusConfig];
-            return (
-              <motion.div
-                key={sub.id}
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.3, delay: index * 0.05 }}
-              >
-                <Card className="group hover:shadow-2xl transition-all duration-300 hover:-translate-y-1">
-                  <CardContent className="p-6">
-                    <div className="flex flex-col md:flex-row md:items-center gap-4">
-                      <div className="flex-1">
-                        <div className="flex items-start gap-4">
-                          <div className="w-12 h-12 rounded-xl bg-gradient-to-r from-primary-500 to-secondary-500 flex items-center justify-center shadow-lg flex-shrink-0">
-                            <File className="w-6 h-6 text-white" />
-                          </div>
-                          <div className="space-y-1">
-                            <h3 className="text-lg font-semibold group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors">
-                              {sub.title}
-                            </h3>
-                            <div className="flex flex-wrap items-center gap-3 text-sm text-gray-500 dark:text-gray-400">
-                              <span className="flex items-center gap-1">
-                                <User className="w-3 h-3" />
-                                {sub.subject}
-                              </span>
-                              <span className="flex items-center gap-1">
-                                <Calendar className="w-3 h-3" />
-                                {new Date(sub.submittedDate).toLocaleDateString(
-                                  "vi-VN",
-                                )}
-                              </span>
-                              <span className="flex items-center gap-1">
-                                <File className="w-3 h-3" />
-                                {sub.file}
-                              </span>
-                              <span className="text-xs">{sub.size}</span>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="flex flex-wrap items-center gap-4">
-                        <div
-                          className={`flex items-center gap-2 px-3 py-1.5 rounded-full ${statusInfo.color}`}
-                        >
-                          <StatusIcon className="w-4 h-4" />
-                          <span className="text-sm font-medium">
-                            {statusInfo.label}
-                          </span>
-                        </div>
-
-                        {sub.status === "graded" && (
-                          <div className="flex items-center gap-1 px-3 py-1.5 rounded-full bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300">
-                            <span className="font-bold">{sub.grade}</span>
-                            <span className="text-sm">/10</span>
-                          </div>
-                        )}
-
-                        <Button variant="outline" size="sm" className="gap-1">
-                          <Eye className="w-3 h-3" />
-                          Xem
-                        </Button>
-                        <Button variant="outline" size="sm" className="gap-1">
-                          <Download className="w-3 h-3" />
-                          Tải
-                        </Button>
-                      </div>
-                    </div>
-
-                    {sub.feedback && (
-                      <div className="mt-4 pt-4 border-t border-gray-200/50 dark:border-gray-700/50">
-                        <p className="text-sm text-gray-600 dark:text-gray-300">
-                          <span className="font-medium">Phản hồi: </span>
-                          {sub.feedback}
-                        </p>
-                      </div>
+            <AnimatePresence>
+              {showFilters && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="overflow-hidden"
+                >
+                  <div className="flex flex-wrap gap-2 pt-2">
+                    {["Tất cả", "PENDING", "APPROVED", "REJECTED"].map(
+                      (status) => {
+                        const statusInfo =
+                          statusConfig[status as keyof typeof statusConfig];
+                        return (
+                          <Badge
+                            key={status}
+                            variant={
+                              selectedStatus === status ? "default" : "outline"
+                            }
+                            className="cursor-pointer hover:scale-105 transition-transform"
+                            onClick={() => setSelectedStatus(status)}
+                          >
+                            {status === "Tất cả"
+                              ? "Tất cả"
+                              : statusInfo?.label || status}
+                          </Badge>
+                        );
+                      },
                     )}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </motion.div>
+
+          {/* Submissions List */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.2 }}
+            className="space-y-4"
+          >
+            {loading ? (
+              Array.from({ length: 3 }).map((_, i) => (
+                <Card key={i}>
+                  <CardContent className="p-6">
+                    <div className="flex items-center gap-4">
+                      <Skeleton className="w-12 h-12 rounded-xl" />
+                      <div className="flex-1 space-y-2">
+                        <Skeleton className="h-5 w-48" />
+                        <Skeleton className="h-4 w-32" />
+                        <Skeleton className="h-4 w-24" />
+                      </div>
+                      <Skeleton className="h-10 w-24" />
+                    </div>
                   </CardContent>
                 </Card>
+              ))
+            ) : error ? (
+              <Card className="border-destructive">
+                <CardContent className="p-8 text-center">
+                  <AlertCircle className="w-12 h-12 mx-auto mb-3 text-destructive opacity-50" />
+                  <h3 className="text-lg font-semibold mb-2">
+                    Lỗi tải dữ liệu
+                  </h3>
+                  <p className="text-muted-foreground">{error}</p>
+                  <Button className="mt-4" onClick={refresh}>
+                    Thử lại
+                  </Button>
+                </CardContent>
+              </Card>
+            ) : filteredSubmissions.length === 0 ? (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="text-center py-12"
+              >
+                <div className="w-20 h-20 mx-auto rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center mb-4">
+                  <File className="w-10 h-10 text-gray-400" />
+                </div>
+                <h3 className="text-xl font-semibold mb-2">Không có bài nộp</h3>
+                <p className="text-gray-500 dark:text-gray-400">
+                  {searchQuery || selectedStatus !== "Tất cả"
+                    ? "Không tìm thấy bài nộp nào phù hợp"
+                    : "Chưa có học sinh nào nộp bài"}
+                </p>
               </motion.div>
-            );
-          })}
-        </motion.div>
+            ) : (
+              filteredSubmissions.map(
+                (submission: Submission, index: number) => {
+                  const statusInfo =
+                    statusConfig[
+                      submission.status as keyof typeof statusConfig
+                    ];
+                  const StatusIcon = statusInfo.icon;
 
-        {/* Empty State */}
-        {filteredSubmissions.length === 0 && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="text-center py-12"
-          >
-            <div className="w-20 h-20 mx-auto rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center mb-4">
-              <File className="w-10 h-10 text-gray-400" />
-            </div>
-            <h3 className="text-xl font-semibold mb-2">Chưa có bài tập nào</h3>
-            <p className="text-gray-500 dark:text-gray-400">
-              Hãy nộp bài tập đầu tiên của bạn
-            </p>
+                  return (
+                    <motion.div
+                      key={submission.id}
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ duration: 0.3, delay: index * 0.05 }}
+                    >
+                      <Card className="group hover:shadow-2xl transition-all duration-300 hover:-translate-y-1">
+                        <CardContent className="p-6">
+                          <div className="flex flex-col md:flex-row md:items-center gap-4">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-3">
+                                <div className="w-12 h-12 rounded-xl bg-gradient-to-r from-primary-500 to-secondary-500 flex items-center justify-center shadow-lg flex-shrink-0">
+                                  <File className="w-6 h-6 text-white" />
+                                </div>
+                                <div className="min-w-0">
+                                  <h3 className="text-lg font-semibold group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors truncate">
+                                    {submission.assignment?.title ||
+                                      "Không có tiêu đề"}
+                                  </h3>
+                                  <div className="flex flex-wrap items-center gap-3 text-sm text-gray-500 dark:text-gray-400">
+                                    <span className="flex items-center gap-1">
+                                      <Users className="w-3 h-3" />
+                                      {submission.user?.name || "Unknown"}
+                                    </span>
+                                    <span className="flex items-center gap-1">
+                                      <Clock className="w-3 h-3" />
+                                      {formatDate(submission.created_at)}
+                                    </span>
+                                    <span className="flex items-center gap-1">
+                                      <File className="w-3 h-3" />
+                                      {submission.file_name}
+                                    </span>
+                                    <span className="text-xs">
+                                      {formatFileSize(submission.file_size)}
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="flex flex-wrap items-center gap-3">
+                              <div
+                                className={`flex items-center gap-1 px-3 py-1 rounded-full border ${statusInfo.color}`}
+                              >
+                                <StatusIcon className="w-4 h-4" />
+                                <span className="text-sm font-medium">
+                                  {statusInfo.label}
+                                </span>
+                              </div>
+
+                              {submission.status === "APPROVED" && (
+                                <div className="flex items-center gap-1 px-3 py-1 rounded-full bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300">
+                                  <Star className="w-4 h-4" />
+                                  <span className="font-bold">
+                                    {submission.grade}
+                                  </span>
+                                  <span className="text-sm">/10</span>
+                                </div>
+                              )}
+
+                              {isTeacher && submission.status === "PENDING" && (
+                                <Button
+                                  size="sm"
+                                  className="gap-1"
+                                  onClick={() => handleGrade(submission)}
+                                >
+                                  <Star className="w-4 h-4" />
+                                  Chấm điểm
+                                </Button>
+                              )}
+
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="gap-1"
+                                onClick={() =>
+                                  handleDownload(
+                                    submission.file_url,
+                                    submission.file_name,
+                                  )
+                                }
+                              >
+                                <Download className="w-4 h-4" />
+                                Tải
+                              </Button>
+                            </div>
+                          </div>
+
+                          {submission.feedback && (
+                            <div className="mt-4 pt-4 border-t border-gray-200/50 dark:border-gray-700/50">
+                              <p className="text-sm text-gray-600 dark:text-gray-300">
+                                <span className="font-medium">Nhận xét: </span>
+                                {submission.feedback}
+                              </p>
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
+                    </motion.div>
+                  );
+                },
+              )
+            )}
           </motion.div>
-        )}
+        </div>
       </div>
-    </div>
+      <Footer />
+
+      {/* Grade Modal */}
+      <GradeModal
+        isOpen={isGradeModalOpen}
+        onClose={() => {
+          setIsGradeModalOpen(false);
+          setSelectedSubmission(null);
+        }}
+        submission={selectedSubmission}
+        onSuccess={handleGradeSuccess}
+      />
+    </>
   );
 }

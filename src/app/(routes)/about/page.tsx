@@ -1,6 +1,4 @@
 // src/app/(routes)/about/page.tsx
-// Vai trò: Trang giới thiệu lớp học - Hiển thị thông tin lớp, giảng viên, thống kê và các tính năng tương tác
-
 "use client";
 
 import { Footer } from "@/components/layout/footer";
@@ -83,7 +81,6 @@ const FeatureCardSkeleton = () => (
   </Card>
 );
 
-// Skeleton wrapper để tránh hydration error
 const SkeletonWrapper = ({ children }: { children: React.ReactNode }) => (
   <span className="inline-block">{children}</span>
 );
@@ -153,9 +150,9 @@ export default function AboutPage() {
 
   return (
     <>
-      <Navbar session={session} status={status} />
+      <Navbar />
       <div className="min-h-screen bg-gradient-to-br from-gray-50 via-gray-100 to-gray-200 dark:from-gray-950 dark:via-gray-900 dark:to-gray-800 pt-16 md:pt-20">
-        {/* Hero Section with Parallax Effect */}
+        {/* Hero Section */}
         <div className="relative py-20 px-4 overflow-hidden">
           <div className="absolute inset-0 bg-gradient-to-r from-primary-500/20 via-secondary-500/20 to-accent-500/20" />
           <div className="absolute inset-0 bg-[url('/grid.svg')] opacity-10" />

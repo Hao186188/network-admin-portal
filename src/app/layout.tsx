@@ -33,6 +33,7 @@ export default function RootLayout({
     <html lang="vi" suppressHydrationWarning>
       <body
         className={`${inter.variable} ${poppins.variable} font-inter antialiased`}
+        suppressHydrationWarning
       >
         <Providers>
           {children}

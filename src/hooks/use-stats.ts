@@ -1,5 +1,5 @@
 // src/hooks/use-stats.ts
-// Vai trò: Lấy dữ liệu thống kê từ database
+// Vai trò: Lấy dữ liệu thống kê từ database - CẬP NHẬT
 
 "use client";
 

@@ -1,5 +1,5 @@
 // src/hooks/use-class-info.ts
-// Vai trò: Lấy thông tin chi tiết về lớp học từ database
+// Vai trò: Lấy thông tin chi tiết về lớp học từ database - SỬA LỖI UUID
 
 "use client";
 
@@ -44,33 +44,24 @@ export function useClassInfo(): UseClassInfoReturn {
         setLoading(true);
         setError(null);
 
-        // Kiểm tra supabase client
         if (!supabase) {
-          console.warn("Supabase client not initialized, using fallback data");
+          console.warn("Supabase client not initialized");
           setClassInfo(getFallbackData());
           setLoading(false);
           return;
         }
 
-        // Try to get from database
+        // Try to get from database - sửa lỗi: không dùng UUID cho id không phải UUID
         const { data, error: dbError } = await supabase
           .from("classes")
           .select("*")
-          .eq("id", "class-3")
-          .single();
+          .eq("name", "Quản trị Mạng 3") // Tìm theo name thay vì id
+          .maybeSingle();
 
-        // Nếu có lỗi và không phải là "not found"
         if (dbError) {
-          if (dbError.code === "PGRST116") {
-            // Không tìm thấy dữ liệu, dùng fallback
-            console.info("No class data found, using fallback data");
-            setClassInfo(getFallbackData());
-          } else {
-            // Lỗi khác
-            console.error("Supabase error:", dbError);
-            setError(dbError.message);
-            setClassInfo(getFallbackData());
-          }
+          console.error("Supabase error:", dbError);
+          setError(dbError.message);
+          setClassInfo(getFallbackData());
           setLoading(false);
           return;
         }

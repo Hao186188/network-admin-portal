@@ -1,5 +1,5 @@
 // src/components/layout/navbar.tsx
-// Vai trò: Navbar - HỖ TRỢ DARK MODE VỚI SEARCH & NOTIFICATIONS
+// Vai trò: Navbar - FIX DARK MODE BUTTON
 
 "use client";
 
@@ -17,6 +17,7 @@ import {
   Calendar,
   ClipboardList,
   Code,
+  Crown,
   FileText,
   HelpCircle,
   Home,
@@ -31,9 +32,9 @@ import {
   Package,
   Sparkles,
   Sun,
-  User
+  User,
 } from "lucide-react";
-import { signOut } from "next-auth/react";
+import { signOut, useSession } from "next-auth/react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -56,31 +57,19 @@ const mobileNavItems = [
   { name: "Liên hệ", href: "/contact", icon: Mail },
 ];
 
-interface NavbarProps {
-  session?: {
-    user?: {
-      name?: string | null;
-      email?: string | null;
-      image?: string | null;
-      role?: string;
-    };
-  } | null;
-  status?: "loading" | "authenticated" | "unauthenticated";
-}
+const adminMobileNavItems = [{ name: "Quản trị", href: "/admin", icon: Crown }];
 
-export function Navbar({
-  session: propSession,
-  status: propStatus = "unauthenticated",
-}: NavbarProps) {
+export function Navbar() {
+  const { data: session, status } = useSession();
   const [isScrolled, setIsScrolled] = useState(false);
-  const { theme, setTheme } = useTheme();
+  const { theme, toggleTheme, resolvedTheme } = useTheme();
   const pathname = usePathname();
   const [mounted, setMounted] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
 
-  const session = propSession;
-  const status = propStatus;
   const isAuthenticated = status === "authenticated";
+  const isAdmin = session?.user?.role === "ADMIN";
 
   useEffect(() => {
     setMounted(true);
@@ -101,9 +90,24 @@ export function Navbar({
     return null;
   }
 
-  if (!mounted) {
-    return null;
-  }
+  const allMobileNavItems = [
+    ...mobileNavItems,
+    ...(isAdmin ? adminMobileNavItems : []),
+  ];
+
+  const displayName = session?.user?.name || session?.user?.username || "User";
+
+  const handleLogout = async () => {
+    setIsProfileOpen(false);
+    await signOut({
+      redirect: false,
+      callbackUrl: "/login",
+    });
+    window.location.href = "/login";
+  };
+
+  // Kiểm tra theme hiện tại
+  const isDark = resolvedTheme === "dark";
 
   return (
     <header
@@ -155,42 +159,124 @@ export function Navbar({
         <div className="flex items-center gap-1 md:gap-2">
           <Search />
 
-          {/* Theme Toggle */}
+          {/* Theme Toggle - FIXED */}
           {mounted && (
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-              className="hover:bg-muted"
+              onClick={toggleTheme}
+              className="relative hover:bg-muted"
               aria-label="Toggle theme"
             >
-              <Sun className="h-5 w-5 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
-              <Moon className="absolute h-5 w-5 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+              <Sun
+                className={cn(
+                  "h-5 w-5 transition-all duration-300",
+                  isDark ? "rotate-90 scale-0" : "rotate-0 scale-100",
+                )}
+              />
+              <Moon
+                className={cn(
+                  "absolute h-5 w-5 transition-all duration-300",
+                  isDark ? "rotate-0 scale-100" : "rotate-90 scale-0",
+                )}
+              />
             </Button>
           )}
 
           <Notifications />
 
-          {/* Auth Section */}
-          {isAuthenticated && session ? (
-            <div className="flex items-center gap-2">
-              <div className="hidden md:flex items-center gap-2">
-                <div className="w-8 h-8 rounded-full bg-gradient-to-r from-primary to-secondary flex items-center justify-center text-white text-sm font-bold">
-                  {session.user?.name?.charAt(0) || "U"}
-                </div>
-                <span className="text-sm font-medium text-foreground hidden lg:inline">
-                  {session.user?.name}
-                </span>
-              </div>
+          {/* Admin Button - Chỉ hiển thị với ADMIN */}
+          {isAdmin && (
+            <Link href="/admin">
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => signOut()}
-                className="gap-2 hover:bg-destructive/10 hover:text-destructive"
+                className={cn(
+                  "gap-2 hover:bg-primary/10",
+                  pathname?.startsWith("/admin") &&
+                    "bg-primary/10 text-primary",
+                )}
               >
-                <LogOut className="w-4 h-4" />
-                <span className="hidden md:inline">Đăng xuất</span>
+                <Crown className="w-4 h-4 text-primary" />
+                <span className="hidden md:inline">Quản trị</span>
               </Button>
+            </Link>
+          )}
+
+          {/* Auth Section */}
+          {isAuthenticated && session ? (
+            <div className="flex items-center gap-2">
+              <div className="relative">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="gap-2 hover:bg-primary/10"
+                  onClick={() => setIsProfileOpen(!isProfileOpen)}
+                >
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-r from-primary to-secondary flex items-center justify-center text-white text-sm font-bold">
+                    {displayName.charAt(0).toUpperCase()}
+                  </div>
+                  <span className="hidden lg:inline text-sm font-medium text-foreground">
+                    {displayName}
+                  </span>
+                </Button>
+
+                {/* Profile Dropdown */}
+                <AnimatePresence>
+                  {isProfileOpen && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                      className="absolute right-0 mt-2 w-56 bg-background rounded-2xl shadow-2xl border border-border overflow-hidden z-50"
+                    >
+                      <div className="p-2">
+                        <div className="px-3 py-2 border-b border-border">
+                          <p className="text-sm font-semibold truncate">
+                            {session.user?.name || "User"}
+                          </p>
+                          <p className="text-xs text-muted-foreground truncate">
+                            @{session.user?.username || "username"}
+                          </p>
+                          <p className="text-xs text-muted-foreground truncate">
+                            {session.user?.email}
+                          </p>
+                        </div>
+                        <Link href="/profile">
+                          <Button
+                            variant="ghost"
+                            className="w-full justify-start gap-2 mt-1 hover:bg-primary/10"
+                            onClick={() => setIsProfileOpen(false)}
+                          >
+                            <User className="w-4 h-4" />
+                            Hồ sơ cá nhân
+                          </Button>
+                        </Link>
+                        {isAdmin && (
+                          <Link href="/admin">
+                            <Button
+                              variant="ghost"
+                              className="w-full justify-start gap-2 hover:bg-primary/10"
+                              onClick={() => setIsProfileOpen(false)}
+                            >
+                              <Crown className="w-4 h-4 text-primary" />
+                              Quản trị hệ thống
+                            </Button>
+                          </Link>
+                        )}
+                        <Button
+                          variant="ghost"
+                          className="w-full justify-start gap-2 mt-1 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                          onClick={handleLogout}
+                        >
+                          <LogOut className="w-4 h-4" />
+                          Đăng xuất
+                        </Button>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
             </div>
           ) : (
             <div className="flex items-center gap-2">
@@ -238,7 +324,7 @@ export function Navbar({
             className="lg:hidden overflow-hidden border-t border-border bg-background/95 backdrop-blur-md"
           >
             <div className="p-4 space-y-1 max-h-[80vh] overflow-y-auto">
-              {mobileNavItems.map((item) => (
+              {allMobileNavItems.map((item) => (
                 <Link
                   key={item.name}
                   href={item.href}

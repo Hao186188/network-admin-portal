@@ -1,12 +1,12 @@
 // src/app/page.tsx
-// Vai trò: Trang chủ - DỮ LIỆU THỰC TẾ TỪ DATABASE
+// Vai trò: Trang chủ
 
 "use client";
 
 import { FeatureCard } from "@/components/cards/feature-card";
 import { Stats } from "@/components/features/stats";
 import { Footer } from "@/components/layout/footer";
-import { NavbarClient } from "@/components/layout/navbar-client";
+import { Navbar } from "@/components/layout/navbar";
 import { HeroSection } from "@/components/sections/hero-section";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -55,7 +55,6 @@ const features = [
 export default function Home() {
   const stats = useStats();
 
-  // Dữ liệu thống kê từ database
   const statsData = [
     {
       value: stats.documents,
@@ -85,11 +84,10 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-background">
-      <NavbarClient />
+      <Navbar />
       <main className="pt-16 md:pt-20">
         <HeroSection />
 
-        {/* Features Section */}
         <section className="py-16 md:py-20 px-4">
           <div className="max-w-7xl mx-auto">
             <motion.div
@@ -122,7 +120,6 @@ export default function Home() {
           </div>
         </section>
 
-        {/* Stats Section - DỮ LIỆU THỰC TẾ */}
         <section className="py-16 md:py-20 px-4 bg-muted/30">
           <div className="max-w-7xl mx-auto">
             <motion.div
@@ -155,6 +152,9 @@ export default function Home() {
             ) : stats.error ? (
               <div className="text-center text-destructive">
                 <p>Không thể tải dữ liệu thống kê</p>
+                <Button variant="outline" size="sm" className="mt-2">
+                  Thử lại
+                </Button>
               </div>
             ) : (
               <Stats stats={statsData} />
@@ -162,7 +162,6 @@ export default function Home() {
           </div>
         </section>
 
-        {/* CTA Section */}
         <section className="py-16 md:py-20 px-4">
           <div className="max-w-4xl mx-auto">
             <motion.div

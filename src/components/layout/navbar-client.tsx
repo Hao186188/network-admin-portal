@@ -1,13 +1,10 @@
 // src/components/layout/navbar-client.tsx
-// Vai trò: Wrapper client cho Navbar
+// Vai trò: Navbar Client Component - KHÔNG CẦN PROPS
 
 "use client";
 
-import { useSession } from "next-auth/react";
-import { Navbar } from "./navbar";
+import { Navbar } from "@/components/layout/navbar";
 
 export function NavbarClient() {
-  const { data: session, status } = useSession();
-
-  return <Navbar session={session} status={status} />;
+  return <Navbar />;
 }
