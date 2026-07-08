@@ -21,6 +21,14 @@ const poppins = Poppins({
 export const metadata: Metadata = {
   title: "Mạng 3 Hub - Quản trị Mạng 3",
   description: "Nền tảng học tập hiện đại dành cho sinh viên Quản trị Mạng 3",
+  verification: {
+    google:
+      "google-site-verification=fWJ9xSva7OMPit8NxNyIzmzItlhloIppaCNr6cIhoJQ",
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
   metadataBase: new URL(
     process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000",
   ),
@@ -33,6 +41,10 @@ export default function RootLayout({
 }) {
   return (
     <html lang="vi" suppressHydrationWarning>
+      <head>
+        {/* // Thêm link sitemap vào head */}
+        <link rel="sitemap" type="application/xml" href="/sitemap.xml" />
+      </head>
       <body
         className={`${inter.variable} ${poppins.variable} font-inter antialiased`}
         suppressHydrationWarning
