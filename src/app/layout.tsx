@@ -22,8 +22,7 @@ export const metadata: Metadata = {
   title: "Mạng 3 Hub - Quản trị Mạng 3",
   description: "Nền tảng học tập hiện đại dành cho sinh viên Quản trị Mạng 3",
   verification: {
-    google:
-      "google-site-verification=fWJ9xSva7OMPit8NxNyIzmzItlhloIppaCNr6cIhoJQ",
+    google: "fWJ9xSva7OMPit8NxNyIzmzItlhloIppaCNr6cIhoJQ",
   },
   robots: {
     index: true,
