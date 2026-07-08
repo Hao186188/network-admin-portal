@@ -1,5 +1,5 @@
 // src/app/(routes)/announcements/page.tsx
-// Vai trò: Hiển thị và quản lý các thông báo - CÓ CHỨC NĂNG TẠO MỚI
+// Vai trò: Hiển thị và quản lý các thông báo
 
 "use client";
 
@@ -31,9 +31,9 @@ import {
   X,
 } from "lucide-react";
 import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 
-// Types
 interface Announcement {
   id: string;
   title: string;
@@ -50,7 +50,6 @@ interface Announcement {
   updated_at: string;
 }
 
-// Priority colors
 const priorityColors: Record<string, string> = {
   high: "bg-red-500",
   medium: "bg-yellow-500",
@@ -63,7 +62,6 @@ const priorityLabels: Record<string, string> = {
   low: "Thấp",
 };
 
-// Categories
 const categories = [
   "Tất cả",
   "Thi cử",
@@ -75,7 +73,6 @@ const categories = [
   "Khác",
 ];
 
-// Skeleton components
 const AnnouncementSkeleton = () => (
   <Card className="group hover:shadow-2xl transition-all duration-300 hover:-translate-y-1">
     <CardContent className="p-6">
@@ -106,7 +103,6 @@ const AnnouncementSkeleton = () => (
   </Card>
 );
 
-// Create Announcement Modal
 function CreateAnnouncementModal({
   isOpen,
   onClose,
@@ -157,7 +153,6 @@ function CreateAnnouncementModal({
         toast.success("Đã tạo thông báo thành công!");
         onSuccess();
         onClose();
-        // Reset form
         setTitle("");
         setContent("");
         setCategory("Thông báo");
@@ -193,7 +188,6 @@ function CreateAnnouncementModal({
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Tiêu đề */}
           <div>
             <label className="text-sm font-medium text-foreground mb-2 block">
               Tiêu đề <span className="text-destructive">*</span>
@@ -208,7 +202,6 @@ function CreateAnnouncementModal({
             />
           </div>
 
-          {/* Nội dung */}
           <div>
             <label className="text-sm font-medium text-foreground mb-2 block">
               Nội dung <span className="text-destructive">*</span>
@@ -224,7 +217,6 @@ function CreateAnnouncementModal({
             />
           </div>
 
-          {/* Danh mục và Độ ưu tiên */}
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="text-sm font-medium text-foreground mb-2 block">
@@ -268,7 +260,6 @@ function CreateAnnouncementModal({
             </div>
           </div>
 
-          {/* Ghim */}
           <div className="flex items-center gap-3">
             <button
               type="button"
@@ -285,7 +276,6 @@ function CreateAnnouncementModal({
             </button>
           </div>
 
-          {/* Nút hành động */}
           <div className="flex gap-3 pt-4">
             <Button
               type="button"
@@ -317,13 +307,13 @@ export default function AnnouncementsPage() {
   const { data: session, status } = useSession();
   const { toast } = useToast();
   const { announcements, loading, error, refresh } = useAnnouncements();
+  const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("Tất cả");
   const [favorites, setFavorites] = useState<string[]>([]);
   const [showFilters, setShowFilters] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
-  // Filter announcements
   const filteredAnnouncements = announcements.filter((item: Announcement) => {
     const matchesSearch =
       item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -333,7 +323,6 @@ export default function AnnouncementsPage() {
     return matchesSearch && matchesCategory;
   });
 
-  // Sort: pinned first, then by date
   const sortedAnnouncements = [...filteredAnnouncements].sort((a, b) => {
     if (a.pinned && !b.pinned) return -1;
     if (!a.pinned && b.pinned) return 1;
@@ -372,7 +361,6 @@ export default function AnnouncementsPage() {
       <Navbar />
       <div className="min-h-screen bg-gradient-to-br from-gray-50 via-gray-100 to-gray-200 dark:from-gray-950 dark:via-gray-900 dark:to-gray-800 pt-16 md:pt-20">
         <div className="max-w-7xl mx-auto p-4 md:p-8 space-y-8">
-          {/* Header */}
           <motion.div
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -429,7 +417,6 @@ export default function AnnouncementsPage() {
             </div>
           </motion.div>
 
-          {/* Search and Filter */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -483,7 +470,6 @@ export default function AnnouncementsPage() {
             </AnimatePresence>
           </motion.div>
 
-          {/* Announcements List */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -549,6 +535,7 @@ export default function AnnouncementsPage() {
                           ? "border-primary-300 dark:border-primary-700 bg-primary-50/50 dark:bg-primary-900/20"
                           : ""
                       }`}
+                      onClick={() => router.push(`/announcements/${item.id}`)}
                     >
                       <CardContent className="p-6">
                         <div className="flex items-start gap-4">
@@ -666,7 +653,6 @@ export default function AnnouncementsPage() {
       </div>
       <Footer />
 
-      {/* Create Modal */}
       <CreateAnnouncementModal
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}

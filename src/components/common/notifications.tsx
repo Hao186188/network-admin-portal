@@ -117,17 +117,17 @@ export function Notifications() {
         <Button
           variant="ghost"
           size="icon"
-          className="relative hover:bg-muted"
+          className="relative hover:bg-muted w-8 h-8 md:w-9 md:h-9"
           aria-label="Thông báo"
         >
-          <Bell className="h-5 w-5" />
+          <Bell className="h-4 w-4 md:h-5 md:w-5" />
           {unreadCount > 0 && (
             <motion.span
               initial={{ scale: 0 }}
               animate={{ scale: 1 }}
-              className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center"
+              className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] bg-red-500 text-white text-[9px] md:text-[10px] font-bold rounded-full flex items-center justify-center px-1 border-2 border-background"
             >
-              {unreadCount > 9 ? "9+" : unreadCount}
+              {unreadCount > 99 ? "99+" : unreadCount}
             </motion.span>
           )}
         </Button>

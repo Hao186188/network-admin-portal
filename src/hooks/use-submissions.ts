@@ -1,10 +1,12 @@
 // src/hooks/use-submissions.ts
-// Vai trò: Lấy và quản lý dữ liệu bài nộp từ database
-
-"use client";
+// Vai trò: Hook quản lý bài nộp - HOÀN CHỈNH
 
 import { supabase } from "@/lib/db/supabase-client";
-import { useCallback, useEffect, useState } from "react";
+import { useSession } from "next-auth/react";
+import { useEffect, useState } from "react";
+import { useToast } from "./use-toast";
+
+export type SubmissionStatus = "PENDING" | "APPROVED" | "REJECTED";
 
 export interface Submission {
   id: string;
@@ -13,7 +15,7 @@ export interface Submission {
   file_url: string;
   file_name: string;
   file_size: number;
-  status: "PENDING" | "APPROVED" | "REJECTED";
+  status: SubmissionStatus;
   grade: number;
   feedback: string;
   created_at: string;
@@ -23,6 +25,7 @@ export interface Submission {
     email: string;
   };
   assignment?: {
+    id: string;
     title: string;
     subject: string;
     type: string;
@@ -30,137 +33,179 @@ export interface Submission {
   };
 }
 
-interface UseSubmissionsReturn {
-  submissions: Submission[];
-  loading: boolean;
-  error: string | null;
-  refresh: () => void;
-  gradeSubmission: (
-    submissionId: string,
-    grade: number,
-    feedback: string,
-  ) => Promise<boolean>;
-  getSubmissionsByAssignment: (assignmentId: string) => Promise<Submission[]>;
-}
-
-export function useSubmissions(): UseSubmissionsReturn {
+export function useSubmissions() {
+  const { data: session } = useSession();
+  const { toast } = useToast();
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchSubmissions = useCallback(async () => {
+  const fetchSubmissions = async () => {
     try {
       setLoading(true);
       setError(null);
 
-      if (!supabase) {
-        console.warn("Supabase client not initialized");
-        setSubmissions([]);
-        setError("Supabase client not initialized");
-        setLoading(false);
-        return;
-      }
+      console.log("🔍 Fetching submissions...");
 
-      const { data, error: dbError } = await supabase
+      const { data, error: fetchError } = await supabase
         .from("submissions")
         .select(
           `
           *,
-          user:users(name, email),
-          assignment:assignments(title, subject, type, due_date)
+          user:users!submissions_user_id_fkey (
+            name,
+            email
+          ),
+          assignment:assignments!submissions_assignment_id_fkey (
+            id,
+            title,
+            subject,
+            type,
+            due_date
+          )
         `,
         )
         .order("created_at", { ascending: false });
 
-      if (dbError) {
-        console.error("Supabase error:", dbError);
-        setError(dbError.message);
-        setSubmissions([]);
-        setLoading(false);
+      if (fetchError) {
+        console.error("❌ Fetch error:", fetchError);
+        setError("Không thể tải danh sách bài nộp");
         return;
       }
 
+      console.log("📥 Fetched submissions:", data?.length || 0);
       setSubmissions(data || []);
     } catch (err) {
-      console.error("Error fetching submissions:", err);
-      setError(err instanceof Error ? err.message : "Không thể tải bài nộp");
-      setSubmissions([]);
+      console.error("❌ Error fetching submissions:", err);
+      setError("Có lỗi xảy ra khi tải dữ liệu");
     } finally {
       setLoading(false);
     }
-  }, []);
+  };
 
-  const getSubmissionsByAssignment = useCallback(
-    async (assignmentId: string): Promise<Submission[]> => {
-      try {
-        if (!supabase) {
-          throw new Error("Supabase client not initialized");
-        }
+  // FIX: Sử dụng RPC để bypass RLS
+  const gradeSubmission = async (
+    id: string,
+    grade: number,
+    feedback: string,
+  ): Promise<{ success: boolean; data?: any; error?: string }> => {
+    try {
+      console.log("========================================");
+      console.log("📝 BẮT ĐẦU CHẤM ĐIỂM (RPC)");
+      console.log("📝 ID:", id);
+      console.log("📝 Grade:", grade);
+      console.log("📝 Feedback:", feedback);
+      console.log("🔍 Current user:", session?.user?.email);
+      console.log("🔍 User role:", session?.user?.role);
+      console.log("========================================");
 
-        const { data, error: dbError } = await supabase
-          .from("submissions")
-          .select(
-            `
-          *,
-          user:users(name, email)
-        `,
-          )
-          .eq("assignment_id", assignmentId)
-          .order("created_at", { ascending: false });
-
-        if (dbError) {
-          console.error("Supabase error:", dbError);
-          throw new Error(dbError.message);
-        }
-
-        return data || [];
-      } catch (err) {
-        console.error("Error fetching submissions by assignment:", err);
-        throw err;
+      if (!id) {
+        return { success: false, error: "Không tìm thấy bài nộp" };
       }
-    },
-    [],
-  );
 
-  const gradeSubmission = useCallback(
-    async (
-      submissionId: string,
-      grade: number,
-      feedback: string,
-    ): Promise<boolean> => {
-      try {
-        if (!supabase) {
-          throw new Error("Supabase client not initialized");
-        }
-
-        const { error: dbError } = await supabase
-          .from("submissions")
-          .update({
-            grade: grade,
-            feedback: feedback,
-            status: "APPROVED",
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", submissionId);
-
-        if (dbError) {
-          console.error("Supabase update error:", dbError);
-          throw new Error(dbError.message);
-        }
-
-        await fetchSubmissions();
-        return true;
-      } catch (err) {
-        console.error("Error grading submission:", err);
-        throw err;
+      if (grade < 0 || grade > 10) {
+        return { success: false, error: "Điểm phải từ 0 đến 10" };
       }
-    },
-    [fetchSubmissions],
-  );
+
+      // Xác định status
+      const status: SubmissionStatus = grade >= 5 ? "APPROVED" : "REJECTED";
+
+      // SỬ DỤNG RPC THAY VÌ UPDATE TRỰC TIẾP
+      console.log("📝 Gọi RPC grade_submission_rpc...");
+      const { data, error } = await supabase.rpc("grade_submission_rpc", {
+        p_submission_id: id,
+        p_grade: grade,
+        p_feedback: feedback || "",
+      });
+
+      if (error) {
+        console.error("❌ RPC error:", error);
+        return { success: false, error: error.message };
+      }
+
+      console.log("✅ RPC thành công:", data);
+
+      // Cập nhật local state
+      setSubmissions((prevSubmissions) =>
+        prevSubmissions.map((sub) =>
+          sub.id === id
+            ? {
+                ...sub,
+                grade: grade,
+                feedback: feedback || "",
+                status: status,
+                updated_at: new Date().toISOString(),
+              }
+            : sub,
+        ),
+      );
+
+      // Fetch lại để đồng bộ
+      await fetchSubmissions();
+
+      console.log("✅ CHẤM ĐIỂM THÀNH CÔNG!");
+      console.log("========================================");
+
+      return { success: true, data: { id, grade, feedback, status } };
+    } catch (error: any) {
+      console.error("❌ Grade error:", error);
+      return {
+        success: false,
+        error: error.message || "Có lỗi xảy ra khi chấm điểm",
+      };
+    }
+  };
+
+  const deleteSubmission = async (
+    id: string,
+  ): Promise<{ success: boolean; error?: string }> => {
+    try {
+      const { error: deleteError } = await supabase
+        .from("submissions")
+        .delete()
+        .eq("id", id);
+
+      if (deleteError) {
+        console.error("Delete error:", deleteError);
+        return { success: false, error: deleteError.message };
+      }
+
+      setSubmissions((prev) => prev.filter((sub) => sub.id !== id));
+      return { success: true };
+    } catch (error: any) {
+      console.error("Delete error:", error);
+      return { success: false, error: error.message };
+    }
+  };
+
+  const downloadFile = async (
+    url: string,
+    fileName: string,
+  ): Promise<boolean> => {
+    try {
+      const response = await fetch(url);
+      if (!response.ok) throw new Error("Failed to fetch file");
+
+      const blob = await response.blob();
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(link.href);
+      return true;
+    } catch (error) {
+      console.error("Download error:", error);
+      return false;
+    }
+  };
 
   useEffect(() => {
-    fetchSubmissions();
-  }, [fetchSubmissions]);
+    if (session?.user) {
+      fetchSubmissions();
+    }
+  }, [session]);
 
   return {
     submissions,
@@ -168,6 +213,7 @@ export function useSubmissions(): UseSubmissionsReturn {
     error,
     refresh: fetchSubmissions,
     gradeSubmission,
-    getSubmissionsByAssignment,
+    deleteSubmission,
+    downloadFile,
   };
 }

@@ -1,9 +1,9 @@
 // src/components/layout/navbar-client.tsx
-// Vai trò: Navbar Client Component - KHÔNG CẦN PROPS
+// Vai trò: Navbar Client - FIX TYPE
 
 "use client";
 
-import { Navbar } from "@/components/layout/navbar";
+import { Navbar } from "./navbar";
 
 export function NavbarClient() {
   return <Navbar />;

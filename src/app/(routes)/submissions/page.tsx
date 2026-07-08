@@ -1,5 +1,5 @@
 // src/app/(routes)/submissions/page.tsx
-// Vai trò: Quản lý bài nộp và chấm điểm - FIX LOGIC
+// Vai trò: Quản lý bài nộp và chấm điểm - HOÀN CHỈNH
 
 "use client";
 
@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useSubmissions } from "@/hooks/use-submissions";
+import { useSubmissions, type SubmissionStatus } from "@/hooks/use-submissions";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/db/supabase-client";
 import { AnimatePresence, motion } from "framer-motion";
@@ -33,10 +33,8 @@ import {
 import { useSession } from "next-auth/react";
 import { useEffect, useState } from "react";
 
-// IMPORT TYPE TỪ HOOK ĐỂ ĐỒNG BỘ
 import type { Submission as HookSubmission } from "@/hooks/use-submissions";
 
-// MỞ RỘNG TYPE CHO COMPONENT
 interface Submission extends HookSubmission {
   user?: {
     name: string;
@@ -56,20 +54,22 @@ const statusConfig = {
     label: "Đang chờ",
     icon: Clock,
     color: "text-yellow-500 bg-yellow-500/10 border-yellow-500/20",
+    badgeColor: "bg-yellow-500",
   },
   APPROVED: {
     label: "Đã chấm",
     icon: CheckCircle,
     color: "text-green-500 bg-green-500/10 border-green-500/20",
+    badgeColor: "bg-green-500",
   },
   REJECTED: {
     label: "Cần sửa",
     icon: XCircle,
     color: "text-red-500 bg-red-500/10 border-red-500/20",
+    badgeColor: "bg-red-500",
   },
 };
 
-// Grade Modal - FIX: Cập nhật state ngay sau khi chấm điểm
 function GradeModal({
   isOpen,
   onClose,
@@ -79,15 +79,14 @@ function GradeModal({
   isOpen: boolean;
   onClose: () => void;
   submission: Submission | null;
-  onSuccess: () => void;
+  onSuccess: (updatedSubmission?: Submission) => void;
 }) {
   const { toast } = useToast();
-  const { gradeSubmission, refresh } = useSubmissions();
+  const { gradeSubmission } = useSubmissions();
   const [grade, setGrade] = useState<number>(0);
   const [feedback, setFeedback] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
-  // Reset form khi mở modal
   useEffect(() => {
     if (isOpen && submission) {
       setGrade(0);
@@ -97,7 +96,10 @@ function GradeModal({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!submission) return;
+    if (!submission) {
+      toast.error("Không tìm thấy bài nộp");
+      return;
+    }
 
     if (grade < 0 || grade > 10) {
       toast.error("Điểm phải từ 0 đến 10");
@@ -106,46 +108,67 @@ function GradeModal({
 
     setIsLoading(true);
     try {
-      // Chấm điểm
+      console.log("========================================");
+      console.log("📝 BẮT ĐẦU CHẤM ĐIỂM TỪ MODAL");
+      console.log("📝 Submission ID:", submission.id);
+      console.log("📝 Grade:", grade);
+      console.log("📝 Feedback:", feedback);
+      console.log("========================================");
+
       const result = await gradeSubmission(submission.id, grade, feedback);
 
-      if (!result) {
-        throw new Error("Không thể chấm điểm");
+      console.log("📝 Kết quả từ gradeSubmission:", result);
+
+      if (!result.success) {
+        toast.error(result.error || "Không thể chấm điểm");
+        setIsLoading(false);
+        return;
       }
 
       // Tạo thông báo cho học sinh
-      const { error: notifError } = await supabase
-        .from("notifications")
-        .insert({
-          title: `Bài tập "${submission.assignment?.title || "không tên"}" đã được chấm điểm`,
-          message: `Bạn đạt ${grade}/10 điểm. ${feedback ? `Nhận xét: ${feedback}` : ""}`,
-          type: "grade",
-          read: false,
-          link: `/assignments/${submission.assignment_id}`,
-          user_id: submission.user_id,
-          created_at: new Date().toISOString(),
-        });
+      try {
+        const statusText = grade >= 5 ? "Đã đạt" : "Cần cải thiện";
+        const { error: notifError } = await supabase
+          .from("notifications")
+          .insert({
+            title: `Bài tập "${submission.assignment?.title || "không tên"}" đã được chấm điểm`,
+            message: `Bạn đạt ${grade}/10 điểm (${statusText}). ${feedback ? `Nhận xét: ${feedback}` : ""}`,
+            type: "grade",
+            read: false,
+            link: `/assignments/${submission.assignment_id}`,
+            user_id: submission.user_id,
+            created_at: new Date().toISOString(),
+          });
 
-      if (notifError) {
+        if (notifError) {
+          console.error("❌ Lỗi tạo thông báo:", notifError);
+        }
+      } catch (notifError) {
         console.error("❌ Lỗi tạo thông báo:", notifError);
-      } else {
-        console.log("✅ Đã gửi thông báo cho học sinh:", submission.user?.name);
       }
 
-      toast.success(`✅ Đã chấm điểm thành công! Học sinh đã được thông báo.`);
+      const updatedStatus: SubmissionStatus =
+        grade >= 5 ? "APPROVED" : "REJECTED";
 
-      // FIX: Refresh dữ liệu ngay lập tức
-      await refresh();
+      const updatedSubmission: Submission = {
+        ...submission,
+        grade: grade,
+        feedback: feedback || "",
+        status: updatedStatus,
+        updated_at: new Date().toISOString(),
+      };
 
-      // Gọi onSuccess để component cha cập nhật
-      onSuccess();
+      console.log("📝 Updated submission:", updatedSubmission);
 
-      // Đóng modal
+      toast.success(`✅ Đã chấm điểm thành công!`);
+
+      await onSuccess(updatedSubmission);
+
       onClose();
       setGrade(0);
       setFeedback("");
     } catch (error: any) {
-      console.error("Grade error:", error);
+      console.error("❌ Grade error:", error);
       toast.error(error?.message || "Có lỗi xảy ra khi chấm điểm");
     } finally {
       setIsLoading(false);
@@ -153,6 +176,10 @@ function GradeModal({
   };
 
   if (!isOpen || !submission) return null;
+
+  const currentStatus =
+    statusConfig[submission.status as keyof typeof statusConfig] ||
+    statusConfig.PENDING;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
@@ -183,14 +210,14 @@ function GradeModal({
             <p className="text-sm text-muted-foreground">
               File: {submission.file_name}
             </p>
-            <p className="text-xs text-muted-foreground mt-1">
-              Trạng thái hiện tại:{" "}
-              <span className="font-medium text-yellow-600">
-                {submission.status === "PENDING"
-                  ? "Chờ chấm"
-                  : submission.status}
-              </span>
-            </p>
+            <div className="mt-2 flex items-center gap-2">
+              <span className="text-xs text-muted-foreground">Trạng thái:</span>
+              <Badge
+                className={`${currentStatus.badgeColor} text-white border-0`}
+              >
+                {currentStatus.label}
+              </Badge>
+            </div>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -282,12 +309,11 @@ export default function SubmissionsPage() {
   const isTeacher =
     session?.user?.role === "TEACHER" || session?.user?.role === "ADMIN";
 
-  // FIX: Cập nhật local state khi hook submissions thay đổi
   useEffect(() => {
+    console.log("📥 Hook submissions updated:", hookSubmissions?.length || 0);
     setLocalSubmissions(hookSubmissions as Submission[]);
   }, [hookSubmissions]);
 
-  // Hàm refresh với loading state
   const handleRefresh = async () => {
     setIsRefreshing(true);
     try {
@@ -300,16 +326,27 @@ export default function SubmissionsPage() {
     }
   };
 
-  // FIX: Hàm xử lý sau khi chấm điểm thành công
-  const handleGradeSuccess = async () => {
-    // Refresh dữ liệu từ hook
-    await refresh();
-    // Cập nhật local state
-    setLocalSubmissions(hookSubmissions as Submission[]);
-    toast.success("Danh sách bài nộp đã được cập nhật!");
+  const handleGradeSuccess = async (updatedSubmission?: Submission) => {
+    console.log("🔄 Grade success, updating UI...", updatedSubmission);
+
+    if (updatedSubmission) {
+      setLocalSubmissions((prev) =>
+        prev.map((sub) =>
+          sub.id === updatedSubmission.id ? updatedSubmission : sub,
+        ),
+      );
+      toast.success("✅ Đã cập nhật giao diện!");
+    }
+
+    try {
+      console.log("🔄 Đang refresh dữ liệu từ database...");
+      await refresh();
+      console.log("🔄 Đã refresh dữ liệu ngầm thành công");
+    } catch (err) {
+      console.error("❌ Lỗi đồng bộ dữ liệu ngầm:", err);
+    }
   };
 
-  // Lọc submissions
   const filteredSubmissions = localSubmissions.filter((item: Submission) => {
     const matchesSearch =
       item.assignment?.title
@@ -361,7 +398,6 @@ export default function SubmissionsPage() {
     }
   };
 
-  // Đếm số lượng bài theo trạng thái
   const pendingCount = localSubmissions.filter(
     (s) => s.status === "PENDING",
   ).length;
@@ -697,7 +733,6 @@ export default function SubmissionsPage() {
                                 </div>
                               )}
 
-                              {/* CHỈ HIỂN THỊ NÚT CHẤM ĐIỂM CHO BÀI ĐANG CHỜ */}
                               {isTeacher && submission.status === "PENDING" && (
                                 <Button
                                   size="sm"
@@ -709,7 +744,6 @@ export default function SubmissionsPage() {
                                 </Button>
                               )}
 
-                              {/* HIỂN THỊ ĐÃ CHẤM CHO BÀI ĐÃ CHẤM */}
                               {(submission.status === "APPROVED" ||
                                 submission.status === "REJECTED") && (
                                 <Badge variant="outline" className="gap-1">
@@ -755,7 +789,6 @@ export default function SubmissionsPage() {
       </div>
       <Footer />
 
-      {/* Grade Modal */}
       <GradeModal
         isOpen={isGradeModalOpen}
         onClose={() => {

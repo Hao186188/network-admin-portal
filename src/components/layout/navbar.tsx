@@ -1,5 +1,5 @@
 // src/components/layout/navbar.tsx
-// Vai trò: Navbar - FIX LOGOUT
+// Vai trò: Navbar - TỐI ƯU BỐ CỤC KHÔNG BỊ TRÀN
 
 "use client";
 
@@ -37,7 +37,16 @@ import {
 import { signOut, useSession } from "next-auth/react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useState } from "react";
+
+// Constants - Tối ưu số lượng item hiển thị trên desktop
+const desktopNavItems = [
+  { name: "Trang chủ", href: "/", icon: Home },
+  { name: "Diễn đàn", href: "/forum", icon: MessageCircle },
+  { name: "Bài tập", href: "/assignments", icon: ClipboardList },
+  { name: "Tài liệu", href: "/documents", icon: BookOpen },
+  { name: "Bài giảng", href: "/lectures", icon: FileText },
+];
 
 const mobileNavItems = [
   { name: "Trang chủ", href: "/", icon: Home },
@@ -59,25 +68,127 @@ const mobileNavItems = [
 
 const adminMobileNavItems = [{ name: "Quản trị", href: "/admin", icon: Crown }];
 
+// Memoized NavItem component
+const NavItem = memo(({ item, isActive }: any) => (
+  <Link href={item.href}>
+    <motion.div
+      whileHover={{ y: -2 }}
+      whileTap={{ scale: 0.95 }}
+      className={cn(
+        "px-2.5 py-1.5 rounded-lg text-sm font-medium transition-all duration-200 whitespace-nowrap",
+        isActive
+          ? "text-primary bg-primary/10 shadow-sm"
+          : "text-foreground/70 hover:text-foreground hover:bg-muted",
+      )}
+    >
+      {item.name}
+    </motion.div>
+  </Link>
+));
+
+NavItem.displayName = "NavItem";
+
+// Memoized MobileNavItem component
+const MobileNavItem = memo(({ item, isActive, onClick }: any) => (
+  <Link
+    href={item.href}
+    className={cn(
+      "flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 active:scale-[0.98]",
+      isActive
+        ? "bg-primary/10 text-primary"
+        : "text-foreground/70 hover:text-foreground hover:bg-muted",
+    )}
+    onClick={onClick}
+  >
+    <item.icon className="w-5 h-5" />
+    <span className="text-sm font-medium">{item.name}</span>
+  </Link>
+));
+
+MobileNavItem.displayName = "MobileNavItem";
+
 export function Navbar() {
   const { data: session, status } = useSession();
   const pathname = usePathname();
+  const { toggleTheme, resolvedTheme } = useTheme();
   const [isScrolled, setIsScrolled] = useState(false);
-  const { theme, toggleTheme, resolvedTheme } = useTheme();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
 
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  const isAuthenticated = useMemo(
+    () => status === "authenticated" && !!session?.user,
+    [status, session],
+  );
+  const isAdmin = useMemo(() => session?.user?.role === "ADMIN", [session]);
+  const isDark = useMemo(() => resolvedTheme === "dark", [resolvedTheme]);
 
+  const displayName = useMemo(
+    () => session?.user?.name || session?.user?.username || "User",
+    [session],
+  );
+  const userInitial = useMemo(
+    () => displayName.charAt(0).toUpperCase(),
+    [displayName],
+  );
+
+  const allMobileNavItems = useMemo(
+    () => [...mobileNavItems, ...(isAdmin ? adminMobileNavItems : [])],
+    [isAdmin],
+  );
+
+  // Handle scroll with passive listener
   useEffect(() => {
     const handleScroll = () => {
       setIsScrolled(window.scrollY > 10);
     };
-    window.addEventListener("scroll", handleScroll);
+    window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  // Handle mount
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Close mobile menu on route change
+  useEffect(() => {
+    setIsMobileMenuOpen(false);
+  }, [pathname]);
+
+  // Close profile dropdown on route change
+  useEffect(() => {
+    setIsProfileOpen(false);
+  }, [pathname]);
+
+  // Handle logout with cleanup
+  const handleLogout = useCallback(async () => {
+    setIsProfileOpen(false);
+    try {
+      sessionStorage.setItem("isLoggingOut", "true");
+      await signOut({ callbackUrl: "/login" });
+    } catch (error) {
+      console.error("Logout error:", error);
+      window.location.href = "/login";
+    }
+  }, []);
+
+  // Toggle mobile menu
+  const toggleMobileMenu = useCallback(() => {
+    setIsMobileMenuOpen((prev) => !prev);
+    if (isProfileOpen) setIsProfileOpen(false);
+  }, [isProfileOpen]);
+
+  // Toggle profile dropdown
+  const toggleProfile = useCallback(() => {
+    setIsProfileOpen((prev) => !prev);
+    if (isMobileMenuOpen) setIsMobileMenuOpen(false);
+  }, [isMobileMenuOpen]);
+
+  // Close all menus
+  const closeAllMenus = useCallback(() => {
+    setIsMobileMenuOpen(false);
+    setIsProfileOpen(false);
   }, []);
 
   // Ẩn navbar trên auth pages
@@ -90,10 +201,7 @@ export function Navbar() {
     return null;
   }
 
-  const isAuthenticated = status === "authenticated" && !!session?.user;
-  const isAdmin = session?.user?.role === "ADMIN";
-
-  // Nếu chưa mount hoặc đang loading
+  // Loading skeleton
   if (!mounted || status === "loading") {
     return (
       <header className="fixed top-0 left-0 right-0 z-40 bg-background/80 backdrop-blur-md border-b border-border shadow-lg">
@@ -120,98 +228,71 @@ export function Navbar() {
     );
   }
 
-  const allMobileNavItems = [
-    ...mobileNavItems,
-    ...(isAdmin ? adminMobileNavItems : []),
-  ];
-
-  const displayName = session?.user?.name || session?.user?.username || "User";
-  const userInitial = displayName.charAt(0).toUpperCase();
-
-  const handleLogout = async () => {
-    setIsProfileOpen(false);
-    try {
-      // Đánh dấu đang logout
-      sessionStorage.setItem("isLoggingOut", "true");
-
-      // Đăng xuất với redirect
-      await signOut({
-        callbackUrl: "/login",
-      });
-    } catch (error) {
-      console.error("Logout error:", error);
-      window.location.href = "/login";
-    }
-  };
-
-  const isDark = resolvedTheme === "dark";
-
   return (
     <header
       className={cn(
-        "fixed top-0 left-0 right-0 z-40 transition-all duration-300",
+        "fixed top-0 left-0 right-0 z-40 transition-all duration-300 navbar-transition",
         isScrolled
           ? "bg-background/80 backdrop-blur-md border-b border-border shadow-lg"
           : "bg-transparent",
       )}
     >
-      <nav className="h-16 md:h-20 px-4 md:px-6 flex items-center justify-between max-w-7xl mx-auto">
+      <nav className="h-16 md:h-20 px-2 md:px-4 lg:px-6 flex items-center justify-between max-w-7xl mx-auto">
         {/* Logo */}
-        <Link href="/" className="flex items-center gap-2 group">
+        <Link
+          href="/"
+          className="flex items-center gap-1.5 md:gap-2 group touch-friendly flex-shrink-0"
+          aria-label="Trang chủ"
+        >
           <motion.div
             whileHover={{ rotate: 180 }}
             transition={{ duration: 0.5 }}
-            className="w-10 h-10 rounded-xl bg-gradient-to-r from-primary to-secondary flex items-center justify-center shadow-lg shadow-primary/25 group-hover:shadow-primary/40 transition-shadow"
+            className="w-7 h-7 md:w-9 md:h-9 rounded-xl bg-gradient-to-r from-primary to-secondary flex items-center justify-center shadow-lg shadow-primary/25 group-hover:shadow-primary/40 transition-shadow flex-shrink-0"
           >
-            <Sparkles className="w-5 h-5 text-white" />
+            <Sparkles className="w-3.5 h-3.5 md:w-5 md:h-5 text-white" />
           </motion.div>
           <div className="hidden sm:block">
-            <span className="text-lg font-bold gradient-text">Mạng 3 Hub</span>
-            <span className="text-xs text-muted-foreground block -mt-1">
+            <span className="text-xs md:text-base lg:text-lg font-bold gradient-text whitespace-nowrap">
+              Mạng 3 Hub
+            </span>
+            <span className="text-[8px] md:text-[10px] lg:text-xs text-muted-foreground block -mt-0.5 whitespace-nowrap">
               Quản trị Mạng
             </span>
           </div>
         </Link>
 
-        {/* Desktop Navigation */}
-        <div className="hidden lg:flex items-center gap-1">
-          {mobileNavItems.slice(0, 8).map((item) => (
-            <Link key={item.name} href={item.href}>
-              <motion.div
-                whileHover={{ y: -2 }}
-                className={cn(
-                  "px-3 py-2 rounded-lg text-sm font-medium transition-colors",
-                  pathname === item.href
-                    ? "text-primary bg-primary/10"
-                    : "text-foreground/70 hover:text-foreground hover:bg-muted",
-                )}
-              >
-                {item.name}
-              </motion.div>
-            </Link>
+        {/* Desktop Navigation - Tối ưu padding */}
+        <div className="hidden xl:flex items-center gap-0.5 flex-1 justify-center px-2 overflow-x-auto">
+          {desktopNavItems.map((item) => (
+            <NavItem
+              key={item.name}
+              item={item}
+              isActive={pathname === item.href}
+            />
           ))}
         </div>
 
-        {/* Right Actions */}
-        <div className="flex items-center gap-1 md:gap-2">
+        {/* Right Actions - Tối ưu spacing */}
+        <div className="flex items-center gap-0.5 md:gap-1 lg:gap-2 flex-shrink-0">
           <Search />
 
+          {/* Theme Toggle */}
           <Button
             variant="ghost"
             size="icon"
             onClick={toggleTheme}
-            className="relative hover:bg-muted"
+            className="relative hover:bg-muted theme-toggle transition-colors touch-friendly w-8 h-8 md:w-9 md:h-9"
             aria-label="Toggle theme"
           >
             <Sun
               className={cn(
-                "h-5 w-5 transition-all duration-300",
+                "h-3.5 w-3.5 md:h-4 md:w-4 lg:h-5 lg:w-5 theme-toggle-icon",
                 isDark ? "rotate-90 scale-0" : "rotate-0 scale-100",
               )}
             />
             <Moon
               className={cn(
-                "absolute h-5 w-5 transition-all duration-300",
+                "absolute h-3.5 w-3.5 md:h-4 md:w-4 lg:h-5 lg:w-5 theme-toggle-icon",
                 isDark ? "rotate-0 scale-100" : "rotate-90 scale-0",
               )}
             />
@@ -219,159 +300,185 @@ export function Navbar() {
 
           <Notifications />
 
+          {/* Admin Button - Thu nhỏ trên màn hình trung bình */}
           {isAdmin && (
-            <Link href="/admin">
+            <Link href="/admin" className="hidden lg:block">
               <Button
                 variant="ghost"
                 size="sm"
                 className={cn(
-                  "gap-2 hover:bg-primary/10",
+                  "gap-1 hover:bg-primary/10 touch-friendly text-xs lg:text-sm px-2 lg:px-3",
                   pathname?.startsWith("/admin") &&
                     "bg-primary/10 text-primary",
                 )}
               >
-                <Crown className="w-4 h-4 text-primary" />
-                <span className="hidden md:inline">Quản trị</span>
+                <Crown className="w-3.5 h-3.5 lg:w-4 lg:h-4 text-primary" />
+                <span className="hidden xl:inline">Quản trị</span>
               </Button>
             </Link>
           )}
 
+          {/* Auth Section - Tối ưu hiển thị */}
           {isAuthenticated ? (
-            <div className="flex items-center gap-2">
-              <div className="relative">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="gap-2 hover:bg-primary/10"
-                  onClick={() => setIsProfileOpen(!isProfileOpen)}
-                >
-                  <div className="w-8 h-8 rounded-full bg-gradient-to-r from-primary to-secondary flex items-center justify-center text-white text-sm font-bold">
-                    {userInitial}
-                  </div>
-                  <span className="hidden lg:inline text-sm font-medium text-foreground">
-                    {displayName}
-                  </span>
-                </Button>
+            <div className="relative">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="gap-1 hover:bg-primary/10 touch-friendly px-2 lg:px-3"
+                onClick={toggleProfile}
+                aria-label="Tài khoản"
+              >
+                <div className="w-6 h-6 md:w-7 md:h-7 rounded-full bg-gradient-to-r from-primary to-secondary flex items-center justify-center text-white text-[10px] md:text-xs font-bold flex-shrink-0">
+                  {userInitial}
+                </div>
+                <span className="hidden lg:inline text-xs lg:text-sm font-medium text-foreground max-w-[80px] truncate">
+                  {displayName}
+                </span>
+              </Button>
 
-                <AnimatePresence>
-                  {isProfileOpen && (
-                    <motion.div
-                      initial={{ opacity: 0, y: -10, scale: 0.95 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      exit={{ opacity: 0, y: -10, scale: 0.95 }}
-                      className="absolute right-0 mt-2 w-56 bg-background rounded-2xl shadow-2xl border border-border overflow-hidden z-50"
-                    >
-                      <div className="p-2">
-                        <div className="px-3 py-2 border-b border-border">
-                          <p className="text-sm font-semibold truncate">
-                            {session?.user?.name || "User"}
-                          </p>
-                          <p className="text-xs text-muted-foreground truncate">
-                            @{session?.user?.username || "username"}
-                          </p>
-                          <p className="text-xs text-muted-foreground truncate">
-                            {session?.user?.email}
-                          </p>
-                          <p className="text-xs text-muted-foreground truncate">
-                            Vai trò: {session?.user?.role}
-                          </p>
-                        </div>
-                        <Link href="/profile">
-                          <Button
-                            variant="ghost"
-                            className="w-full justify-start gap-2 mt-1 hover:bg-primary/10"
-                            onClick={() => setIsProfileOpen(false)}
-                          >
-                            <User className="w-4 h-4" />
-                            Hồ sơ cá nhân
-                          </Button>
-                        </Link>
-                        {isAdmin && (
-                          <Link href="/admin">
-                            <Button
-                              variant="ghost"
-                              className="w-full justify-start gap-2 hover:bg-primary/10"
-                              onClick={() => setIsProfileOpen(false)}
-                            >
-                              <Crown className="w-4 h-4 text-primary" />
-                              Quản trị hệ thống
-                            </Button>
-                          </Link>
-                        )}
+              {/* Profile Dropdown */}
+              <AnimatePresence>
+                {isProfileOpen && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                    transition={{ duration: 0.15 }}
+                    className="absolute right-0 mt-2 w-56 md:w-64 bg-background rounded-2xl shadow-2xl border border-border overflow-hidden z-50"
+                  >
+                    <div className="p-2">
+                      <div className="px-3 py-2 border-b border-border">
+                        <p className="text-sm font-semibold truncate">
+                          {session?.user?.name || "User"}
+                        </p>
+                        <p className="text-xs text-muted-foreground truncate">
+                          @{session?.user?.username || "username"}
+                        </p>
+                        <p className="text-xs text-muted-foreground truncate">
+                          {session?.user?.email}
+                        </p>
+                        <p className="text-xs text-muted-foreground truncate">
+                          Vai trò: {session?.user?.role}
+                        </p>
+                      </div>
+                      <Link href="/profile">
                         <Button
                           variant="ghost"
-                          className="w-full justify-start gap-2 mt-1 text-destructive hover:bg-destructive/10 hover:text-destructive"
-                          onClick={handleLogout}
+                          className="w-full justify-start gap-2 mt-1 hover:bg-primary/10 touch-friendly"
+                          onClick={closeAllMenus}
                         >
-                          <LogOut className="w-4 h-4" />
-                          Đăng xuất
+                          <User className="w-4 h-4" />
+                          Hồ sơ cá nhân
                         </Button>
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
+                      </Link>
+
+                      <Link href="/dashboard">
+                        <Button
+                          variant="ghost"
+                          className="w-full justify-start gap-2 hover:bg-primary/10 touch-friendly"
+                          onClick={closeAllMenus}
+                        >
+                          <LayoutDashboard className="w-4 h-4" />
+                          Dashboard
+                        </Button>
+                      </Link>
+
+                      {isAdmin && (
+                        <Link href="/admin">
+                          <Button
+                            variant="ghost"
+                            className="w-full justify-start gap-2 hover:bg-primary/10 touch-friendly"
+                            onClick={closeAllMenus}
+                          >
+                            <Crown className="w-4 h-4 text-primary" />
+                            Quản trị hệ thống
+                          </Button>
+                        </Link>
+                      )}
+                      <Button
+                        variant="ghost"
+                        className="w-full justify-start gap-2 mt-1 text-destructive hover:bg-destructive/10 hover:text-destructive touch-friendly"
+                        onClick={handleLogout}
+                      >
+                        <LogOut className="w-4 h-4" />
+                        Đăng xuất
+                      </Button>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
           ) : (
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-0.5 md:gap-1">
               <Link href="/login">
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="gap-2 hover:bg-primary/10"
+                  className="gap-1 hover:bg-primary/10 touch-friendly text-xs lg:text-sm px-2 lg:px-3"
                 >
-                  <LogIn className="w-4 h-4" />
-                  <span className="hidden md:inline">Đăng nhập</span>
+                  <LogIn className="w-3.5 h-3.5 lg:w-4 lg:h-4" />
+                  <span className="hidden sm:inline">Đăng nhập</span>
                 </Button>
               </Link>
               <Link href="/register">
                 <Button
                   size="sm"
-                  className="gap-2 hidden sm:flex bg-primary text-primary-foreground hover:bg-primary/90"
+                  className="gap-1 hidden sm:flex bg-primary text-primary-foreground hover:bg-primary/90 touch-friendly text-xs lg:text-sm px-2 lg:px-3"
                 >
-                  <User className="w-4 h-4" />
-                  Đăng ký
+                  <User className="w-3.5 h-3.5 lg:w-4 lg:h-4" />
+                  <span className="hidden sm:inline">Đăng ký</span>
                 </Button>
               </Link>
             </div>
           )}
 
+          {/* Mobile Menu Button */}
           <Button
             variant="ghost"
             size="icon"
-            className="lg:hidden hover:bg-muted"
-            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+            className="lg:hidden hover:bg-muted touch-friendly w-8 h-8"
+            onClick={toggleMobileMenu}
+            aria-label={isMobileMenuOpen ? "Đóng menu" : "Mở menu"}
           >
-            <Menu className="w-5 h-5" />
+            <Menu className="w-4 h-4 md:w-5 md:h-5" />
           </Button>
         </div>
       </nav>
 
+      {/* Mobile Menu */}
       <AnimatePresence>
         {isMobileMenuOpen && (
           <motion.div
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: "auto" }}
             exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.2 }}
             className="lg:hidden overflow-hidden border-t border-border bg-background/95 backdrop-blur-md"
           >
-            <div className="p-4 space-y-1 max-h-[80vh] overflow-y-auto">
+            <div className="p-3 md:p-4 space-y-0.5 max-h-[75vh] overflow-y-auto hide-scrollbar">
               {allMobileNavItems.map((item) => (
-                <Link
+                <MobileNavItem
                   key={item.name}
-                  href={item.href}
+                  item={item}
+                  isActive={pathname === item.href}
+                  onClick={closeAllMenus}
+                />
+              ))}
+              {isAdmin && (
+                <Link
+                  href="/admin"
                   className={cn(
-                    "flex items-center gap-3 px-4 py-3 rounded-xl transition-colors",
-                    pathname === item.href
+                    "flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 active:scale-[0.98]",
+                    pathname?.startsWith("/admin")
                       ? "bg-primary/10 text-primary"
                       : "text-foreground/70 hover:text-foreground hover:bg-muted",
                   )}
-                  onClick={() => setIsMobileMenuOpen(false)}
+                  onClick={closeAllMenus}
                 >
-                  <item.icon className="w-5 h-5" />
-                  <span className="text-sm font-medium">{item.name}</span>
+                  <Crown className="w-5 h-5 text-primary" />
+                  <span className="text-sm font-medium">Quản trị</span>
                 </Link>
-              ))}
+              )}
             </div>
           </motion.div>
         )}

@@ -1,5 +1,5 @@
 // src/components/providers/theme-provider.tsx
-// Vai trò: Theme provider - FIX DARK MODE
+// Tối ưu animation - GIẢM THỜI GIAN
 
 "use client";
 
@@ -41,7 +41,6 @@ export function ThemeProvider({
   );
   const [mounted, setMounted] = React.useState(false);
 
-  // Hàm lấy theme thực tế
   const getResolvedTheme = React.useCallback(
     (currentTheme: Theme): "light" | "dark" => {
       if (currentTheme === "system") {
@@ -54,7 +53,6 @@ export function ThemeProvider({
     [],
   );
 
-  // Chỉ chạy trên client
   React.useEffect(() => {
     setMounted(true);
     const stored = localStorage.getItem(storageKey) as Theme | null;
@@ -65,7 +63,6 @@ export function ThemeProvider({
     }
   }, [defaultTheme, storageKey]);
 
-  // Cập nhật resolved theme và class
   React.useEffect(() => {
     if (!mounted) return;
 
@@ -73,14 +70,22 @@ export function ThemeProvider({
     setResolvedTheme(resolved);
 
     const root = document.documentElement;
+
+    // Thêm class animation
+    root.classList.add("dark-mode-fade");
+
     root.classList.remove("light", "dark");
     root.classList.add(resolved);
     root.style.colorScheme = resolved;
 
     localStorage.setItem(storageKey, theme);
+
+    // Xóa class animation nhanh hơn
+    setTimeout(() => {
+      root.classList.remove("dark-mode-fade");
+    }, 150); // Giảm từ 300ms xuống 150ms
   }, [theme, mounted, getResolvedTheme, storageKey]);
 
-  // Lắng nghe thay đổi hệ thống
   React.useEffect(() => {
     if (!mounted) return;
 
@@ -104,7 +109,6 @@ export function ThemeProvider({
     setTheme((prevTheme) => {
       if (prevTheme === "light") return "dark";
       if (prevTheme === "dark") return "light";
-      // Nếu đang là system, chuyển sang dark
       return "dark";
     });
   }, []);
@@ -119,7 +123,6 @@ export function ThemeProvider({
     [theme, toggleTheme, resolvedTheme],
   );
 
-  // Tránh hydration mismatch
   if (!mounted) {
     return (
       <ThemeProviderContext.Provider value={value}>
