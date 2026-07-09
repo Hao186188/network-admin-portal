@@ -1,5 +1,5 @@
 // src/components/common/file-upload.tsx
-// Vai trò: Component upload file với drag & drop
+// Vai trò: Component upload file với drag & drop - FIXED
 
 "use client";
 
@@ -7,11 +7,12 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { File, FileText, Image, Upload, Video, X } from "lucide-react";
 import { useState } from "react";
-import { useDropzone } from "react-dropzone";
+import { FileRejection, useDropzone } from "react-dropzone";
 
 interface FileUploadProps {
   onFileUpload: (files: File[]) => void;
   maxFiles?: number;
+  maxSize?: number; // bytes
   accept?: Record<string, string[]>;
   className?: string;
 }
@@ -19,6 +20,7 @@ interface FileUploadProps {
 export function FileUpload({
   onFileUpload,
   maxFiles = 5,
+  maxSize = 10 * 1024 * 1024, // 10MB default
   accept = {
     "image/*": [".png", ".jpg", ".jpeg", ".gif", ".svg"],
     "application/pdf": [".pdf"],
@@ -35,13 +37,30 @@ export function FileUpload({
 }: FileUploadProps) {
   const [files, setFiles] = useState<File[]>([]);
   const [isDragging, setIsDragging] = useState(false);
+  const [errors, setErrors] = useState<string[]>([]);
 
   const { getRootProps, getInputProps } = useDropzone({
     accept,
     maxFiles,
-    onDrop: (acceptedFiles) => {
-      setFiles((prev) => [...prev, ...acceptedFiles]);
-      onFileUpload(acceptedFiles);
+    maxSize,
+    onDrop: (acceptedFiles: File[], rejectedFiles: FileRejection[]) => {
+      // Xử lý rejected files
+      if (rejectedFiles.length > 0) {
+        const errorMessages = rejectedFiles.map((rejection) => {
+          const file = rejection.file;
+          const errors = rejection.errors.map((e) => e.message).join(", ");
+          return `${file.name}: ${errors}`;
+        });
+        setErrors(errorMessages);
+        // Tự động xóa lỗi sau 3 giây
+        setTimeout(() => setErrors([]), 3000);
+      }
+
+      if (acceptedFiles.length > 0) {
+        setFiles((prev) => [...prev, ...acceptedFiles]);
+        onFileUpload(acceptedFiles);
+        setErrors([]);
+      }
     },
     onDragEnter: () => setIsDragging(true),
     onDragLeave: () => setIsDragging(false),
@@ -87,7 +106,8 @@ export function FileUpload({
               Kéo thả file vào đây
             </p>
             <p className="text-xs text-muted-foreground mt-1">
-              hoặc click để chọn file (tối đa {maxFiles} file)
+              hoặc click để chọn file (tối đa {maxFiles} file, tối đa{" "}
+              {formatFileSize(maxSize)})
             </p>
           </div>
           <Button variant="outline" size="sm" type="button">
@@ -95,6 +115,17 @@ export function FileUpload({
           </Button>
         </div>
       </div>
+
+      {/* Error Messages */}
+      {errors.length > 0 && (
+        <div className="space-y-1">
+          {errors.map((error, index) => (
+            <p key={index} className="text-sm text-red-500">
+              ⚠️ {error}
+            </p>
+          ))}
+        </div>
+      )}
 
       {/* File List */}
       {files.length > 0 && (

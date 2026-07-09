@@ -1,5 +1,5 @@
 // src/components/dashboard/RecentAnnouncements.tsx
-// Vai trò: Hiển thị thông báo gần đây - TỐI ƯU MOBILE
+// Vai trò: Hiển thị thông báo gần đây - NÂNG CẤP
 
 "use client";
 
@@ -45,17 +45,23 @@ export function RecentAnnouncements({
       transition={{ duration: 0.5, delay: 0.3 }}
       className="h-full"
     >
-      <Card className="h-full">
+      <Card className="h-full border-border/50 overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-br from-primary/3 via-transparent to-secondary/3 pointer-events-none" />
         <CardHeader className="flex flex-row items-center justify-between p-4 md:p-6">
           <CardTitle className="flex items-center gap-2 text-base md:text-lg">
             <Bell className="w-4 h-4 md:w-5 md:h-5 text-primary" />
             Thông báo mới
+            {!loading && recentAnnouncements.length > 0 && (
+              <Badge variant="secondary" className="text-xs">
+                {recentAnnouncements.length}
+              </Badge>
+            )}
           </CardTitle>
           <div className="flex items-center gap-1 md:gap-2">
             <Button
               variant="ghost"
               size="sm"
-              className="gap-1 text-xs md:text-sm px-2 md:px-3"
+              className="gap-1 text-xs md:text-sm px-2 md:px-3 hover:bg-primary/10 hover:text-primary"
               onClick={onCreateClick}
             >
               <Plus className="w-3 h-3 md:w-4 md:h-4" />
@@ -78,7 +84,7 @@ export function RecentAnnouncements({
             [...Array(3)].map((_, i) => (
               <div
                 key={i}
-                className="flex items-start gap-3 md:gap-4 p-3 md:p-4 rounded-xl bg-muted/50 animate-pulse"
+                className="flex items-start gap-3 md:gap-4 p-3 md:p-4 rounded-xl bg-muted/30 animate-pulse"
               >
                 <div className="w-1.5 h-1.5 md:w-2 md:h-2 rounded-full bg-muted mt-1.5 md:mt-2" />
                 <div className="flex-1 space-y-2">
@@ -94,7 +100,7 @@ export function RecentAnnouncements({
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ duration: 0.3, delay: 0.3 + index * 0.1 }}
-                className="flex items-start gap-3 md:gap-4 p-3 md:p-4 rounded-xl bg-muted/50 hover:bg-muted transition-colors cursor-pointer group active:scale-[0.98]"
+                className="flex items-start gap-3 md:gap-4 p-3 md:p-4 rounded-xl bg-muted/30 hover:bg-muted/50 transition-all cursor-pointer group active:scale-[0.98] relative overflow-hidden border border-transparent hover:border-primary/20"
                 onClick={() => onViewDetail(item)}
               >
                 <div
@@ -130,22 +136,27 @@ export function RecentAnnouncements({
                     </Badge>
                   </div>
                 </div>
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
               </motion.div>
             ))
           ) : (
-            <div className="text-center py-6 md:py-8 text-muted-foreground">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="text-center py-6 md:py-8 text-muted-foreground"
+            >
               <Bell className="w-10 h-10 md:w-12 md:h-12 mx-auto mb-2 md:mb-3 opacity-50" />
               <p className="text-sm md:text-base">Chưa có thông báo mới</p>
               <Button
                 variant="outline"
                 size="sm"
-                className="mt-2 text-xs md:text-sm"
+                className="mt-2 text-xs md:text-sm hover:bg-primary/10 hover:text-primary"
                 onClick={onCreateClick}
               >
                 <Plus className="w-3 h-3 mr-1" />
                 Tạo thông báo đầu tiên
               </Button>
-            </div>
+            </motion.div>
           )}
         </CardContent>
       </Card>

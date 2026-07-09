@@ -1,5 +1,5 @@
 // src/components/dashboard/UpcomingTasks.tsx
-// Vai trò: Hiển thị bài tập sắp đến hạn
+// Vai trò: Hiển thị bài tập sắp đến hạn - NÂNG CẤP
 
 "use client";
 
@@ -8,7 +8,12 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useDashboard } from "@/hooks/use-dashboard";
 import { motion } from "framer-motion";
-import { AlertCircle, ArrowUpRight, CheckCircle, Clock } from "lucide-react";
+import {
+  AlertCircle,
+  ArrowUpRight,
+  CheckCircle,
+  Clock
+} from "lucide-react";
 import Link from "next/link";
 
 const formatDate = (dateString: string) => {
@@ -34,11 +39,17 @@ export function UpcomingTasks() {
       animate={{ opacity: 1, x: 0 }}
       transition={{ duration: 0.5, delay: 0.4 }}
     >
-      <Card className="h-full">
+      <Card className="h-full border-border/50 overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-br from-secondary/3 via-transparent to-accent/3 pointer-events-none" />
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="flex items-center gap-2">
             <Clock className="w-5 h-5 text-secondary" />
             Bài tập sắp đến hạn
+            {!loading && upcomingTasks.length > 0 && (
+              <Badge variant="secondary" className="text-xs">
+                {upcomingTasks.length}
+              </Badge>
+            )}
           </CardTitle>
           <Link href="/assignments">
             <Button variant="ghost" size="sm" className="gap-1">
@@ -52,7 +63,7 @@ export function UpcomingTasks() {
             [...Array(3)].map((_, i) => (
               <div
                 key={i}
-                className="flex items-center justify-between p-4 rounded-xl bg-muted/50 animate-pulse"
+                className="flex items-center justify-between p-4 rounded-xl bg-muted/30 animate-pulse"
               >
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-full bg-muted" />
@@ -71,7 +82,7 @@ export function UpcomingTasks() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.3, delay: 0.4 + index * 0.1 }}
-                className="flex items-center justify-between p-4 rounded-xl bg-muted/50 hover:bg-muted transition-colors cursor-pointer group"
+                className="flex items-center justify-between p-4 rounded-xl bg-muted/30 hover:bg-muted/50 transition-all cursor-pointer group border border-transparent hover:border-secondary/20 relative overflow-hidden"
               >
                 <div className="flex items-center gap-3">
                   <div
@@ -101,8 +112,15 @@ export function UpcomingTasks() {
                     task.status === "urgent"
                       ? "destructive"
                       : task.status === "pending"
-                        ? "warning"
+                        ? "secondary"
                         : "secondary"
+                  }
+                  className={
+                    task.status === "urgent"
+                      ? "bg-red-500/10 text-red-500 hover:bg-red-500/20"
+                      : task.status === "pending"
+                        ? "bg-yellow-500/10 text-yellow-500 hover:bg-yellow-500/20"
+                        : "bg-blue-500/10 text-blue-500 hover:bg-blue-500/20"
                   }
                 >
                   {task.status === "urgent"
@@ -111,13 +129,19 @@ export function UpcomingTasks() {
                       ? "Chờ"
                       : "Sắp tới"}
                 </Badge>
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
               </motion.div>
             ))
           ) : (
-            <div className="text-center py-8 text-muted-foreground">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="text-center py-8 text-muted-foreground"
+            >
               <CheckCircle className="w-12 h-12 mx-auto mb-3 opacity-50" />
               <p>Không có bài tập nào sắp đến hạn</p>
-            </div>
+              <p className="text-sm">Bạn đã hoàn thành tất cả!</p>
+            </motion.div>
           )}
         </CardContent>
       </Card>

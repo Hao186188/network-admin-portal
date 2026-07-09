@@ -1,6 +1,4 @@
 /* src/app/globals.css */
-@import "tailwindcss-animate";
-@import "shadcn/tailwind.css";
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -173,10 +171,9 @@ input[type="button"] {
 }
 
 /* =====================================================
-   TỐI ƯU ANIMATION DARK MODE
+   TỐI ƯU ANIMATION
    ===================================================== */
 
-/* Áp dụng transition cho các phần tử cụ thể */
 html,
 body,
 main,
@@ -196,39 +193,6 @@ article,
     border-color 0.15s ease-in-out;
 }
 
-/* Card components */
-.card,
-.card-content,
-.card-header,
-.card-footer,
-.rounded-xl,
-.rounded-2xl,
-.rounded-lg {
-  transition:
-    background-color 0.15s ease-in-out,
-    border-color 0.15s ease-in-out,
-    box-shadow 0.15s ease-in-out;
-}
-
-/* Button optimization */
-button,
-.Button,
-[role="button"] {
-  transition:
-    background-color 0.1s ease-in-out,
-    border-color 0.1s ease-in-out,
-    transform 0.1s ease-in-out;
-}
-
-/* Input optimization */
-input,
-textarea,
-select {
-  transition:
-    background-color 0.1s ease-in-out,
-    border-color 0.1s ease-in-out;
-}
-
 /* Theme toggle */
 .theme-toggle {
   will-change: transform, opacity;
@@ -245,29 +209,11 @@ select {
   transform: scale(0.9);
 }
 
-/* Theme toggle icons */
 .theme-toggle-icon {
   will-change: transform, opacity;
   transition:
     transform 0.25s cubic-bezier(0.4, 0, 0.2, 1),
     opacity 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-/* Dark mode fade */
-.dark-mode-fade {
-  animation: darkModeFade 0.15s ease-in-out;
-}
-
-@keyframes darkModeFade {
-  0% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.9;
-  }
-  100% {
-    opacity: 1;
-  }
 }
 
 /* Navbar transition */
@@ -304,23 +250,19 @@ select {
   }
 }
 
-/* Dropdown transition */
-.dropdown-transition {
-  transition:
-    opacity 0.1s ease-in-out,
-    transform 0.1s ease-in-out;
+/* Floating animation */
+@keyframes float {
+  0%,
+  100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-20px);
+  }
 }
 
-/* Modal transition */
-.modal-transition {
-  transition:
-    opacity 0.15s ease-in-out,
-    transform 0.15s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-/* Scrollbar */
-.scrollbar-transition {
-  transition: background-color 0.3s ease-in-out;
+.animate-float {
+  animation: float 6s ease-in-out infinite;
 }
 
 /* =====================================================
@@ -385,6 +327,25 @@ select {
   @apply bg-gradient-to-r from-primary via-secondary to-accent;
 }
 
+.gradient-border {
+  position: relative;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+.gradient-border::before {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  border-radius: inherit;
+  background: linear-gradient(
+    to right,
+    hsl(var(--primary)),
+    hsl(var(--secondary))
+  );
+  z-index: -1;
+}
+
 /* =====================================================
    DARK MODE OVERRIDES
    ===================================================== */
@@ -446,7 +407,7 @@ select {
 }
 
 /* =====================================================
-   UTILITY CLASSES CHO MOBILE
+   UTILITY CLASSES
    ===================================================== */
 
 /* Safe area padding cho notch phones */
@@ -458,7 +419,7 @@ select {
   padding-top: env(safe-area-inset-top);
 }
 
-/* Hide scrollbar trên mobile */
+/* Hide scrollbar */
 .hide-scrollbar {
   -ms-overflow-style: none;
   scrollbar-width: none;
@@ -474,96 +435,6 @@ select {
   min-height: 48px;
 }
 
-/* Mobile-first card */
-.mobile-card {
-  border-radius: 12px;
-  overflow: hidden;
-}
-
-@media (min-width: 768px) {
-  .mobile-card {
-    border-radius: 16px;
-  }
-}
-
-/* Bottom sheet cho mobile */
-.bottom-sheet {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  background: hsl(var(--background));
-  border-radius: 16px 16px 0 0;
-  padding: 20px;
-  max-height: 80vh;
-  overflow-y: auto;
-  z-index: 50;
-  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.1);
-}
-
-@media (min-width: 768px) {
-  .bottom-sheet {
-    border-radius: 16px;
-    max-width: 480px;
-    margin: 0 auto;
-    bottom: auto;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    max-height: 90vh;
-  }
-}
-
-/* Responsive font sizes */
-.responsive-title {
-  font-size: 1.5rem;
-  line-height: 2rem;
-}
-
-@media (min-width: 640px) {
-  .responsive-title {
-    font-size: 2rem;
-    line-height: 2.5rem;
-  }
-}
-
-@media (min-width: 768px) {
-  .responsive-title {
-    font-size: 2.5rem;
-    line-height: 3rem;
-  }
-}
-
-/* Thêm vào globals.css */
-
-/* Tối ưu search trên mobile */
-@media (max-width: 640px) {
-  .search-results {
-    max-height: 60vh !important;
-    border-radius: 12px !important;
-    margin: 4px 8px !important;
-  }
-
-  .search-input {
-    font-size: 16px !important; /* Prevent zoom on iOS */
-  }
-}
-
-/* Search result hover effect */
-.search-result-item {
-  transition: all 0.15s ease;
-}
-
-.search-result-item:active {
-  transform: scale(0.98);
-}
-
-/* Dark mode search */
-.dark .search-results {
-  background: hsl(var(--background));
-  border-color: hsl(var(--border));
-}
-
 /* Keyboard shortcut hint */
 .kbd-hint {
   font-size: 10px;
@@ -575,9 +446,23 @@ select {
   color: hsl(var(--muted-foreground));
 }
 
-/* src/app/globals.css - Thêm các class sau */
+/* Glass card */
+.glass-card {
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
 
-/* Tối ưu hiển thị Navbar */
+.dark .glass-card {
+  background: rgba(15, 23, 42, 0.5);
+  border-color: rgba(255, 255, 255, 0.05);
+}
+
+/* =====================================================
+   NAVBAR SPECIFIC
+   ===================================================== */
+
 .navbar-container {
   max-width: 1400px;
   margin: 0 auto;
@@ -596,150 +481,150 @@ select {
   }
 }
 
-/* Tối ưu text không bị tràn */
 .truncate-text {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-/* Tối ưu cho màn hình nhỏ */
+/* =====================================================
+   SEARCH SPECIFIC
+   ===================================================== */
+
 @media (max-width: 640px) {
-  .navbar-logo-text {
-    font-size: 0.875rem !important;
+  .search-results {
+    max-height: 60vh !important;
+    border-radius: 12px !important;
+    margin: 4px 8px !important;
   }
 
-  .navbar-logo-sub {
-    font-size: 0.6rem !important;
+  .search-input {
+    font-size: 16px !important; /* Prevent zoom on iOS */
+  }
+}
+
+.search-result-item {
+  transition: all 0.15s ease;
+}
+
+.search-result-item:active {
+  transform: scale(0.98);
+}
+
+.dark .search-results {
+  background: hsl(var(--background));
+  border-color: hsl(var(--border));
+}
+
+/* src/app/globals.css - Thêm vào cuối file */
+
+/* =====================================================
+   NAVBAR MOBILE OPTIMIZATION
+   ===================================================== */
+
+/* Mobile navbar height */
+@media (max-width: 640px) {
+  .navbar-container {
+    padding: 0 8px;
   }
 
+  /* Tối ưu các nút trên navbar mobile */
+  .navbar-action-button {
+    width: 36px !important;
+    height: 36px !important;
+    min-width: 36px !important;
+    min-height: 36px !important;
+  }
+
+  /* Ẩn text trên nút đăng nhập/đăng ký trên mobile */
+  .navbar-auth-text {
+    display: none !important;
+  }
+
+  /* Thu nhỏ avatar trên mobile */
   .navbar-avatar {
     width: 28px !important;
     height: 28px !important;
     font-size: 10px !important;
   }
+
+  /* Logo text trên mobile */
+  .navbar-logo-text {
+    font-size: 14px !important;
+  }
 }
 
-/* Tối ưu cho màn hình trung bình */
+/* Extra small devices */
+@media (max-width: 380px) {
+  .navbar-logo-text {
+    font-size: 12px !important;
+  }
+
+  .navbar-action-button {
+    width: 32px !important;
+    height: 32px !important;
+    min-width: 32px !important;
+    min-height: 32px !important;
+  }
+}
+
+/* Tablet optimization */
 @media (min-width: 641px) and (max-width: 1024px) {
-  .navbar-logo-text {
-    font-size: 1rem !important;
+  .navbar-avatar {
+    width: 32px !important;
+    height: 32px !important;
   }
 
-  .navbar-logo-sub {
-    font-size: 0.65rem !important;
+  .navbar-logo-text {
+    font-size: 16px !important;
   }
 }
 
-/* Tối ưu cho màn hình lớn */
+/* Desktop optimization */
 @media (min-width: 1025px) {
-  .navbar-logo-text {
-    font-size: 1.25rem !important;
-  }
-
-  .navbar-logo-sub {
-    font-size: 0.75rem !important;
+  .navbar-avatar {
+    width: 36px !important;
+    height: 36px !important;
   }
 }
 
-/* Tối ưu spacing cho các item trong navbar */
-.navbar-item {
-  padding: 0.375rem 0.75rem;
-  font-size: 0.875rem;
+/* =====================================================
+   THEME TOGGLE - HIỂN THỊ RÕ TRÊN CẢ 2 MODE
+   ===================================================== */
+
+.theme-toggle-btn {
+  border: 1px solid hsl(var(--border));
+  background: hsl(var(--background));
 }
 
-@media (min-width: 1280px) {
-  .navbar-item {
-    padding: 0.375rem 1rem;
-    font-size: 0.9375rem;
+.theme-toggle-btn:hover {
+  background: hsl(var(--muted));
+}
+
+.dark .theme-toggle-btn {
+  border: 1px solid hsl(var(--border) / 0.5);
+  background: hsl(var(--background) / 0.5);
+}
+
+.dark .theme-toggle-btn:hover {
+  background: hsl(var(--muted) / 0.5);
+}
+
+/* =====================================================
+   SEARCH ICON TRÊN MOBILE
+   ===================================================== */
+
+@media (max-width: 640px) {
+  .search-mobile-btn {
+    width: 36px !important;
+    height: 36px !important;
+    min-width: 36px !important;
+    min-height: 36px !important;
+    padding: 0 !important;
   }
-}
 
-/* Tối ưu dropdown profile */
-.profile-dropdown {
-  min-width: 220px;
-}
-
-@media (min-width: 768px) {
-  .profile-dropdown {
-    min-width: 260px;
+  .search-mobile-btn svg {
+    width: 18px !important;
+    height: 18px !important;
   }
-}
-
-/* Tối ưu search bar */
-.search-bar {
-  min-width: 120px;
-}
-
-@media (min-width: 640px) {
-  .search-bar {
-    min-width: 160px;
-  }
-}
-
-@media (min-width: 768px) {
-  .search-bar {
-    min-width: 200px;
-  }
-}
-
-@media (min-width: 1024px) {
-  .search-bar {
-    min-width: 240px;
-  }
-}
-
-/* Thêm vào globals.css */
-
-/* Floating animation */
-@keyframes float {
-  0%,
-  100% {
-    transform: translateY(0px);
-  }
-  50% {
-    transform: translateY(-20px);
-  }
-}
-
-.animate-float {
-  animation: float 6s ease-in-out infinite;
-}
-
-/* Pulse delay */
-.delay-1000 {
-  animation-delay: 1000ms;
-}
-
-/* Gradient border */
-.gradient-border {
-  position: relative;
-  border: 2px solid transparent;
-  background-clip: padding-box;
-}
-
-.gradient-border::before {
-  content: "";
-  position: absolute;
-  inset: -2px;
-  border-radius: inherit;
-  background: linear-gradient(
-    to right,
-    hsl(var(--primary)),
-    hsl(var(--secondary))
-  );
-  z-index: -1;
-}
-
-/* Glass morphism card */
-.glass-card {
-  background: rgba(255, 255, 255, 0.05);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.dark .glass-card {
-  background: rgba(15, 23, 42, 0.5);
-  border-color: rgba(255, 255, 255, 0.05);
 }

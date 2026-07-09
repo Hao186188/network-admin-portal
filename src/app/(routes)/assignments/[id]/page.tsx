@@ -1,5 +1,5 @@
 // src/app/(routes)/assignments/[id]/page.tsx
-// Vai trò: Trang xem chi tiết bài tập - FIX LOGIC
+// Vai trò: Trang chi tiết bài tập - FIXED TYPE
 
 "use client";
 
@@ -11,10 +11,13 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAssignments } from "@/hooks/use-assignments";
 import { useToast } from "@/hooks/use-toast";
-import { motion } from "framer-motion";
+import { cn } from "@/lib/utils";
+import { AnimatePresence, motion } from "framer-motion";
 import {
   AlertCircle,
   ArrowLeft,
+  BookOpen,
+  Calendar,
   CheckCircle,
   Clock,
   Download,
@@ -23,47 +26,16 @@ import {
   Star,
   Upload,
   Users,
-  XCircle,
+  XCircle
 } from "lucide-react";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
-interface Assignment {
-  id: string;
-  title: string;
-  description: string;
-  subject: string;
-  type: string;
-  due_date: string;
-  status: "pending" | "submitted" | "graded";
-  submissions: number;
-  total_students: number;
-  points: number;
-  attachments: number;
-  user_id: string;
-  created_at: string;
-  updated_at: string;
-}
-
-interface Submission {
-  id: string;
-  assignment_id: string;
-  user_id: string;
-  file_url: string;
-  file_name: string;
-  file_size: number;
-  status: "PENDING" | "APPROVED" | "REJECTED";
-  grade: number;
-  feedback: string;
-  created_at: string;
-  updated_at: string;
-  user?: {
-    name: string;
-    email: string;
-  };
-}
+// ============================================
+// CONSTANTS & CONFIGS
+// ============================================
 
 const statusConfig = {
   pending: {
@@ -101,6 +73,58 @@ const submissionStatusConfig = {
   },
 };
 
+// ============================================
+// ✅ ANIMATION VARIANTS - SỬA TYPE
+// ============================================
+
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.1,
+      delayChildren: 0.2,
+    },
+  },
+};
+
+const itemVariants = {
+  hidden: { y: 20, opacity: 0, filter: "blur(4px)" },
+  visible: {
+    y: 0,
+    opacity: 1,
+    filter: "blur(0px)",
+    transition: { type: "spring" as const, stiffness: 100, damping: 20 },
+  },
+};
+
+const headerVariants = {
+  hidden: { y: -20, opacity: 0, scale: 0.95 },
+  visible: {
+    y: 0,
+    opacity: 1,
+    scale: 1,
+    transition: { type: "spring" as const, stiffness: 200, damping: 25 },
+  },
+};
+
+// ✅ SỬA: pulse variants với ease đúng type
+const pulseVariants = {
+  pulse: {
+    scale: [1, 1.05, 1],
+    opacity: [1, 0.8, 1],
+    transition: {
+      duration: 2,
+      repeat: Infinity,
+      ease: "easeInOut" as const,
+    },
+  },
+};
+
+// ============================================
+// MAIN COMPONENT
+// ============================================
+
 export default function AssignmentDetailPage() {
   const params = useParams();
   const router = useRouter();
@@ -112,8 +136,9 @@ export default function AssignmentDetailPage() {
     downloadFile,
     submitAssignment,
   } = useAssignments();
-  const [assignment, setAssignment] = useState<Assignment | null>(null);
-  const [submissions, setSubmissions] = useState<Submission[]>([]);
+
+  const [assignment, setAssignment] = useState<any>(null);
+  const [submissions, setSubmissions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -130,7 +155,7 @@ export default function AssignmentDetailPage() {
         getAssignmentSubmissions(assignmentId),
       ]);
       setAssignment(assignmentData);
-      setSubmissions(submissionsData);
+      setSubmissions(submissionsData || []);
     } catch (err) {
       console.error("Error fetching assignment:", err);
       setError("Không thể tải thông tin bài tập");
@@ -155,7 +180,6 @@ export default function AssignmentDetailPage() {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
-      // Kiểm tra file size (max 50MB)
       if (file.size > 50 * 1024 * 1024) {
         toast.error("File quá lớn, vui lòng chọn file nhỏ hơn 50MB");
         e.target.value = "";
@@ -194,19 +218,14 @@ export default function AssignmentDetailPage() {
   };
 
   const handleDownload = async (url: string, fileName: string) => {
-    try {
-      await downloadFile(url, fileName);
-      toast.success("Đã tải file thành công!");
-    } catch (error) {
-      toast.error("Có lỗi xảy ra khi tải file");
-    }
+    await downloadFile(url, fileName);
   };
 
   if (loading) {
     return (
       <>
         <Navbar />
-        <div className="min-h-screen bg-gradient-to-br from-gray-50 via-gray-100 to-gray-200 dark:from-gray-950 dark:via-gray-900 dark:to-gray-800 pt-16 md:pt-20">
+        <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50 dark:from-slate-950 dark:via-slate-900 dark:to-slate-800 pt-16 md:pt-20">
           <div className="max-w-4xl mx-auto p-4 md:p-8">
             <Skeleton className="h-12 w-48 mb-4" />
             <Skeleton className="h-96 w-full rounded-2xl" />
@@ -221,7 +240,7 @@ export default function AssignmentDetailPage() {
     return (
       <>
         <Navbar />
-        <div className="min-h-screen bg-gradient-to-br from-gray-50 via-gray-100 to-gray-200 dark:from-gray-950 dark:via-gray-900 dark:to-gray-800 pt-16 md:pt-20">
+        <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50 dark:from-slate-950 dark:via-slate-900 dark:to-slate-800 pt-16 md:pt-20">
           <div className="max-w-4xl mx-auto p-4 md:p-8">
             <Card className="border-destructive">
               <CardContent className="p-8 text-center">
@@ -257,21 +276,28 @@ export default function AssignmentDetailPage() {
     session?.user?.role === "TEACHER" || session?.user?.role === "ADMIN";
   const isStudent = session?.user?.role === "STUDENT";
 
-  // Kiểm tra xem user hiện tại đã nộp bài chưa
   const userSubmission = submissions.find(
     (s) => s.user_id === session?.user?.id,
   );
   const hasSubmitted = !!userSubmission;
-
-  // Kiểm tra trạng thái bài nộp của user
   const userSubmissionStatus = userSubmission?.status;
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleString("vi-VN", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
 
   return (
     <>
       <Navbar />
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-gray-100 to-gray-200 dark:from-gray-950 dark:via-gray-900 dark:to-gray-800 pt-16 md:pt-20">
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50 dark:from-slate-950 dark:via-slate-900 dark:to-slate-800 pt-16 md:pt-20">
         <div className="max-w-4xl mx-auto p-4 md:p-8">
-          {/* Back Button */}
+          {/* Back Button & Refresh */}
           <motion.div
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
@@ -279,7 +305,7 @@ export default function AssignmentDetailPage() {
             className="flex items-center justify-between"
           >
             <Link href="/assignments">
-              <Button variant="ghost" className="gap-2 mb-4 hover:bg-muted">
+              <Button variant="ghost" className="gap-2 mb-4 hover:bg-muted/50">
                 <ArrowLeft className="w-4 h-4" />
                 Quay lại danh sách
               </Button>
@@ -291,48 +317,64 @@ export default function AssignmentDetailPage() {
               onClick={handleRefresh}
               disabled={isRefreshing}
             >
-              <div className={`w-4 h-4 ${isRefreshing ? "animate-spin" : ""}`}>
-                <RefreshCw className="w-4 h-4" />
-              </div>
+              <RefreshCw
+                className={`w-4 h-4 ${isRefreshing ? "animate-spin" : ""}`}
+              />
               Làm mới
             </Button>
           </motion.div>
 
-          {/* Assignment Info */}
+          {/* Main Content */}
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
+            variants={containerVariants}
+            initial="hidden"
+            animate="visible"
+            className="space-y-6"
           >
-            <Card className="overflow-hidden">
-              <CardContent className="p-6 md:p-8">
-                {/* Header */}
-                <div className="flex flex-wrap items-start justify-between gap-4 mb-6">
-                  <div>
-                    <div className="flex items-center gap-2 flex-wrap mb-2">
-                      <Badge variant="outline" className="text-sm">
-                        {assignment.type}
-                      </Badge>
-                      <Badge variant="outline" className="text-sm">
-                        {assignment.subject}
-                      </Badge>
-                      <div
-                        className={`flex items-center gap-1 px-3 py-1 rounded-full border ${statusInfo.color}`}
-                      >
-                        <StatusIcon className="w-4 h-4" />
-                        <span className="text-sm font-medium">
-                          {statusInfo.label}
-                        </span>
-                      </div>
-                      {isOverdue && (
-                        <Badge variant="destructive" className="text-sm">
-                          Quá hạn
+            {/* Header Card */}
+            <motion.div variants={headerVariants}>
+              <Card className="overflow-hidden border-border/50 bg-card/80 backdrop-blur-sm">
+                <CardContent className="p-6 md:p-8">
+                  {/* Header */}
+                  <div className="flex flex-wrap items-start justify-between gap-4 mb-6">
+                    <div>
+                      <div className="flex items-center gap-2 flex-wrap mb-3">
+                        <Badge
+                          variant="outline"
+                          className="text-sm border-primary/30"
+                        >
+                          {assignment.type}
                         </Badge>
-                      )}
+                        <Badge
+                          variant="outline"
+                          className="text-sm border-secondary/30"
+                        >
+                          {assignment.subject}
+                        </Badge>
+                        <div
+                          className={cn(
+                            "flex items-center gap-1 px-3 py-1 rounded-full border",
+                            statusInfo.color,
+                          )}
+                        >
+                          <StatusIcon className="w-4 h-4" />
+                          <span className="text-sm font-medium">
+                            {statusInfo.label}
+                          </span>
+                        </div>
+                        {isOverdue && (
+                          <Badge
+                            variant="destructive"
+                            className="text-sm animate-pulse"
+                          >
+                            Quá hạn
+                          </Badge>
+                        )}
+                      </div>
+                      <h1 className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+                        {assignment.title}
+                      </h1>
                     </div>
-                    <h1 className="text-3xl font-bold">{assignment.title}</h1>
-                  </div>
-                  <div className="flex gap-2 flex-shrink-0">
                     {assignment.attachments > 0 && (
                       <Button variant="outline" className="gap-2">
                         <Download className="w-4 h-4" />
@@ -340,55 +382,70 @@ export default function AssignmentDetailPage() {
                       </Button>
                     )}
                   </div>
-                </div>
 
-                {/* Description */}
-                <div className="mb-6">
-                  <h3 className="text-sm font-medium text-muted-foreground mb-2">
+                  {/* Details Grid */}
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-4 rounded-xl bg-muted/30 border border-border/50">
+                    <div>
+                      <p className="text-xs text-muted-foreground flex items-center gap-1">
+                        <Calendar className="w-3 h-3" />
+                        Hạn nộp
+                      </p>
+                      <p className="text-sm font-medium mt-1">
+                        {formatDate(assignment.due_date)}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground flex items-center gap-1">
+                        <Star className="w-3 h-3 text-yellow-500" />
+                        Điểm số
+                      </p>
+                      <p className="text-sm font-medium mt-1">
+                        {assignment.points} điểm
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground flex items-center gap-1">
+                        <Users className="w-3 h-3 text-blue-500" />
+                        Đã nộp
+                      </p>
+                      <p className="text-sm font-medium mt-1">
+                        {assignment.submissions}/{assignment.total_students}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground flex items-center gap-1">
+                        <File className="w-3 h-3 text-purple-500" />
+                        File đính kèm
+                      </p>
+                      <p className="text-sm font-medium mt-1">
+                        {assignment.attachments} file
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
+
+            {/* Description */}
+            <motion.div variants={itemVariants}>
+              <Card className="border-border/50">
+                <CardContent className="p-6">
+                  <h3 className="text-sm font-medium text-muted-foreground mb-3 flex items-center gap-2">
+                    <BookOpen className="w-4 h-4 text-primary" />
                     Mô tả
                   </h3>
-                  <p className="text-foreground whitespace-pre-wrap">
+                  <p className="text-foreground whitespace-pre-wrap leading-relaxed">
                     {assignment.description}
                   </p>
-                </div>
+                </CardContent>
+              </Card>
+            </motion.div>
 
-                {/* Details Grid */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-4 rounded-xl bg-muted/50 mb-6">
-                  <div>
-                    <p className="text-xs text-muted-foreground">Hạn nộp</p>
-                    <p className="text-sm font-medium flex items-center gap-1 mt-1">
-                      <Clock className="w-4 h-4 text-primary" />
-                      {new Date(assignment.due_date).toLocaleString("vi-VN")}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">Điểm số</p>
-                    <p className="text-sm font-medium flex items-center gap-1 mt-1">
-                      <Star className="w-4 h-4 text-primary" />
-                      {assignment.points} điểm
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">Đã nộp</p>
-                    <p className="text-sm font-medium flex items-center gap-1 mt-1">
-                      <Users className="w-4 h-4 text-primary" />
-                      {assignment.submissions}/{assignment.total_students}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">
-                      File đính kèm
-                    </p>
-                    <p className="text-sm font-medium flex items-center gap-1 mt-1">
-                      <File className="w-4 h-4 text-primary" />
-                      {assignment.attachments} file
-                    </p>
-                  </div>
-                </div>
-
-                {/* Submit Section - Only for students */}
-                {isStudent && assignment.status !== "graded" && (
-                  <div className="border-t border-border pt-6">
+            {/* Submit Section */}
+            {isStudent && assignment.status !== "graded" && (
+              <motion.div variants={itemVariants}>
+                <Card className="border-border/50">
+                  <CardContent className="p-6">
                     <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
                       <Upload className="w-5 h-5 text-primary" />
                       {hasSubmitted ? "Bài đã nộp" : "Nộp bài tập"}
@@ -396,13 +453,14 @@ export default function AssignmentDetailPage() {
 
                     {hasSubmitted && userSubmission ? (
                       <div
-                        className={`p-4 rounded-xl ${
+                        className={cn(
+                          "p-4 rounded-xl border",
                           userSubmissionStatus === "APPROVED"
-                            ? "bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800"
+                            ? "bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-800"
                             : userSubmissionStatus === "REJECTED"
-                              ? "bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800"
-                              : "bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-800"
-                        }`}
+                              ? "bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-800"
+                              : "bg-yellow-50 dark:bg-yellow-950/20 border-yellow-200 dark:border-yellow-800",
+                        )}
                       >
                         <div className="flex items-center gap-3">
                           {userSubmissionStatus === "APPROVED" ? (
@@ -410,17 +468,18 @@ export default function AssignmentDetailPage() {
                           ) : userSubmissionStatus === "REJECTED" ? (
                             <XCircle className="w-6 h-6 text-red-500" />
                           ) : (
-                            <Clock className="w-6 h-6 text-yellow-500" />
+                            <Clock className="w-6 h-6 text-yellow-500 animate-pulse" />
                           )}
                           <div className="flex-1">
                             <p
-                              className={`font-medium ${
+                              className={cn(
+                                "font-medium",
                                 userSubmissionStatus === "APPROVED"
                                   ? "text-green-700 dark:text-green-400"
                                   : userSubmissionStatus === "REJECTED"
                                     ? "text-red-700 dark:text-red-400"
-                                    : "text-yellow-700 dark:text-yellow-400"
-                              }`}
+                                    : "text-yellow-700 dark:text-yellow-400",
+                              )}
                             >
                               {userSubmissionStatus === "APPROVED"
                                 ? "✅ Đã được chấm điểm!"
@@ -432,43 +491,8 @@ export default function AssignmentDetailPage() {
                               File: {userSubmission.file_name}
                             </p>
                             <p className="text-xs text-muted-foreground">
-                              Ngày nộp:{" "}
-                              {new Date(
-                                userSubmission.created_at,
-                              ).toLocaleString("vi-VN")}
+                              Ngày nộp: {formatDate(userSubmission.created_at)}
                             </p>
-                            {userSubmissionStatus === "APPROVED" && (
-                              <div className="mt-2">
-                                <Badge variant="success" className="gap-1">
-                                  <Star className="w-3 h-3" />
-                                  Điểm: {userSubmission.grade}/10
-                                </Badge>
-                                {userSubmission.feedback && (
-                                  <p className="text-sm text-green-600 dark:text-green-300 mt-1">
-                                    📝 Nhận xét: {userSubmission.feedback}
-                                  </p>
-                                )}
-                              </div>
-                            )}
-                            {userSubmissionStatus === "REJECTED" && (
-                              <div className="mt-2">
-                                <Badge variant="destructive" className="gap-1">
-                                  <XCircle className="w-3 h-3" />
-                                  Điểm: {userSubmission.grade}/10
-                                </Badge>
-                                {userSubmission.feedback && (
-                                  <p className="text-sm text-red-600 dark:text-red-300 mt-1">
-                                    📝 Nhận xét: {userSubmission.feedback}
-                                  </p>
-                                )}
-                              </div>
-                            )}
-                            {userSubmissionStatus === "PENDING" && (
-                              <Badge variant="warning" className="mt-1">
-                                <Clock className="w-3 h-3 mr-1" />
-                                Đang chờ giảng viên chấm điểm
-                              </Badge>
-                            )}
                           </div>
                         </div>
                         <div className="mt-3 flex gap-2">
@@ -492,32 +516,27 @@ export default function AssignmentDetailPage() {
                               className="gap-2"
                               onClick={() => {
                                 setSelectedFile(null);
-                                // Reset file input
                                 const fileInput = document.getElementById(
                                   "file-upload",
                                 ) as HTMLInputElement;
                                 if (fileInput) fileInput.value = "";
-                                // Focus vào upload area
-                                document
-                                  .getElementById("upload-area")
-                                  ?.scrollIntoView({ behavior: "smooth" });
                               }}
                             >
                               <Upload className="w-4 h-4" />
-                              Nộp lại bài
+                              Nộp lại
                             </Button>
                           )}
                         </div>
                       </div>
                     ) : (
-                      <div className="space-y-4" id="upload-area">
+                      <div className="space-y-4">
                         <div className="border-2 border-dashed rounded-xl p-6 text-center hover:border-primary/50 transition-colors">
                           <input
                             type="file"
                             onChange={handleFileChange}
                             className="hidden"
                             id="file-upload"
-                            disabled={isSubmitting}
+                            disabled={isSubmitting || isOverdue}
                           />
                           <label
                             htmlFor="file-upload"
@@ -570,92 +589,115 @@ export default function AssignmentDetailPage() {
                           )}
                         </Button>
                         {isOverdue && (
-                          <p className="text-sm text-destructive text-center">
+                          <motion.p
+                            variants={pulseVariants}
+                            animate="pulse"
+                            className="text-sm text-destructive text-center"
+                          >
                             ⚠️ Bài tập đã quá hạn nộp
-                          </p>
+                          </motion.p>
                         )}
                       </div>
                     )}
-                  </div>
-                )}
+                  </CardContent>
+                </Card>
+              </motion.div>
+            )}
 
-                {/* Submissions List - Only for teachers */}
-                {isTeacher && submissions.length > 0 && (
-                  <div className="border-t border-border pt-6 mt-6">
+            {/* Submissions List - Teacher only */}
+            {isTeacher && submissions.length > 0 && (
+              <motion.div variants={itemVariants}>
+                <Card className="border-border/50">
+                  <CardContent className="p-6">
                     <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
                       <Users className="w-5 h-5 text-primary" />
                       Danh sách bài nộp ({submissions.length})
                     </h3>
                     <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2">
-                      {submissions.map((sub) => {
-                        const subStatus =
-                          submissionStatusConfig[
-                            sub.status as keyof typeof submissionStatusConfig
-                          ];
-                        const SubIcon = subStatus.icon;
-                        return (
-                          <div
-                            key={sub.id}
-                            className="flex items-center justify-between p-4 rounded-xl bg-muted/50 hover:bg-muted transition-colors"
-                          >
-                            <div className="flex items-center gap-3 min-w-0">
-                              <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                                <Users className="w-5 h-5 text-primary" />
+                      <AnimatePresence>
+                        {submissions.map((sub, index) => {
+                          const subStatus =
+                            submissionStatusConfig[
+                              sub.status as keyof typeof submissionStatusConfig
+                            ];
+                          const SubIcon = subStatus.icon;
+                          return (
+                            <motion.div
+                              key={sub.id}
+                              initial={{ opacity: 0, y: 20 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              transition={{
+                                duration: 0.3,
+                                delay: index * 0.05,
+                              }}
+                              className="flex items-center justify-between p-4 rounded-xl bg-muted/30 hover:bg-muted/50 transition-colors border border-border/50"
+                            >
+                              <div className="flex items-center gap-3 min-w-0">
+                                <div className="w-10 h-10 rounded-full bg-gradient-to-r from-primary to-secondary flex items-center justify-center flex-shrink-0">
+                                  <Users className="w-5 h-5 text-white" />
+                                </div>
+                                <div className="min-w-0">
+                                  <p className="font-medium truncate">
+                                    {sub.user?.name || "Unknown"}
+                                  </p>
+                                  <p className="text-sm text-muted-foreground truncate">
+                                    {sub.file_name}
+                                  </p>
+                                  <p className="text-xs text-muted-foreground">
+                                    {formatDate(sub.created_at)}
+                                  </p>
+                                </div>
                               </div>
-                              <div className="min-w-0">
-                                <p className="font-medium truncate">
-                                  {sub.user?.name || "Unknown"}
-                                </p>
-                                <p className="text-sm text-muted-foreground truncate">
-                                  {sub.file_name}
-                                </p>
-                                <p className="text-xs text-muted-foreground">
-                                  {new Date(sub.created_at).toLocaleString(
-                                    "vi-VN",
+                              <div className="flex items-center gap-3 flex-shrink-0">
+                                <div
+                                  className={cn(
+                                    "flex items-center gap-1 px-3 py-1 rounded-full",
+                                    subStatus.color,
                                   )}
-                                </p>
+                                >
+                                  <SubIcon className="w-3 h-3" />
+                                  <span className="text-xs font-medium">
+                                    {subStatus.label}
+                                  </span>
+                                </div>
+                                {sub.status === "APPROVED" && (
+                                  <Badge
+                                    variant="secondary"
+                                    className="bg-green-500/10 text-green-600"
+                                  >
+                                    <Star className="w-3 h-3 mr-1" />
+                                    {sub.grade}/10
+                                  </Badge>
+                                )}
+                                {sub.status === "REJECTED" && (
+                                  <Badge
+                                    variant="secondary"
+                                    className="bg-red-500/10 text-red-600"
+                                  >
+                                    <XCircle className="w-3 h-3 mr-1" />
+                                    {sub.grade}/10
+                                  </Badge>
+                                )}
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8 hover:bg-primary/10"
+                                  onClick={() =>
+                                    handleDownload(sub.file_url, sub.file_name)
+                                  }
+                                >
+                                  <Download className="w-4 h-4" />
+                                </Button>
                               </div>
-                            </div>
-                            <div className="flex items-center gap-3 flex-shrink-0">
-                              <div
-                                className={`flex items-center gap-1 px-3 py-1 rounded-full ${subStatus.color}`}
-                              >
-                                <SubIcon className="w-3 h-3" />
-                                <span className="text-xs font-medium">
-                                  {subStatus.label}
-                                </span>
-                              </div>
-                              {sub.status === "APPROVED" && (
-                                <Badge variant="success" className="gap-1">
-                                  <Star className="w-3 h-3" />
-                                  {sub.grade}/10
-                                </Badge>
-                              )}
-                              {sub.status === "REJECTED" && (
-                                <Badge variant="destructive" className="gap-1">
-                                  <XCircle className="w-3 h-3" />
-                                  {sub.grade}/10
-                                </Badge>
-                              )}
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-8 w-8 hover:bg-primary/10"
-                                onClick={() =>
-                                  handleDownload(sub.file_url, sub.file_name)
-                                }
-                              >
-                                <Download className="w-4 h-4" />
-                              </Button>
-                            </div>
-                          </div>
-                        );
-                      })}
+                            </motion.div>
+                          );
+                        })}
+                      </AnimatePresence>
                     </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            )}
           </motion.div>
         </div>
       </div>

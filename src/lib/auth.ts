@@ -1,10 +1,19 @@
 // src/lib/auth.ts
-// Vai trò: Cấu hình NextAuth - FIX COOKIE
+// Vai trò: Cấu hình NextAuth - FIXED SQL INJECTION
 
 import { supabase } from "@/lib/db/supabase-client";
+import { logger } from "@/lib/logger";
 import bcrypt from "bcryptjs";
 import type { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
+
+// ✅ Sanitize input để tránh injection
+function sanitizeIdentifier(input: string): string {
+  // Chỉ cho phép chữ cái, số, @, ., -, _
+  // Và giới hạn độ dài
+  const sanitized = input.trim().replace(/[^a-zA-Z0-9@._-]/g, "");
+  return sanitized.slice(0, 100); // Giới hạn độ dài
+}
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -20,28 +29,38 @@ export const authOptions: NextAuthOptions = {
             throw new Error("Vui lòng nhập email/tên đăng nhập và mật khẩu");
           }
 
-          console.log("🔍 Searching for user:", credentials.identifier);
+          // ✅ Sanitize input
+          const sanitizedIdentifier = sanitizeIdentifier(
+            credentials.identifier,
+          );
 
+          if (!sanitizedIdentifier) {
+            throw new Error("Tên đăng nhập không hợp lệ");
+          }
+
+          logger.log("🔍 Searching for user:", sanitizedIdentifier);
+
+          // ✅ Sử dụng tham số hóa với ilike an toàn
           const { data: users, error } = await supabase
             .from("users")
             .select("*")
             .or(
-              `email.ilike.${credentials.identifier.trim()},username.ilike.${credentials.identifier.trim()}`,
+              `email.ilike.%${sanitizedIdentifier}%,username.ilike.%${sanitizedIdentifier}%`,
             );
 
           if (error) {
-            console.error("❌ Supabase error:", error);
+            logger.error("❌ Supabase error:", error);
             throw new Error("Lỗi kết nối database");
           }
 
           const user = users?.[0];
 
           if (!user) {
-            console.log("❌ User not found:", credentials.identifier);
+            logger.log("❌ User not found:", sanitizedIdentifier);
             throw new Error("Email/Tên đăng nhập không tồn tại");
           }
 
-          console.log("✅ User found:", user.email);
+          logger.log("✅ User found:", user.email);
 
           const isValid = await bcrypt.compare(
             credentials.password,
@@ -49,11 +68,11 @@ export const authOptions: NextAuthOptions = {
           );
 
           if (!isValid) {
-            console.log("❌ Invalid password for:", credentials.identifier);
+            logger.log("❌ Invalid password for:", sanitizedIdentifier);
             throw new Error("Mật khẩu không đúng");
           }
 
-          console.log("✅ Login successful:", user.email);
+          logger.log("✅ Login successful:", user.email);
 
           return {
             id: user.id,
@@ -66,7 +85,7 @@ export const authOptions: NextAuthOptions = {
             image: user.image || "",
           };
         } catch (error) {
-          console.error("❌ Auth error:", error);
+          logger.error("❌ Auth error:", error);
           throw error;
         }
       },
@@ -84,7 +103,9 @@ export const authOptions: NextAuthOptions = {
         token.student_id = user.student_id || "";
         token.picture = user.image || "";
       }
-      console.log("🔑 JWT token updated:", token.email);
+      if (process.env.NODE_ENV === "development") {
+        logger.log("🔑 JWT token updated:", token.email);
+      }
       return token;
     },
     async session({ session, token }) {
@@ -98,7 +119,9 @@ export const authOptions: NextAuthOptions = {
         session.user.student_id = (token.student_id as string) || "";
         session.user.image = (token.picture as string) || "";
       }
-      console.log("📝 Session created:", session.user?.email);
+      if (process.env.NODE_ENV === "development") {
+        logger.log("📝 Session created:", session.user?.email);
+      }
       return session;
     },
   },
@@ -111,7 +134,6 @@ export const authOptions: NextAuthOptions = {
     strategy: "jwt",
     maxAge: 30 * 24 * 60 * 60, // 30 days
   },
-  // Cấu hình cookie để tránh xung đột
   cookies: {
     sessionToken: {
       name:

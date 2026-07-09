@@ -1,282 +1,185 @@
 // src/hooks/use-notifications.ts
-// Vai trò: Lấy và quản lý thông báo từ database - FIX LOGIC MOCK DATA
+// Vai trò: Hook quản lý thông báo - TẮT REALTIME TẠM THỜI
 
 "use client";
 
 import { supabase } from "@/lib/db/supabase-client";
-import { useCallback, useEffect, useState } from "react";
+import { logger } from "@/lib/logger";
+import { useSession } from "next-auth/react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useToast } from "./use-toast";
 
 export interface Notification {
   id: string;
+  user_id: string;
   title: string;
   message: string;
-  type: "assignment" | "announcement" | "submission" | "grade";
+  type:
+    | "assignment"
+    | "announcement"
+    | "submission"
+    | "grade"
+    | "course"
+    | "default";
+  link?: string;
   read: boolean;
   created_at: string;
-  link?: string;
-  user_id?: string;
+  updated_at: string;
 }
 
-interface UseNotificationsReturn {
-  notifications: Notification[];
-  unreadCount: number;
-  loading: boolean;
-  error: string | null;
-  refresh: () => void;
-  markAsRead: (id: string) => Promise<void>;
-  markAllAsRead: () => Promise<void>;
-  deleteNotification: (id: string) => Promise<void>;
-  addNotification: (
-    notification: Omit<Notification, "id" | "read" | "created_at">,
-  ) => Promise<void>;
-}
-
-export function useNotifications(): UseNotificationsReturn {
+export function useNotifications() {
+  const { data: session } = useSession();
+  const { toast } = useToast();
   const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [unreadCount, setUnreadCount] = useState(0);
   const [error, setError] = useState<string | null>(null);
 
-  const generateMockNotifications = useCallback(async () => {
-    const mockNotifications: Notification[] = [];
-    try {
-      // Lấy từ announcements
-      const { data: announcements } = await supabase
-        .from("announcements")
-        .select("*")
-        .order("created_at", { ascending: false })
-        .limit(3);
-
-      announcements?.forEach((item) => {
-        mockNotifications.push({
-          id: `ann-${item.id}`,
-          title: "Thông báo mới",
-          message: item.title,
-          type: "announcement",
-          read: false,
-          created_at: item.created_at,
-          link: "/announcements",
-        });
-      });
-
-      // Lấy từ assignments
-      const { data: assignments } = await supabase
-        .from("assignments")
-        .select("*")
-        .order("created_at", { ascending: false })
-        .limit(3);
-
-      assignments?.forEach((item) => {
-        mockNotifications.push({
-          id: `assign-${item.id}`,
-          title: "Bài tập mới",
-          message: item.title,
-          type: "assignment",
-          read: false,
-          created_at: item.created_at,
-          link: "/assignments",
-        });
-      });
-
-      // Lấy từ submissions
-      const { data: submissions } = await supabase
-        .from("submissions")
-        .select(`*, user:users(name), assignment:assignments(title)`)
-        .order("created_at", { ascending: false })
-        .limit(3);
-
-      submissions?.forEach((item) => {
-        mockNotifications.push({
-          id: `sub-${item.id}`,
-          title: item.status === "APPROVED" ? "Đã chấm điểm" : "Bài nộp mới",
-          message: `${item.user?.name} đã nộp bài "${item.assignment?.title}"`,
-          type: item.status === "APPROVED" ? "grade" : "submission",
-          read: false,
-          created_at: item.created_at,
-          link: "/submissions",
-        });
-      });
-
-      // Sắp xếp theo thời gian
-      mockNotifications.sort(
-        (a, b) =>
-          new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
-      );
-
-      return mockNotifications.filter((n) => n.read === false);
-    } catch (err) {
-      console.error("Error generating mock notifications:", err);
-      return [];
-    }
-  }, []);
+  const isFetchingRef = useRef(false);
+  const initialFetchDoneRef = useRef(false);
+  // ✅ TẮT REALTIME TẠM THỜI
+  const channelRef = useRef<any>(null);
 
   const fetchNotifications = useCallback(
-    async (silent: boolean = false) => {
+    async (force?: boolean) => {
+      if (isFetchingRef.current) return;
+      if (initialFetchDoneRef.current && !force) return;
+      if (!session?.user?.id) {
+        setLoading(false);
+        return;
+      }
+
       try {
-        if (!silent) setLoading(true);
+        isFetchingRef.current = true;
+        setLoading(true);
         setError(null);
 
-        if (!supabase) {
-          console.warn("Supabase client not initialized");
-          setNotifications([]);
-          setUnreadCount(0);
-          if (!silent) setLoading(false);
-          return;
-        }
-
-        // Lấy thông báo CHƯA ĐỌC từ bảng chính thức
-        const { data: unreadData, error: unreadError } = await supabase
+        const { data, error: fetchError } = await supabase
           .from("notifications")
           .select("*")
-          .eq("read", false)
-          .order("created_at", { ascending: false })
-          .limit(20);
+          .eq("user_id", session.user.id)
+          .order("created_at", { ascending: false });
 
-        if (unreadError) {
-          console.error("Supabase error:", unreadError);
-          setError(unreadError.message);
-          if (!silent) setLoading(false);
-          return;
-        }
-
-        // SỬA LOGIC TẠI ĐÂY:
-        // Nếu DB thực sự có thông báo chưa đọc -> Dùng dữ liệu DB
-        if (unreadData && unreadData.length > 0) {
-          setNotifications(unreadData);
-          setUnreadCount(unreadData.length);
+        if (fetchError) {
+          if (
+            fetchError.message?.includes("relation") ||
+            fetchError.code === "42P01"
+          ) {
+            setNotifications([]);
+            setUnreadCount(0);
+          } else {
+            throw fetchError;
+          }
         } else {
-          // Nếu DB trống, tạo mock data hiển thị đỡ trống trải (luôn giữ mock khi DB trống)
-          const mockNotifications = await generateMockNotifications();
-          setNotifications(mockNotifications);
-          setUnreadCount(mockNotifications.length);
+          setNotifications(data || []);
+          setUnreadCount((data || []).filter((n) => !n.read).length);
         }
-      } catch (err) {
-        console.error("Error fetching notifications:", err);
-        setError(
-          err instanceof Error ? err.message : "Không thể tải thông báo",
-        );
+
+        initialFetchDoneRef.current = true;
+      } catch (error: any) {
+        logger.error("Error fetching notifications:", error);
+        setError(error.message || "Không thể tải thông báo");
         setNotifications([]);
         setUnreadCount(0);
       } finally {
-        if (!silent) setLoading(false);
+        isFetchingRef.current = false;
+        setLoading(false);
       }
     },
-    [generateMockNotifications],
+    [session?.user?.id],
   );
 
-  const addNotification = useCallback(
-    async (notification: Omit<Notification, "id" | "read" | "created_at">) => {
-      try {
-        if (!supabase) return;
+  // ✅ Effect cho fetch data - CHỈ CHẠY 1 LẦN
+  useEffect(() => {
+    isFetchingRef.current = false;
+    initialFetchDoneRef.current = false;
+    setLoading(true);
+    fetchNotifications();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session?.user?.id]);
 
-        const newNotification = {
-          ...notification,
-          read: false,
-          created_at: new Date().toISOString(),
-        };
-
-        const { data, error } = await supabase
-          .from("notifications")
-          .insert([newNotification])
-          .select()
-          .single();
-
-        if (error) {
-          console.error("Error adding notification:", error);
-          return;
-        }
-
-        if (data && !data.read) {
-          setNotifications((prev) => [data, ...prev]);
-          setUnreadCount((prev) => prev + 1);
-        }
-      } catch (err) {
-        console.error("Error adding notification:", err);
-      }
-    },
-    [],
-  );
+  // ✅ TẮT REALTIME TẠM THỜI - KHÔNG SUBSCRIBE
+  // useEffect(() => {
+  //   if (!session?.user?.id) return;
+  //   // ... code realtime tạm thời bỏ comment
+  // }, [session?.user?.id]);
 
   const markAsRead = useCallback(
     async (id: string) => {
+      if (!session?.user?.id) return;
+
       try {
-        // Xóa ngay lập tức khỏi state để UI mượt
-        setNotifications((prev) => prev.filter((n) => n.id !== id));
+        const { error } = await supabase
+          .from("notifications")
+          .update({ read: true, updated_at: new Date().toISOString() })
+          .eq("id", id)
+          .eq("user_id", session.user.id);
+
+        if (error) throw error;
+
+        setNotifications((prev) =>
+          prev.map((n) => (n.id === id ? { ...n, read: true } : n)),
+        );
         setUnreadCount((prev) => Math.max(0, prev - 1));
-
-        if (!supabase) return;
-
-        // Chỉ update DB nếu ID này không phải là mock ID
-        if (
-          !id.startsWith("ann-") &&
-          !id.startsWith("assign-") &&
-          !id.startsWith("sub-")
-        ) {
-          await supabase
-            .from("notifications")
-            .update({ read: true })
-            .eq("id", id);
-        }
-      } catch (err) {
-        console.error("Error marking notification as read:", err);
-        await fetchNotifications(true);
+      } catch (error) {
+        logger.error("Error marking notification as read:", error);
+        toast.error("Không thể đánh dấu đã đọc");
       }
     },
-    [fetchNotifications],
+    [session?.user?.id, toast],
   );
 
   const markAllAsRead = useCallback(async () => {
+    if (!session?.user?.id) return;
+
     try {
-      const unreadIds = notifications.map((n) => n.id);
-      setNotifications([]);
+      const { error } = await supabase
+        .from("notifications")
+        .update({ read: true, updated_at: new Date().toISOString() })
+        .eq("user_id", session.user.id)
+        .eq("read", false);
+
+      if (error) throw error;
+
+      setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
       setUnreadCount(0);
-
-      if (!supabase) return;
-
-      // Lọc bỏ các mock ID trước khi gửi lên Supabase để tránh lỗi query
-      const realIds = unreadIds.filter(
-        (id) =>
-          !id.startsWith("ann-") &&
-          !id.startsWith("assign-") &&
-          !id.startsWith("sub-"),
-      );
-
-      if (realIds.length > 0) {
-        await supabase
-          .from("notifications")
-          .update({ read: true })
-          .in("id", realIds);
-      }
-    } catch (err) {
-      console.error("Error marking all notifications as read:", err);
-      await fetchNotifications(true);
+      toast.success("Đã đánh dấu tất cả thông báo đã đọc");
+    } catch (error) {
+      logger.error("Error marking all notifications as read:", error);
+      toast.error("Không thể đánh dấu tất cả đã đọc");
     }
-  }, [notifications, fetchNotifications]);
+  }, [session?.user?.id, toast]);
 
   const deleteNotification = useCallback(
     async (id: string) => {
+      if (!session?.user?.id) return;
+
       try {
+        const { error } = await supabase
+          .from("notifications")
+          .delete()
+          .eq("id", id)
+          .eq("user_id", session.user.id);
+
+        if (error) throw error;
+
+        const deleted = notifications.find((n) => n.id === id);
         setNotifications((prev) => prev.filter((n) => n.id !== id));
-
-        if (!supabase) return;
-
-        if (
-          !id.startsWith("ann-") &&
-          !id.startsWith("assign-") &&
-          !id.startsWith("sub-")
-        ) {
-          await supabase.from("notifications").delete().eq("id", id);
+        if (deleted && !deleted.read) {
+          setUnreadCount((prev) => Math.max(0, prev - 1));
         }
-      } catch (err) {
-        console.error("Error deleting notification:", err);
-        await fetchNotifications(true);
+      } catch (error) {
+        logger.error("Error deleting notification:", error);
+        toast.error("Không thể xóa thông báo");
       }
     },
-    [fetchNotifications],
+    [session?.user?.id, notifications, toast],
   );
 
-  useEffect(() => {
-    fetchNotifications(false);
+  const refresh = useCallback(() => {
+    isFetchingRef.current = false;
+    initialFetchDoneRef.current = false;
+    fetchNotifications(true);
   }, [fetchNotifications]);
 
   return {
@@ -284,10 +187,10 @@ export function useNotifications(): UseNotificationsReturn {
     unreadCount,
     loading,
     error,
-    refresh: () => fetchNotifications(true),
+    fetchNotifications,
     markAsRead,
     markAllAsRead,
     deleteNotification,
-    addNotification,
+    refresh,
   };
 }

@@ -1,55 +1,62 @@
 // src/app/api/auth/register/route.ts
-// Vai trò: API đăng ký - THÊM USERNAME VÀ PHONE
+// Vai trò: API đăng ký - FIXED
 
 import { supabase } from "@/lib/db/supabase-client";
+import { logger } from "@/lib/logger";
 import bcrypt from "bcryptjs";
 import { NextResponse } from "next/server";
+
+// ✅ Lấy admin phone từ environment variable
+const ADMIN_PHONE = process.env.ADMIN_PHONE || "0366017767";
+
+// ✅ Helper function cho error responses
+function sendErrorResponse(message: string, status: number) {
+  return NextResponse.json({ message }, { status });
+}
 
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { username, name, email, phone, password, role = "STUDENT" } = body;
-
-    console.log("📝 Register request:", { username, name, email, phone, role });
+    const { username, name, email, phone, password } = body;
 
     // Validate input
     if (!username || !name || !email || !phone || !password) {
-      return NextResponse.json(
-        { message: "Vui lòng điền đầy đủ thông tin" },
-        { status: 400 },
-      );
+      return sendErrorResponse("Vui lòng điền đầy đủ thông tin", 400);
     }
 
     if (password.length < 6) {
-      return NextResponse.json(
-        { message: "Mật khẩu phải có ít nhất 6 ký tự" },
-        { status: 400 },
-      );
+      return sendErrorResponse("Mật khẩu phải có ít nhất 6 ký tự", 400);
     }
 
-    // Kiểm tra username đã tồn tại
+    // Email format validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return sendErrorResponse("Email không hợp lệ", 400);
+    }
+
+    // Phone format validation (Vietnam)
+    const phoneRegex = /^(0[3|5|7|8|9])+([0-9]{8})$/;
+    if (!phoneRegex.test(phone.trim())) {
+      return sendErrorResponse("Số điện thoại không hợp lệ", 400);
+    }
+
+    // Kiểm tra username
     const { data: existingUsername, error: checkUsernameError } = await supabase
       .from("users")
       .select("username")
-      .eq("username", username)
+      .eq("username", username.trim())
       .maybeSingle();
 
     if (checkUsernameError) {
-      console.error("Check username error:", checkUsernameError);
-      return NextResponse.json(
-        { message: "Lỗi kiểm tra tên đăng nhập" },
-        { status: 500 },
-      );
+      logger.error("Check username error:", checkUsernameError);
+      return sendErrorResponse("Lỗi kiểm tra tên đăng nhập", 500);
     }
 
     if (existingUsername) {
-      return NextResponse.json(
-        { message: "Tên đăng nhập đã được sử dụng" },
-        { status: 400 },
-      );
+      return sendErrorResponse("Tên đăng nhập đã được sử dụng", 400);
     }
 
-    // Kiểm tra email đã tồn tại
+    // Kiểm tra email
     const { data: existingEmail, error: checkEmailError } = await supabase
       .from("users")
       .select("email")
@@ -57,21 +64,15 @@ export async function POST(request: Request) {
       .maybeSingle();
 
     if (checkEmailError) {
-      console.error("Check email error:", checkEmailError);
-      return NextResponse.json(
-        { message: "Lỗi kiểm tra email" },
-        { status: 500 },
-      );
+      logger.error("Check email error:", checkEmailError);
+      return sendErrorResponse("Lỗi kiểm tra email", 500);
     }
 
     if (existingEmail) {
-      return NextResponse.json(
-        { message: "Email đã được sử dụng" },
-        { status: 400 },
-      );
+      return sendErrorResponse("Email đã được sử dụng", 400);
     }
 
-    // Kiểm tra số điện thoại đã tồn tại
+    // Kiểm tra số điện thoại
     const { data: existingPhone, error: checkPhoneError } = await supabase
       .from("users")
       .select("phone")
@@ -79,25 +80,19 @@ export async function POST(request: Request) {
       .maybeSingle();
 
     if (checkPhoneError) {
-      console.error("Check phone error:", checkPhoneError);
-      return NextResponse.json(
-        { message: "Lỗi kiểm tra số điện thoại" },
-        { status: 500 },
-      );
+      logger.error("Check phone error:", checkPhoneError);
+      return sendErrorResponse("Lỗi kiểm tra số điện thoại", 500);
     }
 
     if (existingPhone) {
-      return NextResponse.json(
-        { message: "Số điện thoại đã được sử dụng" },
-        { status: 400 },
-      );
+      return sendErrorResponse("Số điện thoại đã được sử dụng", 400);
     }
 
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 12);
 
-    // Xác định vai trò dựa trên số điện thoại
-    const finalRole = phone.trim() === "0366017767" ? "ADMIN" : role;
+    // ✅ Xác định vai trò từ env variable
+    const finalRole = phone.trim() === ADMIN_PHONE ? "ADMIN" : "STUDENT";
 
     // Tạo user mới
     const { data: newUser, error: insertError } = await supabase
@@ -118,19 +113,11 @@ export async function POST(request: Request) {
       .single();
 
     if (insertError) {
-      console.error("Insert user error:", insertError);
-      return NextResponse.json(
-        { message: "Lỗi tạo tài khoản" },
-        { status: 500 },
-      );
+      logger.error("Insert user error:", insertError);
+      return sendErrorResponse("Lỗi tạo tài khoản", 500);
     }
 
-    console.log(
-      "✅ User created successfully:",
-      newUser.id,
-      "Role:",
-      finalRole,
-    );
+    logger.log("✅ User created:", newUser.id, "Role:", finalRole);
 
     return NextResponse.json(
       {
@@ -147,10 +134,7 @@ export async function POST(request: Request) {
       { status: 201 },
     );
   } catch (error) {
-    console.error("Register error:", error);
-    return NextResponse.json(
-      { message: "Có lỗi xảy ra khi đăng ký" },
-      { status: 500 },
-    );
+    logger.error("Register error:", error);
+    return sendErrorResponse("Có lỗi xảy ra khi đăng ký", 500);
   }
 }

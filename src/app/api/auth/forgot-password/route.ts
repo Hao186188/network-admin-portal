@@ -1,12 +1,13 @@
 // src/app/api/auth/forgot-password/route.ts
+// Vai trò: API quên mật khẩu - FIXED (Dùng Supabase)
 
-import db from "@/lib/db/json-db";
+import { supabase } from "@/lib/db/supabase-client";
+import crypto from "crypto";
 import { NextResponse } from "next/server";
 
 export async function POST(request: Request) {
   try {
-    const body = await request.json();
-    const { email } = body;
+    const { email } = await request.json();
 
     if (!email) {
       return NextResponse.json(
@@ -15,28 +16,57 @@ export async function POST(request: Request) {
       );
     }
 
-    const user = await db.findUserByEmail(email);
+    // Kiểm tra email tồn tại
+    const { data: user, error } = await supabase
+      .from("users")
+      .select("id, email")
+      .eq("email", email.toLowerCase().trim())
+      .single();
 
-    if (!user) {
+    if (error || !user) {
+      // Không tiết lộ email có tồn tại hay không (security)
       return NextResponse.json(
-        { message: "Email không tồn tại trong hệ thống" },
-        { status: 404 },
+        {
+          message: "Nếu email tồn tại, chúng tôi sẽ gửi link đặt lại mật khẩu",
+        },
+        { status: 200 },
       );
     }
 
-    // Tạo token reset password (giả lập)
-    const resetToken = Math.random().toString(36).substring(2, 15);
-    const resetLink = `${process.env.NEXT_PUBLIC_APP_URL}/reset-password?token=${resetToken}`;
+    // Tạo token reset password
+    const resetToken = crypto.randomBytes(32).toString("hex");
+    const resetTokenExpiry = new Date(Date.now() + 3600000); // 1 hour
 
-    // Ở đây sẽ gửi email với link reset
-    console.log("Reset link:", resetLink);
+    // Lưu token vào database
+    const { error: updateError } = await supabase
+      .from("users")
+      .update({
+        reset_token: resetToken,
+        reset_token_expiry: resetTokenExpiry.toISOString(),
+      })
+      .eq("id", user.id);
+
+    if (updateError) {
+      console.error("Error saving reset token:", updateError);
+      return NextResponse.json(
+        { message: "Có lỗi xảy ra, vui lòng thử lại sau" },
+        { status: 500 },
+      );
+    }
+
+    // Trong thực tế, gửi email ở đây
+    // Hiện tại, trả về token để test (trong production, KHÔNG trả về token)
+    const resetLink = `${process.env.NEXTAUTH_URL}/reset-password?token=${resetToken}`;
+    console.log("🔑 Reset link:", resetLink);
 
     return NextResponse.json({
       message: "Link đặt lại mật khẩu đã được gửi đến email của bạn",
+      resetLink: process.env.NODE_ENV === "development" ? resetLink : undefined,
     });
   } catch (error) {
+    console.error("Forgot password error:", error);
     return NextResponse.json(
-      { message: "Có lỗi xảy ra khi gửi link đặt lại mật khẩu" },
+      { message: "Có lỗi xảy ra, vui lòng thử lại sau" },
       { status: 500 },
     );
   }

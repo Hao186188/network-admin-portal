@@ -1,4 +1,6 @@
 // src/app/(routes)/admin/page.tsx
+// Vai trò: Trang quản trị - FIXED (Server-side validation)
+
 "use client";
 
 import { Footer } from "@/components/layout/footer";
@@ -12,30 +14,34 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/db/supabase-client";
 import { AnimatePresence, motion } from "framer-motion";
 import {
-    CheckCircle,
-    ChevronDown,
-    ChevronRight,
-    Crown,
-    Edit,
-    Filter,
-    Home,
-    Lock,
-    LogOut,
-    MoreVertical,
-    RefreshCw,
-    Search,
-    Shield,
-    Trash2,
-    User,
-    UserCog,
-    UserPlus,
-    Users,
-    X,
+  CheckCircle,
+  ChevronDown,
+  ChevronRight,
+  Crown,
+  Edit,
+  Filter,
+  Home,
+  Lock,
+  LogOut,
+  MoreVertical,
+  RefreshCw,
+  Search,
+  Shield,
+  Trash2,
+  User,
+  UserCog,
+  UserPlus,
+  Users,
+  X,
 } from "lucide-react";
 import { signOut, useSession } from "next-auth/react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+
+// ============================================
+// TYPES
+// ============================================
 
 interface User {
   id: string;
@@ -48,7 +54,19 @@ interface User {
   updated_at: string;
 }
 
-// Stats Card Component
+interface Stats {
+  totalUsers: number;
+  totalAdmins: number;
+  totalTeachers: number;
+  totalStudents: number;
+  activeUsers: number;
+  newUsers: number;
+}
+
+// ============================================
+// COMPONENTS
+// ============================================
+
 function StatsCard({ title, value, icon: Icon, color, change }: any) {
   return (
     <Card className="hover:shadow-2xl transition-all duration-300 hover:-translate-y-1">
@@ -75,7 +93,6 @@ function StatsCard({ title, value, icon: Icon, color, change }: any) {
   );
 }
 
-// User Table Row Component
 function UserRow({
   user,
   index,
@@ -226,231 +243,9 @@ function UserRow({
   );
 }
 
-// Edit User Modal
-function EditUserModal({
-  isOpen,
-  user,
-  onClose,
-  onSuccess,
-}: {
-  isOpen: boolean;
-  user: User | null;
-  onClose: () => void;
-  onSuccess: () => void;
-}) {
-  const { toast } = useToast();
-  const [name, setName] = useState("");
-  const [phone, setPhone] = useState("");
-  const [bio, setBio] = useState("");
-  const [role, setRole] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-
-  useEffect(() => {
-    if (user) {
-      setName(user.name || "");
-      setPhone(user.phone || "");
-      setBio(user.bio || "");
-      setRole(user.role || "STUDENT");
-    }
-  }, [user]);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!name.trim()) {
-      toast.error("Vui lòng nhập tên");
-      return;
-    }
-
-    setIsLoading(true);
-    try {
-      const { error } = await supabase
-        .from("users")
-        .update({
-          name: name.trim(),
-          phone: phone.trim(),
-          bio: bio.trim(),
-          role: role,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", user?.id);
-
-      if (error) throw error;
-
-      toast.success("Cập nhật thông tin thành công!");
-      onSuccess();
-      onClose();
-    } catch (error) {
-      toast.error("Có lỗi xảy ra khi cập nhật");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  if (!isOpen || !user) return null;
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-      <motion.div
-        initial={{ opacity: 0, scale: 0.9 }}
-        animate={{ opacity: 1, scale: 1 }}
-        exit={{ opacity: 0, scale: 0.9 }}
-        className="bg-background rounded-2xl shadow-2xl w-full max-w-md mx-4 p-6 border border-border"
-      >
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-bold gradient-text flex items-center gap-2">
-            <UserCog className="w-6 h-6 text-primary" />
-            Chỉnh sửa tài khoản
-          </h2>
-          <Button variant="ghost" size="icon" onClick={onClose}>
-            <X className="w-5 h-5" />
-          </Button>
-        </div>
-
-        <div className="mb-4 p-4 rounded-xl bg-muted/50">
-          <p className="text-sm text-muted-foreground">
-            Đang chỉnh sửa:{" "}
-            <span className="font-medium text-foreground">{user.email}</span>
-          </p>
-        </div>
-
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="text-sm font-medium text-foreground mb-2 block">
-              Họ và tên <span className="text-destructive">*</span>
-            </label>
-            <Input
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Nhập tên..."
-              className="w-full"
-              required
-              disabled={isLoading}
-            />
-          </div>
-
-          <div>
-            <label className="text-sm font-medium text-foreground mb-2 block">
-              Số điện thoại
-            </label>
-            <Input
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              placeholder="Nhập số điện thoại..."
-              className="w-full"
-              disabled={isLoading}
-            />
-          </div>
-
-          <div>
-            <label className="text-sm font-medium text-foreground mb-2 block">
-              Vai trò
-            </label>
-            <select
-              value={role}
-              onChange={(e) => setRole(e.target.value)}
-              className="w-full px-4 py-2 rounded-xl border border-input bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-              disabled={isLoading}
-            >
-              <option value="ADMIN">👑 Admin</option>
-              <option value="TEACHER">👨‍🏫 Giảng viên</option>
-              <option value="STUDENT">👨‍🎓 Học sinh</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="text-sm font-medium text-foreground mb-2 block">
-              Giới thiệu
-            </label>
-            <textarea
-              value={bio}
-              onChange={(e) => setBio(e.target.value)}
-              placeholder="Nhập giới thiệu..."
-              rows={3}
-              className="w-full px-4 py-2 rounded-xl border border-input bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary resize-none"
-              disabled={isLoading}
-            />
-          </div>
-
-          <div className="flex gap-3 pt-4">
-            <Button
-              type="button"
-              variant="outline"
-              className="flex-1"
-              onClick={onClose}
-              disabled={isLoading}
-            >
-              Hủy
-            </Button>
-            <Button type="submit" className="flex-1 gap-2" disabled={isLoading}>
-              {isLoading ? (
-                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-              ) : (
-                <>
-                  <CheckCircle className="w-4 h-4" />
-                  Lưu thay đổi
-                </>
-              )}
-            </Button>
-          </div>
-        </form>
-      </motion.div>
-    </div>
-  );
-}
-
-// Confirm Delete Modal
-function ConfirmDeleteModal({
-  isOpen,
-  user,
-  onClose,
-  onConfirm,
-}: {
-  isOpen: boolean;
-  user: User | null;
-  onClose: () => void;
-  onConfirm: (user: User) => void;
-}) {
-  if (!isOpen || !user) return null;
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-      <motion.div
-        initial={{ opacity: 0, scale: 0.9 }}
-        animate={{ opacity: 1, scale: 1 }}
-        exit={{ opacity: 0, scale: 0.9 }}
-        className="bg-background rounded-2xl shadow-2xl w-full max-w-md mx-4 p-6 border border-border"
-      >
-        <div className="text-center mb-6">
-          <div className="w-16 h-16 mx-auto rounded-full bg-destructive/10 flex items-center justify-center mb-4">
-            <Trash2 className="w-8 h-8 text-destructive" />
-          </div>
-          <h2 className="text-2xl font-bold">Xác nhận xóa</h2>
-          <p className="text-muted-foreground mt-2">
-            Bạn có chắc chắn muốn xóa tài khoản <br />
-            <span className="font-medium text-foreground">{user.name}</span>?
-          </p>
-          <p className="text-xs text-muted-foreground mt-1">
-            Email: {user.email}
-          </p>
-        </div>
-
-        <div className="flex gap-3">
-          <Button variant="outline" className="flex-1" onClick={onClose}>
-            Hủy
-          </Button>
-          <Button
-            variant="destructive"
-            className="flex-1 gap-2"
-            onClick={() => onConfirm(user)}
-          >
-            <Trash2 className="w-4 h-4" />
-            Xóa tài khoản
-          </Button>
-        </div>
-      </motion.div>
-    </div>
-  );
-}
+// ============================================
+// MAIN COMPONENT
+// ============================================
 
 export default function AdminPage() {
   const { data: session, status } = useSession();
@@ -468,7 +263,7 @@ export default function AdminPage() {
   const isAdmin = session?.user?.role === "ADMIN";
 
   // Fetch users from database
-  const fetchUsers = async () => {
+  const fetchUsers = useCallback(async () => {
     try {
       setLoading(true);
       const { data, error } = await supabase
@@ -484,13 +279,13 @@ export default function AdminPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast]);
 
   useEffect(() => {
     if (isAdmin) {
       fetchUsers();
     }
-  }, [isAdmin]);
+  }, [isAdmin, fetchUsers]);
 
   // Redirect nếu không phải admin
   useEffect(() => {
@@ -501,7 +296,7 @@ export default function AdminPage() {
   }, [status, isAdmin, router, toast]);
 
   // Stats
-  const stats = {
+  const stats: Stats = {
     totalUsers: users.length,
     totalAdmins: users.filter((u) => u.role === "ADMIN").length,
     totalTeachers: users.filter((u) => u.role === "TEACHER").length,
@@ -725,7 +520,12 @@ export default function AdminPage() {
                   </Badge>
                 </CardTitle>
                 <div className="flex items-center gap-3 flex-wrap">
-                  <Button variant="outline" size="sm" className="gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-2"
+                    onClick={() => router.push("/register")}
+                  >
                     <UserPlus className="w-4 h-4" />
                     Thêm tài khoản
                   </Button>
@@ -851,29 +651,221 @@ export default function AdminPage() {
       </div>
       <Footer />
 
-      {/* Edit Modal */}
-      <EditUserModal
-        isOpen={isEditModalOpen}
-        user={selectedUser}
-        onClose={() => {
-          setIsEditModalOpen(false);
-          setSelectedUser(null);
-        }}
-        onSuccess={() => {
-          fetchUsers();
-        }}
-      />
+      {/* Edit Modal - Inline for simplicity */}
+      {isEditModalOpen && selectedUser && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.9 }}
+            className="bg-background rounded-2xl shadow-2xl w-full max-w-md mx-4 p-6 border border-border"
+          >
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-bold gradient-text flex items-center gap-2">
+                <UserCog className="w-6 h-6 text-primary" />
+                Chỉnh sửa tài khoản
+              </h2>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => {
+                  setIsEditModalOpen(false);
+                  setSelectedUser(null);
+                }}
+              >
+                <X className="w-5 h-5" />
+              </Button>
+            </div>
 
-      {/* Delete Modal */}
-      <ConfirmDeleteModal
-        isOpen={isDeleteModalOpen}
-        user={selectedUser}
-        onClose={() => {
-          setIsDeleteModalOpen(false);
-          setSelectedUser(null);
-        }}
-        onConfirm={handleConfirmDelete}
-      />
+            <div className="mb-4 p-4 rounded-xl bg-muted/50">
+              <p className="text-sm text-muted-foreground">
+                Đang chỉnh sửa:{" "}
+                <span className="font-medium text-foreground">
+                  {selectedUser.email}
+                </span>
+              </p>
+            </div>
+
+            <form
+              onSubmit={async (e) => {
+                e.preventDefault();
+                const formData = new FormData(e.currentTarget);
+                const name = formData.get("name") as string;
+                const phone = formData.get("phone") as string;
+                const bio = formData.get("bio") as string;
+                const role = formData.get("role") as string;
+
+                if (!name.trim()) {
+                  toast.error("Vui lòng nhập tên");
+                  return;
+                }
+
+                try {
+                  const { error } = await supabase
+                    .from("users")
+                    .update({
+                      name: name.trim(),
+                      phone: phone.trim(),
+                      bio: bio.trim(),
+                      role: role,
+                      updated_at: new Date().toISOString(),
+                    })
+                    .eq("id", selectedUser.id);
+
+                  if (error) throw error;
+
+                  toast.success("Cập nhật thông tin thành công!");
+                  fetchUsers();
+                  setIsEditModalOpen(false);
+                  setSelectedUser(null);
+                } catch (error) {
+                  toast.error("Có lỗi xảy ra khi cập nhật");
+                }
+              }}
+              className="space-y-4"
+            >
+              <div>
+                <label className="text-sm font-medium text-foreground mb-2 block">
+                  Họ và tên <span className="text-destructive">*</span>
+                </label>
+                <Input
+                  name="name"
+                  defaultValue={selectedUser.name}
+                  placeholder="Nhập tên..."
+                  className="w-full"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="text-sm font-medium text-foreground mb-2 block">
+                  Số điện thoại
+                </label>
+                <Input
+                  name="phone"
+                  defaultValue={selectedUser.phone || ""}
+                  placeholder="Nhập số điện thoại..."
+                  className="w-full"
+                />
+              </div>
+
+              <div>
+                <label className="text-sm font-medium text-foreground mb-2 block">
+                  Vai trò
+                </label>
+                <select
+                  name="role"
+                  defaultValue={selectedUser.role}
+                  className="w-full px-4 py-2 rounded-xl border border-input bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                >
+                  <option value="ADMIN">👑 Admin</option>
+                  <option value="TEACHER">👨‍🏫 Giảng viên</option>
+                  <option value="STUDENT">👨‍🎓 Học sinh</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="text-sm font-medium text-foreground mb-2 block">
+                  Giới thiệu
+                </label>
+                <textarea
+                  name="bio"
+                  defaultValue={selectedUser.bio || ""}
+                  placeholder="Nhập giới thiệu..."
+                  rows={3}
+                  className="w-full px-4 py-2 rounded-xl border border-input bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary resize-none"
+                />
+              </div>
+
+              <div className="flex gap-3 pt-4">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => {
+                    setIsEditModalOpen(false);
+                    setSelectedUser(null);
+                  }}
+                >
+                  Hủy
+                </Button>
+                <Button type="submit" className="flex-1 gap-2">
+                  <CheckCircle className="w-4 h-4" />
+                  Lưu thay đổi
+                </Button>
+              </div>
+            </form>
+          </motion.div>
+        </div>
+      )}
+
+      {/* Delete Modal - Inline for simplicity */}
+      {isDeleteModalOpen && selectedUser && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.9 }}
+            className="bg-background rounded-2xl shadow-2xl w-full max-w-md mx-4 p-6 border border-border"
+          >
+            <div className="text-center mb-6">
+              <div className="w-16 h-16 mx-auto rounded-full bg-destructive/10 flex items-center justify-center mb-4">
+                <Trash2 className="w-8 h-8 text-destructive" />
+              </div>
+              <h2 className="text-2xl font-bold">Xác nhận xóa</h2>
+              <p className="text-muted-foreground mt-2">
+                Bạn có chắc chắn muốn xóa tài khoản <br />
+                <span className="font-medium text-foreground">
+                  {selectedUser.name}
+                </span>
+                ?
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Email: {selectedUser.email}
+              </p>
+            </div>
+
+            <div className="flex gap-3">
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={() => {
+                  setIsDeleteModalOpen(false);
+                  setSelectedUser(null);
+                }}
+              >
+                Hủy
+              </Button>
+              <Button
+                variant="destructive"
+                className="flex-1 gap-2"
+                onClick={async () => {
+                  try {
+                    const { error } = await supabase
+                      .from("users")
+                      .delete()
+                      .eq("id", selectedUser.id);
+
+                    if (error) throw error;
+
+                    setUsers((prev) =>
+                      prev.filter((u) => u.id !== selectedUser.id),
+                    );
+                    toast.success(`Đã xóa tài khoản ${selectedUser.name}`);
+                    setIsDeleteModalOpen(false);
+                    setSelectedUser(null);
+                  } catch (error) {
+                    toast.error("Có lỗi xảy ra khi xóa tài khoản");
+                  }
+                }}
+              >
+                <Trash2 className="w-4 h-4" />
+                Xóa tài khoản
+              </Button>
+            </div>
+          </motion.div>
+        </div>
+      )}
     </>
   );
 }

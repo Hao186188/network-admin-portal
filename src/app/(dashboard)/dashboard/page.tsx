@@ -1,5 +1,5 @@
 // src/app/(dashboard)/dashboard/page.tsx
-// Vai trò: Trang Dashboard - FIX TYPE
+// Vai trò: Trang Dashboard - FIXED
 
 "use client";
 
@@ -23,20 +23,15 @@ import { FileText, RefreshCw, UserPlus, Users, Video } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { useEffect, useState } from "react";
 
-// ============================================
-// MAIN COMPONENT
-// ============================================
-
 export default function DashboardPage() {
   const { data: session, status } = useSession();
   const { toast } = useToast();
-  const stats = useStats(); // stats là StatsData
-  const { refresh: refreshAnnouncements } = useAnnouncements();
+  const stats = useStats();
+  const { refresh: refreshAnnouncements } = useAnnouncements(); // ✅ Đã có refresh
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
-  // Modal states
   const [isCreateAnnouncementOpen, setIsCreateAnnouncementOpen] =
     useState(false);
   const [isCreateForumPostOpen, setIsCreateForumPostOpen] = useState(false);
@@ -75,7 +70,6 @@ export default function DashboardPage() {
     setIsDetailModalOpen(true);
   };
 
-  // Stats từ database
   const statItems = [
     {
       title: "Tài liệu",
@@ -115,7 +109,6 @@ export default function DashboardPage() {
     },
   ];
 
-  // Dropdown handlers
   const handleDropdownItemClick = (index: number) => {
     setIsDropdownOpen(false);
     if (index === 0) setIsCreateAnnouncementOpen(true);
