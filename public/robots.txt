@@ -1,5 +1,5 @@
-# public/robots.txt
-User-Agent: *
+# *
+User-agent: *
 Allow: /
 Disallow: /api/
 Disallow: /admin/
@@ -11,5 +11,9 @@ Disallow: /reset-password
 Disallow: /_next/
 Disallow: /static/
 
-Sitemap: https://qtm3k14.vercel.app/sitemap.xml
+# Host
 Host: https://qtm3k14.vercel.app
+
+# Sitemaps
+Sitemap: https://qtm3k14.vercel.app/sitemap.xml
+Sitemap: https://qtm3k14.vercel.app/server-sitemap.xml

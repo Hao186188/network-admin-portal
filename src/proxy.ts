@@ -1,5 +1,5 @@
 // src/proxy.ts
-// Vai trò: Middleware bảo vệ routes - FIXED
+// Vai trò: Middleware bảo vệ routes - FIXED & BỔ SUNG
 
 import { withAuth } from "next-auth/middleware";
 import { NextResponse } from "next/server";
@@ -15,11 +15,21 @@ const PUBLIC_ROUTES = [
   "/faq",
   "/contact",
   "/terms",
+  // ✅ THÊM: Google Search Console Verification
+  "/googlefd0bb1779e2131d9.html",
+  // ✅ THÊM: Robots.txt & Sitemap
+  "/robots.txt",
+  "/sitemap.xml",
+  "/sitemap",
+  "/manifest.json",
+  "/manifest.webmanifest",
+  "/og-image",
+  "/og-image.png",
 ];
 
 // Static file extensions
 const STATIC_EXTENSIONS =
-  /\.(svg|png|jpg|jpeg|gif|webp|css|js|ico|json|woff|woff2|ttf|eot)$/;
+  /\.(svg|png|jpg|jpeg|gif|webp|css|js|ico|json|woff|woff2|ttf|eot|xml|txt)$/;
 
 export default withAuth(
   function middleware(req) {
@@ -43,30 +53,60 @@ export default withAuth(
     // 2. Kiểm tra public routes
     const isPublicRoute =
       PUBLIC_ROUTES.includes(path) ||
-      PUBLIC_ROUTES.some((route) => path === route); // CHỈ SO SÁNH CHÍNH XÁC
+      PUBLIC_ROUTES.some((route) => path === route);
 
     if (isPublicRoute) {
       return NextResponse.next();
     }
 
-    // 3. Kiểm tra đăng nhập
+    // ✅ 3. Kiểm tra verification routes (thêm an toàn)
+    if (path.includes("google") && path.includes(".html")) {
+      return NextResponse.next();
+    }
+
+    // 4. Kiểm tra đăng nhập
     if (!token) {
       const loginUrl = new URL("/login", req.url);
       loginUrl.searchParams.set("callbackUrl", path);
       return NextResponse.redirect(loginUrl);
     }
 
-    // 4. ADMIN ONLY routes
+    // 5. ADMIN ONLY routes
     if (path.startsWith("/admin")) {
       if (token.role !== "ADMIN") {
         return NextResponse.redirect(new URL("/dashboard", req.url));
       }
     }
 
-    // 5. TEACHER và ADMIN routes
+    // 6. TEACHER và ADMIN routes
     if (path.startsWith("/submissions")) {
       if (token.role !== "TEACHER" && token.role !== "ADMIN") {
         return NextResponse.redirect(new URL("/dashboard", req.url));
+      }
+    }
+
+    // 7. CHAT routes - cần đăng nhập
+    if (path.startsWith("/chat")) {
+      if (!token) {
+        const loginUrl = new URL("/login", req.url);
+        loginUrl.searchParams.set("callbackUrl", path);
+        return NextResponse.redirect(loginUrl);
+      }
+    }
+
+    // 8. FORUM routes - cần đăng nhập
+    if (path.startsWith("/forum")) {
+      // Ngoại lệ: xem bài viết công khai
+      if (path === "/forum" || path.match(/^\/forum\/[a-f0-9-]+$/)) {
+        return NextResponse.next();
+      }
+      // Tạo bài viết cần đăng nhập
+      if (path.startsWith("/forum/create")) {
+        if (!token) {
+          const loginUrl = new URL("/login", req.url);
+          loginUrl.searchParams.set("callbackUrl", path);
+          return NextResponse.redirect(loginUrl);
+        }
       }
     }
 
@@ -90,7 +130,8 @@ export const config = {
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
      * - files with extensions (static files)
+     * - verification files
      */
-    "/((?!_next/static|_next/image|favicon.ico|.*\\..*$).*)",
+    "/((?!_next/static|_next/image|favicon.ico|.*\\..*$|google.*\\.html$).*)",
   ],
 };

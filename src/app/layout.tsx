@@ -1,5 +1,5 @@
 // src/app/layout.tsx
-// Vai trò: Layout chính - THÊM SEO
+// Vai trò: Layout chính - THÊM GOOGLE VERIFICATION
 
 import type { Metadata, Viewport } from "next";
 import { Inter, Poppins } from "next/font/google";
@@ -21,16 +21,15 @@ const poppins = Poppins({
   display: "swap",
 });
 
-// ✅ SEO: Metadata
 export const metadata: Metadata = {
   title: {
     default: "Mạng 3 Hub - Quản trị Mạng 3",
     template: "%s | Mạng 3 Hub",
   },
   description:
-    "Nền tảng học tập hiện đại dành cho sinh viên Quản trị Mạng 3, Trường Cao đẳng Nghề Kiên Giang. Tài liệu, bài tập, diễn đàn và cộng đồng.",
+    "Nền tảng học tập hiện đại dành cho sinh viên Quản trị Mạng 3, Trường Cao đẳng Nghề Kiên Giang.",
   keywords:
-    "Mạng 3 Hub, Quản trị Mạng, Học tập, Kiên Giang, Cao đẳng Nghề, Network Administration, Cisco, Linux, Python, Docker",
+    "Mạng 3 Hub, Quản trị Mạng, Học tập, Kiên Giang, Cao đẳng Nghề, Network Administration",
   authors: [{ name: "Võ Nhật Hào" }],
   creator: "Võ Nhật Hào",
   publisher: "Mạng 3 Hub",
@@ -45,13 +44,18 @@ export const metadata: Metadata = {
       "max-snippet": -1,
     },
   },
+  // ✅ THÊM GOOGLE VERIFICATION
   verification: {
-    google: "fWJ9xSva7OMPit8NxNyIzmzItlhloIppaCNr6cIhoJQ",
+    google: "xDi7yQEL2pog2kHYPth3-zWqrvkkgldFURSfgDdVVtU",
+    other: {
+      "msvalidate.01": "YOUR_BING_VERIFICATION_CODE",
+      "yandex-verification": "YOUR_YANDEX_VERIFICATION_CODE",
+    },
   },
   openGraph: {
     title: "Mạng 3 Hub - Quản trị Mạng 3",
     description:
-      "Nền tảng học tập hiện đại dành cho sinh viên Quản trị Mạng 3, Trường Cao đẳng Nghề Kiên Giang.",
+      "Nền tảng học tập hiện đại dành cho sinh viên Quản trị Mạng 3.",
     url: "https://qtm3k14.vercel.app",
     siteName: "Mạng 3 Hub",
     locale: "vi_VN",
@@ -84,7 +88,6 @@ export const metadata: Metadata = {
   category: "education",
 };
 
-// ✅ SEO: Viewport
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
@@ -100,6 +103,11 @@ export default function RootLayout({
   return (
     <html lang="vi" suppressHydrationWarning>
       <head>
+        {/* ✅ GOOGLE VERIFICATION - META TAG */}
+        <meta
+          name="google-site-verification"
+          content="xDi7yQEL2pog2kHYPth3-zWqrvkkgldFURSfgDdVVtU"
+        />
         {/* ✅ Sitemap */}
         <link rel="sitemap" type="application/xml" href="/sitemap.xml" />
         {/* ✅ Favicon */}
