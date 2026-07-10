@@ -1,46 +1,39 @@
 // src/app/layout.tsx
-// Vai trò: Layout chính - FIXED FONTS SUBSETS
+// Vai trò: Layout chính - THÊM SEO
 
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter, Poppins } from "next/font/google";
 import { Toaster } from "sonner";
 import "./globals.css";
 import { Providers } from "./providers";
 
-// ✅ Inter font - Chỉ hỗ trợ latin, latin-ext, devanagari
 const inter = Inter({
-  subsets: ["latin", "latin-ext"], // ✅ KHÔNG có "vietnamese"
+  subsets: ["latin", "latin-ext"],
   variable: "--font-inter",
   display: "swap",
   weight: ["300", "400", "500", "600", "700", "800", "900"],
 });
 
-// ✅ Poppins font - Chỉ hỗ trợ latin, latin-ext, devanagari
 const poppins = Poppins({
   weight: ["300", "400", "500", "600", "700", "800", "900"],
-  subsets: ["latin", "latin-ext"], // ✅ KHÔNG có "vietnamese"
+  subsets: ["latin", "latin-ext"],
   variable: "--font-poppins",
   display: "swap",
 });
 
+// ✅ SEO: Metadata
 export const metadata: Metadata = {
-  title: "Mạng 3 Hub - Quản trị Mạng 3",
+  title: {
+    default: "Mạng 3 Hub - Quản trị Mạng 3",
+    template: "%s | Mạng 3 Hub",
+  },
   description:
-    "Nền tảng học tập hiện đại dành cho sinh viên Quản trị Mạng 3, Trường Cao đẳng Nghề Kiên Giang",
+    "Nền tảng học tập hiện đại dành cho sinh viên Quản trị Mạng 3, Trường Cao đẳng Nghề Kiên Giang. Tài liệu, bài tập, diễn đàn và cộng đồng.",
   keywords:
-    "Mạng 3 Hub, Quản trị Mạng, Học tập, Kiên Giang, Cao đẳng Nghề, Network Administration",
+    "Mạng 3 Hub, Quản trị Mạng, Học tập, Kiên Giang, Cao đẳng Nghề, Network Administration, Cisco, Linux, Python, Docker",
   authors: [{ name: "Võ Nhật Hào" }],
-  openGraph: {
-    title: "Mạng 3 Hub",
-    description: "Nền tảng học tập Quản trị Mạng 3",
-    type: "website",
-    url: "https://qtm3k14.vercel.app",
-    siteName: "Mạng 3 Hub",
-    locale: "vi_VN",
-  },
-  verification: {
-    google: "fWJ9xSva7OMPit8NxNyIzmzItlhloIppaCNr6cIhoJQ",
-  },
+  creator: "Võ Nhật Hào",
+  publisher: "Mạng 3 Hub",
   robots: {
     index: true,
     follow: true,
@@ -52,12 +45,51 @@ export const metadata: Metadata = {
       "max-snippet": -1,
     },
   },
+  verification: {
+    google: "fWJ9xSva7OMPit8NxNyIzmzItlhloIppaCNr6cIhoJQ",
+  },
+  openGraph: {
+    title: "Mạng 3 Hub - Quản trị Mạng 3",
+    description:
+      "Nền tảng học tập hiện đại dành cho sinh viên Quản trị Mạng 3, Trường Cao đẳng Nghề Kiên Giang.",
+    url: "https://qtm3k14.vercel.app",
+    siteName: "Mạng 3 Hub",
+    locale: "vi_VN",
+    type: "website",
+    images: [
+      {
+        url: "https://qtm3k14.vercel.app/og-image.png",
+        width: 1200,
+        height: 630,
+        alt: "Mạng 3 Hub",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Mạng 3 Hub - Quản trị Mạng 3",
+    description:
+      "Nền tảng học tập hiện đại dành cho sinh viên Quản trị Mạng 3.",
+    images: ["https://qtm3k14.vercel.app/og-image.png"],
+  },
   metadataBase: new URL(
-    process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000",
+    process.env.NEXT_PUBLIC_APP_URL || "https://qtm3k14.vercel.app",
   ),
   alternates: {
     canonical: "/",
+    languages: {
+      "vi-VN": "/vi",
+    },
   },
+  category: "education",
+};
+
+// ✅ SEO: Viewport
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 5,
+  themeColor: "#2563eb",
 };
 
 export default function RootLayout({
@@ -68,14 +100,20 @@ export default function RootLayout({
   return (
     <html lang="vi" suppressHydrationWarning>
       <head>
-        {/* Sitemap link */}
+        {/* ✅ Sitemap */}
         <link rel="sitemap" type="application/xml" href="/sitemap.xml" />
-        {/* Favicon */}
+        {/* ✅ Favicon */}
         <link rel="icon" href="/favicon.ico" sizes="any" />
-        {/* Manifest */}
+        <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+        {/* ✅ Manifest */}
         <link rel="manifest" href="/manifest.json" />
-        {/* Theme color */}
-        <meta name="theme-color" content="#2563eb" />
+        {/* ✅ RSS Feed */}
+        <link
+          rel="alternate"
+          type="application/rss+xml"
+          title="Mạng 3 Hub"
+          href="/feed.xml"
+        />
       </head>
       <body
         className={`${inter.variable} ${poppins.variable} font-inter antialiased`}

@@ -1,24 +1,25 @@
 // src/app/robots.ts
-// Vai trò: Cấu hình robots.txt cho SEO
+// Vai trò: Tạo robots.txt cho SEO
 
-import { MetadataRoute } from 'next'
+import type { MetadataRoute } from "next";
 
 export default function robots(): MetadataRoute.Robots {
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://qtm3k14.vercel.app'
-
   return {
     rules: {
-      userAgent: '*',
-      allow: '/',
+      userAgent: "*",
+      allow: "/",
       disallow: [
-        '/login',
-        '/register',
-        '/forgot-password',
-        '/reset-password',
-        '/api/',
-        '/_next/',
+        "/api/",
+        "/admin/",
+        "/profile/",
+        "/login",
+        "/register",
+        "/forgot-password",
+        "/reset-password",
+        "/_next/",
+        "/static/",
       ],
     },
-    sitemap: `${baseUrl}/sitemap.xml`,
-  }
+    sitemap: "https://qtm3k14.vercel.app/sitemap.xml",
+  };
 }

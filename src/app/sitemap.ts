@@ -1,192 +1,131 @@
 // src/app/sitemap.ts
+// Vai trò: Tạo sitemap.xml động cho SEO
 
-// src/app/sitemap.ts
-// Vai trò: Tạo sitemap cho SEO
+import type { MetadataRoute } from "next";
 
-import { MetadataRoute } from 'next'
+const baseUrl = "https://qtm3k14.vercel.app";
 
-// Định nghĩa các route tĩnh
-const staticRoutes = [
-  {
-    url: '',
-    lastModified: new Date(),
-    changeFrequency: 'daily' as const,
-    priority: 1,
-  },
-  {
-    url: '/about',
-    lastModified: new Date(),
-    changeFrequency: 'weekly' as const,
-    priority: 0.9,
-  },
-  {
-    url: '/dashboard',
-    lastModified: new Date(),
-    changeFrequency: 'daily' as const,
-    priority: 0.8,
-  },
-  {
-    url: '/documents',
-    lastModified: new Date(),
-    changeFrequency: 'daily' as const,
-    priority: 0.9,
-  },
-  {
-    url: '/lectures',
-    lastModified: new Date(),
-    changeFrequency: 'daily' as const,
-    priority: 0.9,
-  },
-  {
-    url: '/schedule',
-    lastModified: new Date(),
-    changeFrequency: 'weekly' as const,
-    priority: 0.8,
-  },
-  {
-    url: '/exams',
-    lastModified: new Date(),
-    changeFrequency: 'weekly' as const,
-    priority: 0.7,
-  },
-  {
-    url: '/assignments',
-    lastModified: new Date(),
-    changeFrequency: 'weekly' as const,
-    priority: 0.8,
-  },
-  {
-    url: '/submissions',
-    lastModified: new Date(),
-    changeFrequency: 'weekly' as const,
-    priority: 0.7,
-  },
-  {
-    url: '/forum',
-    lastModified: new Date(),
-    changeFrequency: 'weekly' as const,
-    priority: 0.8,
-  },
-  {
-    url: '/software',
-    lastModified: new Date(),
-    changeFrequency: 'weekly' as const,
-    priority: 0.7,
-  },
-  {
-    url: '/iso',
-    lastModified: new Date(),
-    changeFrequency: 'weekly' as const,
-    priority: 0.6,
-  },
-  {
-    url: '/vm',
-    lastModified: new Date(),
-    changeFrequency: 'weekly' as const,
-    priority: 0.6,
-  },
-  {
-    url: '/packet-tracer',
-    lastModified: new Date(),
-    changeFrequency: 'weekly' as const,
-    priority: 0.7,
-  },
-  {
-    url: '/cisco-lab',
-    lastModified: new Date(),
-    changeFrequency: 'weekly' as const,
-    priority: 0.7,
-  },
-  {
-    url: '/linux',
-    lastModified: new Date(),
-    changeFrequency: 'weekly' as const,
-    priority: 0.6,
-  },
-  {
-    url: '/windows-server',
-    lastModified: new Date(),
-    changeFrequency: 'weekly' as const,
-    priority: 0.6,
-  },
-  {
-    url: '/docker',
-    lastModified: new Date(),
-    changeFrequency: 'weekly' as const,
-    priority: 0.6,
-  },
-  {
-    url: '/python',
-    lastModified: new Date(),
-    changeFrequency: 'weekly' as const,
-    priority: 0.6,
-  },
-  {
-    url: '/network-automation',
-    lastModified: new Date(),
-    changeFrequency: 'weekly' as const,
-    priority: 0.6,
-  },
-  {
-    url: '/projects',
-    lastModified: new Date(),
-    changeFrequency: 'weekly' as const,
-    priority: 0.7,
-  },
-  {
-    url: '/source-code',
-    lastModified: new Date(),
-    changeFrequency: 'weekly' as const,
-    priority: 0.7,
-  },
-  {
-    url: '/profile',
-    lastModified: new Date(),
-    changeFrequency: 'monthly' as const,
-    priority: 0.5,
-  },
-  {
-    url: '/faq',
-    lastModified: new Date(),
-    changeFrequency: 'monthly' as const,
-    priority: 0.5,
-  },
-  {
-    url: '/contact',
-    lastModified: new Date(),
-    changeFrequency: 'monthly' as const,
-    priority: 0.6,
-  },
-  {
-    url: '/terms',
-    lastModified: new Date(),
-    changeFrequency: 'monthly' as const,
-    priority: 0.3,
-  },
-  {
-    url: '/login',
-    lastModified: new Date(),
-    changeFrequency: 'monthly' as const,
-    priority: 0.3,
-  },
-  {
-    url: '/register',
-    lastModified: new Date(),
-    changeFrequency: 'monthly' as const,
-    priority: 0.3,
-  },
-]
+// ✅ Danh sách tất cả routes
+const routes = [
+  { path: "/", priority: 1.0, changefreq: "daily" },
+  { path: "/about", priority: 0.8, changefreq: "monthly" },
+  { path: "/announcements", priority: 0.9, changefreq: "daily" },
+  { path: "/assignments", priority: 0.9, changefreq: "weekly" },
+  { path: "/chat", priority: 0.7, changefreq: "weekly" },
+  { path: "/cisco-lab", priority: 0.8, changefreq: "weekly" },
+  { path: "/contact", priority: 0.5, changefreq: "monthly" },
+  { path: "/courses", priority: 0.9, changefreq: "weekly" },
+  { path: "/dashboard", priority: 0.8, changefreq: "daily" },
+  { path: "/docker", priority: 0.7, changefreq: "weekly" },
+  { path: "/documents", priority: 0.9, changefreq: "daily" },
+  { path: "/exams", priority: 0.8, changefreq: "monthly" },
+  { path: "/faq", priority: 0.6, changefreq: "monthly" },
+  { path: "/forum", priority: 0.9, changefreq: "daily" },
+  { path: "/iso", priority: 0.6, changefreq: "monthly" },
+  { path: "/lectures", priority: 0.9, changefreq: "weekly" },
+  { path: "/linux", priority: 0.7, changefreq: "weekly" },
+  { path: "/network-automation", priority: 0.7, changefreq: "weekly" },
+  { path: "/packet-tracer", priority: 0.7, changefreq: "weekly" },
+  { path: "/profile", priority: 0.7, changefreq: "daily" },
+  { path: "/projects", priority: 0.8, changefreq: "weekly" },
+  { path: "/python", priority: 0.7, changefreq: "weekly" },
+  { path: "/schedule", priority: 0.8, changefreq: "weekly" },
+  { path: "/software", priority: 0.6, changefreq: "monthly" },
+  { path: "/source-code", priority: 0.7, changefreq: "weekly" },
+  { path: "/submissions", priority: 0.8, changefreq: "daily" },
+  { path: "/terms", priority: 0.3, changefreq: "yearly" },
+  { path: "/vm", priority: 0.6, changefreq: "monthly" },
+];
+
+// ✅ Dynamic routes từ database
+async function getDynamicRoutes() {
+  const { supabase } = await import("@/lib/db/supabase-client");
+
+  try {
+    // Lấy announcements
+    const { data: announcements } = await supabase
+      .from("announcements")
+      .select("id, updated_at")
+      .order("created_at", { ascending: false })
+      .limit(100);
+
+    // Lấy forum posts
+    const { data: forumPosts } = await supabase
+      .from("forum_posts")
+      .select("id, updated_at")
+      .order("created_at", { ascending: false })
+      .limit(100);
+
+    // Lấy assignments
+    const { data: assignments } = await supabase
+      .from("assignments")
+      .select("id, updated_at")
+      .order("created_at", { ascending: false })
+      .limit(100);
+
+    const dynamicRoutes = [];
+
+    // Announcements
+    if (announcements) {
+      dynamicRoutes.push(
+        ...announcements.map((item) => ({
+          path: `/announcements/${item.id}`,
+          priority: 0.8,
+          changefreq: "weekly" as const,
+          lastModified: item.updated_at || new Date().toISOString(),
+        })),
+      );
+    }
+
+    // Forum posts
+    if (forumPosts) {
+      dynamicRoutes.push(
+        ...forumPosts.map((item) => ({
+          path: `/forum/${item.id}`,
+          priority: 0.9,
+          changefreq: "daily" as const,
+          lastModified: item.updated_at || new Date().toISOString(),
+        })),
+      );
+    }
+
+    // Assignments
+    if (assignments) {
+      dynamicRoutes.push(
+        ...assignments.map((item) => ({
+          path: `/assignments/${item.id}`,
+          priority: 0.8,
+          changefreq: "weekly" as const,
+          lastModified: item.updated_at || new Date().toISOString(),
+        })),
+      );
+    }
+
+    return dynamicRoutes;
+  } catch (error) {
+    console.error("Error fetching dynamic routes:", error);
+    return [];
+  }
+}
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://qtm3k14.vercel.app'
-
-  // Tạo sitemap từ danh sách route tĩnh
-  const staticSitemap = staticRoutes.map((route) => ({
-    url: `${baseUrl}${route.url}`,
-    lastModified: route.lastModified,
-    changeFrequency: route.changeFrequency,
+  // Static routes
+  const staticRoutes = routes.map((route) => ({
+    url: `${baseUrl}${route.path}`,
+    lastModified: new Date().toISOString(),
+    changeFrequency: route.changefreq as
+      "always" | "hourly" | "daily" | "weekly" | "monthly" | "yearly" | "never",
     priority: route.priority,
-  }))
+  }));
 
-  return staticSitemap
+  // Dynamic routes
+  const dynamicRoutes = await getDynamicRoutes();
+  const dynamicSitemap = dynamicRoutes.map((route) => ({
+    url: `${baseUrl}${route.path}`,
+    lastModified: route.lastModified || new Date().toISOString(),
+    changeFrequency: route.changefreq,
+    priority: route.priority,
+  }));
+
+  return [...staticRoutes, ...dynamicSitemap];
 }

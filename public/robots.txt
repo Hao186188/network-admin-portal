@@ -1,0 +1,15 @@
+# public/robots.txt
+User-Agent: *
+Allow: /
+Disallow: /api/
+Disallow: /admin/
+Disallow: /profile/
+Disallow: /login
+Disallow: /register
+Disallow: /forgot-password
+Disallow: /reset-password
+Disallow: /_next/
+Disallow: /static/
+
+Sitemap: https://qtm3k14.vercel.app/sitemap.xml
+Host: https://qtm3k14.vercel.app
