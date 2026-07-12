@@ -1,5 +1,5 @@
 // src/app/(routes)/announcements/[id]/page.tsx
-// Vai trò: Trang chi tiết thông báo - HOÀN CHỈNH
+// TRANG CHI TIẾT - HOÀN CHỈNH TỐI ƯU
 
 "use client";
 
@@ -12,9 +12,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { ScrollProgress } from "@/components/ui/scroll-progress";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useAnnouncements } from "@/hooks/use-announcements";
-import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/lib/db/supabase-client";
+import { useAnnouncementDetail } from "@/hooks/useAnnouncementDetail";
 import { cn, formatRelativeTime } from "@/lib/utils";
 import { motion } from "framer-motion";
 import {
@@ -22,6 +20,7 @@ import {
   ArrowLeft,
   Calendar,
   Eye,
+  Heart,
   MessageCircle,
   Pin,
   Send,
@@ -33,246 +32,148 @@ import {
 import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { toast } from "sonner";
 
-// Animation variants
-const containerVariants = {
-  hidden: { opacity: 0 },
-  visible: {
-    opacity: 1,
-    transition: {
-      staggerChildren: 0.1,
-      delayChildren: 0.2,
-    },
-  },
+// ============================================
+// CONSTANTS
+// ============================================
+
+const getPriorityColor = (priority: string): string => {
+  const colors: Record<string, string> = {
+    high: "bg-red-500",
+    medium: "bg-yellow-500",
+    low: "bg-blue-500",
+  };
+  return colors[priority] || "bg-gray-500";
 };
 
-const itemVariants = {
-  hidden: { y: 20, opacity: 0, filter: "blur(4px)" },
-  visible: {
-    y: 0,
-    opacity: 1,
-    filter: "blur(0px)",
-    transition: { type: "spring" as const, stiffness: 100, damping: 20 },
-  },
+const getPriorityLabel = (priority: string): string => {
+  const labels: Record<string, string> = {
+    high: "⚠️ Khẩn cấp",
+    medium: "📌 Quan trọng",
+    low: "ℹ️ Thông thường",
+  };
+  return labels[priority] || "Bình thường";
 };
 
-const headerVariants = {
-  hidden: { y: -20, opacity: 0, scale: 0.95 },
-  visible: {
-    y: 0,
-    opacity: 1,
-    scale: 1,
-    transition: { type: "spring" as const, stiffness: 200, damping: 25 },
-  },
-};
-
-const isValidUUID = (str: string) => {
-  const uuidRegex =
-    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-  return uuidRegex.test(str);
-};
+// ============================================
+// MAIN COMPONENT
+// ============================================
 
 export default function AnnouncementDetailPage() {
-  const params = useParams();
   const router = useRouter();
-  const { toast } = useToast();
+  const { id } = useParams();
   const { data: session } = useSession();
-  const {
-    getAnnouncementDetail,
-    toggleLike,
-    getComments,
-    addComment,
-    deleteComment,
-  } = useAnnouncements();
+  const announcementId = id as string;
 
-  const [announcement, setAnnouncement] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [isLiked, setIsLiked] = useState(false);
-  const [likesCount, setLikesCount] = useState(0);
-  const [comments, setComments] = useState<any[]>([]);
+  // State
   const [commentContent, setCommentContent] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isShared, setIsShared] = useState(false);
 
-  const announcementId = params.id as string;
-  const hasFetchedRef = useRef(false);
+  // Custom hook
+  const {
+    announcement,
+    isLiked,
+    comments,
+    isLoading,
+    isLoadingComments,
+    error,
+    handleToggleLike,
+    handleAddComment,
+    handleDeleteComment,
+    handleDownload,
+    refetch,
+    isTogglingLike,
+    isAddingComment,
+    isDeletingComment,
+  } = useAnnouncementDetail(announcementId);
 
-  // ============================================
-  // FETCH DATA
-  // ============================================
-
-  const fetchData = useCallback(async () => {
-    if (hasFetchedRef.current) {
-      return;
-    }
-
-    if (!announcementId) {
-      setError("ID thông báo không hợp lệ");
-      setLoading(false);
-      return;
-    }
-
-    if (!isValidUUID(announcementId)) {
-      console.error(`❌ Invalid UUID: ${announcementId}`);
-      setError("ID thông báo không hợp lệ");
-      setLoading(false);
-      return;
-    }
-
-    try {
-      setLoading(true);
-      setError(null);
-
-      console.log(`🔍 Fetching detail: ${announcementId}`);
-
-      const data = await getAnnouncementDetail(announcementId);
-
-      if (!data) {
-        setError("Không tìm thấy thông báo");
-        setLoading(false);
-        return;
-      }
-
-      setAnnouncement(data);
-      setLikesCount(data.likes || 0);
-
-      const commentsData = await getComments(announcementId);
-      setComments(commentsData || []);
-
-      if (session?.user) {
-        const { data: likeData } = await supabase
-          .from("announcement_likes")
-          .select("*")
-          .eq("announcement_id", announcementId)
-          .eq("user_id", session.user.id)
-          .maybeSingle();
-        setIsLiked(!!likeData);
-      }
-
-      hasFetchedRef.current = true;
-    } catch (err) {
-      console.error("Error fetching announcement:", err);
-      setError("Có lỗi xảy ra khi tải thông báo");
-    } finally {
-      setLoading(false);
-    }
-  }, [announcementId, getAnnouncementDetail, getComments, session]);
-
+  // Cleanup on unmount
   useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+    return () => {
+      setCommentContent("");
+      setIsSubmitting(false);
+    };
+  }, []);
 
   // ============================================
   // HANDLERS
   // ============================================
 
-  const handleLike = async () => {
-    if (!session?.user) {
-      toast.error("Vui lòng đăng nhập");
-      return;
-    }
+  const handleSubmitComment = useCallback(
+    async (e: React.FormEvent) => {
+      e.preventDefault();
 
-    const result = await toggleLike(announcementId);
-    if (result) {
-      setIsLiked(result.liked);
-      setLikesCount((prev) =>
-        result.liked ? prev + 1 : Math.max(0, prev - 1),
-      );
-    }
-  };
+      if (!session?.user) {
+        toast.error("Vui lòng đăng nhập để bình luận");
+        return;
+      }
 
-  const handleAddComment = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!session?.user) {
-      toast.error("Vui lòng đăng nhập");
-      return;
-    }
-    if (!commentContent.trim()) {
-      toast.error("Vui lòng nhập nội dung bình luận");
-      return;
-    }
+      if (!commentContent.trim()) {
+        toast.error("Vui lòng nhập nội dung bình luận");
+        return;
+      }
 
-    setIsSubmitting(true);
-    try {
-      const newComment = await addComment(announcementId, commentContent);
-      if (newComment) {
-        setComments((prev) => [...prev, newComment]);
+      setIsSubmitting(true);
+      try {
+        await handleAddComment(commentContent);
         setCommentContent("");
         toast.success("Bình luận thành công!");
+      } catch (error) {
+        // Error already handled in hook
+      } finally {
+        setIsSubmitting(false);
       }
-    } catch (error) {
-      console.error("Error adding comment:", error);
-      toast.error("Có lỗi xảy ra khi bình luận");
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
+    },
+    [session?.user, commentContent, handleAddComment],
+  );
 
-  const handleDeleteComment = async (commentId: string) => {
-    if (!confirm("Bạn có chắc chắn muốn xóa bình luận này?")) return;
+  const handleShare = useCallback(async () => {
+    if (isShared) return;
 
-    const result = await deleteComment(commentId);
-    if (result) {
-      setComments((prev) => prev.filter((c) => c.id !== commentId));
-    }
-  };
-
-  const handleShare = async () => {
     try {
       if (navigator.share) {
         await navigator.share({
-          title: announcement.title,
-          text: announcement.content.replace(/<[^>]*>/g, ""),
+          title: announcement?.title || "Thông báo",
+          text: announcement?.content?.replace(/<[^>]*>/g, "") || "",
           url: window.location.href,
         });
       } else {
         await navigator.clipboard.writeText(window.location.href);
-        toast.success("Đã sao chép link");
+        setIsShared(true);
+        toast.success("Đã sao chép link!");
+        setTimeout(() => setIsShared(false), 3000);
       }
     } catch (error) {
-      toast.error("Không thể chia sẻ");
+      if ((error as Error).name !== "AbortError") {
+        toast.error("Không thể chia sẻ");
+      }
     }
-  };
+  }, [announcement, isShared]);
 
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case "high":
-        return "bg-red-500";
-      case "medium":
-        return "bg-yellow-500";
-      case "low":
-        return "bg-blue-500";
-      default:
-        return "bg-gray-500";
-    }
-  };
-
-  const getPriorityLabel = (priority: string) => {
-    switch (priority) {
-      case "high":
-        return "⚠️ Khẩn cấp";
-      case "medium":
-        return "📌 Quan trọng";
-      case "low":
-        return "ℹ️ Thông thường";
-      default:
-        return "Bình thường";
-    }
-  };
+  const handleBack = useCallback(() => {
+    router.back();
+  }, [router]);
 
   // ============================================
   // LOADING STATE
   // ============================================
 
-  if (loading) {
+  if (isLoading) {
     return (
       <>
         <Navbar />
-        <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 pt-16 md:pt-20">
+        <div className="min-h-screen bg-background pt-16 md:pt-20">
           <div className="max-w-4xl mx-auto p-4 md:p-8">
             <Skeleton className="h-12 w-48 mb-4" />
             <Skeleton className="h-96 w-full rounded-2xl" />
+            <div className="mt-6 space-y-3">
+              <Skeleton className="h-12 w-full" />
+              <Skeleton className="h-12 w-full" />
+              <Skeleton className="h-12 w-full" />
+            </div>
           </div>
         </div>
         <Footer />
@@ -288,35 +189,27 @@ export default function AnnouncementDetailPage() {
     return (
       <>
         <Navbar />
-        <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 pt-16 md:pt-20">
+        <div className="min-h-screen bg-background pt-16 md:pt-20">
           <div className="max-w-4xl mx-auto p-4 md:p-8">
-            <Card className="border-destructive bg-slate-900/50">
+            <Card className="border-destructive bg-card">
               <CardContent className="p-8 text-center">
-                <AlertCircle className="w-16 h-16 mx-auto mb-4 text-red-400 opacity-50" />
-                <h2 className="text-2xl font-bold text-slate-200 mb-2">
+                <AlertCircle className="w-16 h-16 mx-auto mb-4 text-destructive/50" />
+                <h2 className="text-2xl font-bold text-foreground mb-2">
                   Không tìm thấy thông báo
                 </h2>
-                <p className="text-slate-400 mb-4">
-                  {error || "Thông báo không tồn tại hoặc đã bị xóa"}
-                </p>
-                <p className="text-xs text-slate-500 font-mono mb-4">
-                  ID: {announcementId}
+                <p className="text-muted-foreground mb-4">
+                  {error?.message || "Thông báo không tồn tại hoặc đã bị xóa"}
                 </p>
                 <div className="flex gap-3 justify-center flex-wrap">
-                  <Link href="/announcements">
-                    <Button className="gap-2">
-                      <ArrowLeft className="w-4 h-4" />
-                      Quay lại danh sách
-                    </Button>
-                  </Link>
                   <Button
                     variant="outline"
-                    className="gap-2 border-slate-700 text-slate-400 hover:text-white"
-                    onClick={() => {
-                      hasFetchedRef.current = false;
-                      window.location.reload();
-                    }}
+                    onClick={handleBack}
+                    className="gap-2"
                   >
+                    <ArrowLeft className="w-4 h-4" />
+                    Quay lại
+                  </Button>
+                  <Button onClick={() => refetch()} className="gap-2">
                     Thử lại
                   </Button>
                 </div>
@@ -338,159 +231,216 @@ export default function AnnouncementDetailPage() {
       <Navbar />
       <ScrollProgress variant="circle" />
 
-      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 pt-16 md:pt-20">
+      <div className="min-h-screen bg-background pt-16 md:pt-20">
         <div className="max-w-4xl mx-auto p-4 md:p-8">
-          <Link href="/announcements">
-            <Button
-              variant="ghost"
-              className="gap-2 mb-4 hover:bg-slate-800/50 text-slate-400 hover:text-white"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              Quay lại danh sách
-            </Button>
-          </Link>
+          {/* Back Button */}
+          <Button
+            variant="ghost"
+            onClick={handleBack}
+            className="gap-2 mb-4 hover:bg-muted"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Quay lại
+          </Button>
 
           <motion.div
-            variants={containerVariants}
-            initial="hidden"
-            animate="visible"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
             className="space-y-6"
           >
-            <motion.div variants={headerVariants}>
-              <Card className="overflow-hidden border-border/50 bg-slate-900/50 backdrop-blur-sm">
-                <CardContent className="p-6 md:p-8">
-                  <div className="flex items-center gap-4 mb-6 pb-4 border-b border-border/50">
-                    <span className="h-2 w-2 rounded-full bg-red-500 animate-pulse" />
-                    <p className="font-mono text-xs text-slate-500">
-                      SECURE BROADCAST ID: #{announcement.id.slice(0, 8)}
-                    </p>
-                  </div>
+            {/* ==========================================
+                HEADER CARD
+                ========================================== */}
+            <Card className="overflow-hidden bg-card border-border shadow-xl">
+              <CardContent className="p-6 md:p-8">
+                {/* Broadcast ID */}
+                <div className="flex items-center gap-4 mb-6 pb-4 border-b border-border">
+                  <span className="h-2 w-2 rounded-full bg-primary animate-pulse" />
+                  <p className="font-mono text-xs text-muted-foreground">
+                    SECURE BROADCAST ID: #{announcement.id.slice(0, 8)}
+                  </p>
+                </div>
 
-                  <div className="flex items-start gap-4 mb-6">
-                    <Avatar className="w-12 h-12 border-2 border-cyan-500/20">
-                      <AvatarFallback className="bg-gradient-to-r from-cyan-500 to-blue-500 text-white text-lg">
-                        {announcement.author?.charAt(0).toUpperCase() || "A"}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-semibold text-slate-200">
-                          {announcement.author || "Admin"}
-                        </span>
+                {/* Author & Meta */}
+                <div className="flex items-start gap-4 mb-6">
+                  <Avatar className="w-12 h-12 border-2 border-primary/20">
+                    <AvatarFallback className="bg-gradient-to-r from-primary to-secondary text-primary-foreground text-lg">
+                      {announcement.author?.charAt(0).toUpperCase() || "A"}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-semibold text-foreground">
+                        {announcement.author || "Admin"}
+                      </span>
+                      <Badge
+                        variant="outline"
+                        className="text-xs border-primary/30 text-primary"
+                      >
+                        {announcement.category || "Chung"}
+                      </Badge>
+                      {announcement.pinned && (
                         <Badge
-                          variant="outline"
-                          className="text-xs border-cyan-500/30 text-cyan-400"
+                          variant="default"
+                          className="text-xs gap-1 bg-gradient-to-r from-primary to-secondary"
                         >
-                          {announcement.category || "Chung"}
+                          <Pin className="w-3 h-3" /> Ghim
                         </Badge>
-                        {announcement.pinned && (
-                          <Badge
-                            variant="default"
-                            className="text-xs gap-1 bg-gradient-to-r from-cyan-500 to-blue-500"
-                          >
-                            <Pin className="w-3 h-3" />
-                            Ghim
-                          </Badge>
+                      )}
+                      <Badge
+                        className={cn(
+                          "text-xs text-white",
+                          getPriorityColor(announcement.priority),
                         )}
-                        <Badge
-                          className={cn(
-                            "text-xs text-white",
-                            getPriorityColor(announcement.priority),
-                          )}
-                        >
-                          {getPriorityLabel(announcement.priority)}
-                        </Badge>
-                      </div>
-                      <div className="flex items-center gap-4 text-sm text-slate-500 mt-1">
-                        <span className="flex items-center gap-1">
-                          <Calendar className="w-3 h-3" />
-                          {formatRelativeTime(announcement.created_at)}
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <Eye className="w-3 h-3" />
-                          {announcement.views || 0} lượt xem
-                        </span>
-                      </div>
+                      >
+                        {getPriorityLabel(announcement.priority)}
+                      </Badge>
+                    </div>
+                    <div className="flex items-center gap-3 md:gap-4 text-xs md:text-sm text-muted-foreground mt-1 flex-wrap">
+                      <span className="flex items-center gap-1">
+                        <Calendar className="w-3 h-3" />
+                        {formatRelativeTime(announcement.created_at)}
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <Eye className="w-3 h-3" />
+                        {announcement.views || 0}
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <Heart className="w-3 h-3" />
+                        {announcement.likes || 0}
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <MessageCircle className="w-3 h-3" />
+                        {announcement.comments || 0}
+                      </span>
                     </div>
                   </div>
+                </div>
 
-                  <motion.h1
-                    initial={{ opacity: 0, filter: "blur(10px)", y: -10 }}
-                    animate={{ opacity: 1, filter: "blur(0px)", y: 0 }}
-                    transition={{ duration: 0.5 }}
-                    className="text-3xl md:text-4xl font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white via-slate-200 to-cyan-400"
+                {/* Title */}
+                <h1 className="text-2xl md:text-3xl lg:text-4xl font-extrabold tracking-tight text-foreground">
+                  {announcement.title}
+                </h1>
+              </CardContent>
+            </Card>
+
+            {/* ==========================================
+                CONTENT CARD
+                ========================================== */}
+            <Card className="bg-card border-border shadow-xl">
+              <CardContent className="p-6 md:p-8">
+                <div
+                  className="prose prose-sm md:prose-base dark:prose-invert max-w-none text-foreground leading-relaxed space-y-4"
+                  dangerouslySetInnerHTML={{ __html: announcement.content }}
+                />
+              </CardContent>
+            </Card>
+
+            {/* ==========================================
+                ACTIONS CARD
+                ========================================== */}
+            <Card className="bg-card border-border shadow-xl">
+              <CardContent className="p-4 md:p-6">
+                <div className="flex items-center gap-2 md:gap-4 flex-wrap">
+                  {/* Like Button */}
+                  <Button
+                    variant={isLiked ? "default" : "outline"}
+                    size="sm"
+                    className={cn(
+                      "gap-2 rounded-full",
+                      isLiked &&
+                        "bg-gradient-to-r from-primary to-secondary hover:from-primary/90 hover:to-secondary/90",
+                    )}
+                    onClick={handleToggleLike}
+                    disabled={isTogglingLike}
                   >
-                    {announcement.title}
-                  </motion.h1>
-                </CardContent>
-              </Card>
-            </motion.div>
+                    {isLiked ? (
+                      <ThumbsUpFilled className="w-4 h-4 md:w-5 md:h-5" />
+                    ) : (
+                      <ThumbsUp className="w-4 h-4 md:w-5 md:h-5" />
+                    )}
+                    {announcement.likes > 0 && (
+                      <span className="text-sm">{announcement.likes}</span>
+                    )}
+                  </Button>
 
-            <motion.div variants={itemVariants}>
-              <Card className="border-border/50 bg-slate-900/30 backdrop-blur-sm">
-                <CardContent className="p-6 md:p-8">
-                  <div
-                    className="prose prose-invert max-w-none text-slate-300 leading-relaxed space-y-4"
-                    dangerouslySetInnerHTML={{ __html: announcement.content }}
-                  />
-                </CardContent>
-              </Card>
-            </motion.div>
+                  {/* Comment Button */}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-2 rounded-full"
+                    onClick={() =>
+                      document
+                        .getElementById("comment-section")
+                        ?.scrollIntoView({ behavior: "smooth" })
+                    }
+                  >
+                    <MessageCircle className="w-4 h-4 md:w-5 md:h-5" />
+                    {announcement.comments > 0 && (
+                      <span className="text-sm">{announcement.comments}</span>
+                    )}
+                  </Button>
 
-            <motion.div variants={itemVariants}>
-              <Card className="border-border/50 bg-slate-900/30 backdrop-blur-sm">
-                <CardContent className="p-6">
-                  <div className="flex items-center gap-4">
-                    <Button
-                      variant="ghost"
-                      className={cn(
-                        "gap-2 rounded-full hover:bg-cyan-500/10",
-                        isLiked && "text-cyan-400",
-                      )}
-                      onClick={handleLike}
+                  {/* Download Button */}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-2 rounded-full ml-auto"
+                    onClick={handleDownload}
+                  >
+                    <svg
+                      className="w-4 h-4 md:w-5 md:h-5"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
                     >
-                      {isLiked ? (
-                        <ThumbsUpFilled className="w-5 h-5 fill-cyan-400" />
-                      ) : (
-                        <ThumbsUp className="w-5 h-5" />
-                      )}
-                      {likesCount > 0 && likesCount}
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      className="gap-2 rounded-full hover:bg-cyan-500/10"
-                    >
-                      <MessageCircle className="w-5 h-5" />
-                      {comments.length}
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      className="gap-2 rounded-full ml-auto hover:bg-cyan-500/10"
-                      onClick={handleShare}
-                    >
-                      <Share2 className="w-5 h-5" />
-                      Chia sẻ
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            </motion.div>
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
+                      />
+                    </svg>
+                    <span className="hidden sm:inline">Tải xuống</span>
+                  </Button>
 
-            <motion.div variants={itemVariants}>
-              <Card className="border-border/50 bg-slate-900/30 backdrop-blur-sm">
-                <CardContent className="p-6">
-                  <h3 className="text-lg font-semibold text-slate-200 mb-4 flex items-center gap-2">
-                    <MessageCircle className="w-5 h-5 text-cyan-400" />
-                    Bình luận ({comments.length})
+                  {/* Share Button */}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-2 rounded-full"
+                    onClick={handleShare}
+                    disabled={isShared}
+                  >
+                    <Share2 className="w-4 h-4 md:w-5 md:h-5" />
+                    <span className="hidden sm:inline">
+                      {isShared ? "Đã sao chép!" : "Chia sẻ"}
+                    </span>
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* ==========================================
+                COMMENTS SECTION
+                ========================================== */}
+            <div id="comment-section">
+              <Card className="bg-card border-border shadow-xl">
+                <CardContent className="p-4 md:p-6">
+                  <h3 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
+                    <MessageCircle className="w-5 h-5 text-primary" />
+                    Bình luận ({announcement.comments || 0})
                   </h3>
 
+                  {/* Comment Input */}
                   {session?.user ? (
                     <form
-                      onSubmit={handleAddComment}
+                      onSubmit={handleSubmitComment}
                       className="flex gap-3 mb-6"
                     >
-                      <Avatar className="w-9 h-9">
-                        <AvatarFallback className="bg-gradient-to-r from-cyan-500 to-blue-500 text-white text-xs">
+                      <Avatar className="w-8 h-8 md:w-9 md:h-9 flex-shrink-0">
+                        <AvatarFallback className="bg-gradient-to-r from-primary to-secondary text-primary-foreground text-xs">
                           {session.user.name?.charAt(0).toUpperCase() || "U"}
                         </AvatarFallback>
                       </Avatar>
@@ -499,59 +449,80 @@ export default function AnnouncementDetailPage() {
                           placeholder="Viết bình luận..."
                           value={commentContent}
                           onChange={(e) => setCommentContent(e.target.value)}
-                          className="bg-slate-800 border-slate-700 text-white placeholder:text-slate-500 focus:border-cyan-500/50"
-                          disabled={isSubmitting}
+                          className="bg-muted border-border text-foreground placeholder:text-muted-foreground focus:border-primary/50"
+                          disabled={isSubmitting || isAddingComment}
                         />
                         <Button
                           type="submit"
                           size="sm"
-                          className="gap-2 bg-gradient-to-r from-cyan-500 to-blue-500"
-                          disabled={isSubmitting || !commentContent.trim()}
+                          className="gap-2 bg-gradient-to-r from-primary to-secondary hover:from-primary/90 hover:to-secondary/90 flex-shrink-0"
+                          disabled={
+                            isSubmitting ||
+                            isAddingComment ||
+                            !commentContent.trim()
+                          }
                         >
                           <Send className="w-4 h-4" />
+                          <span className="hidden sm:inline">Gửi</span>
                         </Button>
                       </div>
                     </form>
                   ) : (
-                    <p className="text-slate-500 text-sm mb-4">
-                      <Link
-                        href="/login"
-                        className="text-cyan-400 hover:underline"
-                      >
-                        Đăng nhập
-                      </Link>{" "}
-                      để bình luận
-                    </p>
+                    <div className="bg-muted/30 rounded-xl p-4 text-center mb-6">
+                      <p className="text-muted-foreground text-sm">
+                        <Link
+                          href="/login"
+                          className="text-primary hover:underline font-medium"
+                        >
+                          Đăng nhập
+                        </Link>{" "}
+                        để tham gia bình luận
+                      </p>
+                    </div>
                   )}
 
-                  <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2">
-                    {comments.length === 0 ? (
-                      <p className="text-slate-500 text-sm text-center py-4">
-                        Chưa có bình luận nào. Hãy là người đầu tiên!
+                  {/* Comments List */}
+                  {isLoadingComments ? (
+                    <div className="space-y-3">
+                      {[1, 2, 3].map((i) => (
+                        <Skeleton key={i} className="h-20 w-full" />
+                      ))}
+                    </div>
+                  ) : comments.length === 0 ? (
+                    <div className="text-center py-8">
+                      <MessageCircle className="w-12 h-12 mx-auto text-muted-foreground/30 mb-2" />
+                      <p className="text-muted-foreground text-sm">
+                        Chưa có bình luận nào
                       </p>
-                    ) : (
-                      comments.map((comment) => {
+                      <p className="text-muted-foreground/70 text-xs">
+                        Hãy là người đầu tiên bình luận!
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3 max-h-[500px] overflow-y-auto pr-2">
+                      {comments.map((comment: any) => {
                         const isOwner = session?.user?.id === comment.user_id;
                         return (
                           <motion.div
                             key={comment.id}
                             initial={{ opacity: 0, y: 10 }}
                             animate={{ opacity: 1, y: 0 }}
-                            className="flex gap-3 p-3 rounded-xl bg-slate-800/50 group"
+                            transition={{ duration: 0.2 }}
+                            className="flex gap-3 p-3 rounded-xl bg-muted/30 group hover:bg-muted/50 transition-colors"
                           >
-                            <Avatar className="w-8 h-8">
-                              <AvatarFallback className="bg-gradient-to-r from-cyan-500 to-blue-500 text-white text-xs">
+                            <Avatar className="w-8 h-8 flex-shrink-0">
+                              <AvatarFallback className="bg-gradient-to-r from-primary to-secondary text-primary-foreground text-xs">
                                 {comment.user_name?.charAt(0).toUpperCase() ||
                                   "U"}
                               </AvatarFallback>
                             </Avatar>
-                            <div className="flex-1">
-                              <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-2">
-                                  <span className="font-medium text-slate-200 text-sm">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center justify-between gap-2">
+                                <div className="flex items-center gap-2 flex-wrap min-w-0">
+                                  <span className="font-medium text-foreground text-sm truncate">
                                     {comment.user_name}
                                   </span>
-                                  <span className="text-xs text-slate-500">
+                                  <span className="text-xs text-muted-foreground flex-shrink-0">
                                     {formatRelativeTime(comment.created_at)}
                                   </span>
                                 </div>
@@ -559,27 +530,28 @@ export default function AnnouncementDetailPage() {
                                   <Button
                                     variant="ghost"
                                     size="icon"
-                                    className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity hover:text-red-400"
+                                    className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity hover:text-destructive flex-shrink-0"
                                     onClick={() =>
                                       handleDeleteComment(comment.id)
                                     }
+                                    disabled={isDeletingComment}
                                   >
-                                    <Trash2 className="w-3 h-3" />
+                                    <Trash2 className="w-3.5 h-3.5" />
                                   </Button>
                                 )}
                               </div>
-                              <p className="text-slate-300 text-sm mt-1">
+                              <p className="text-foreground text-sm mt-1 break-words">
                                 {comment.content}
                               </p>
                             </div>
                           </motion.div>
                         );
-                      })
-                    )}
-                  </div>
+                      })}
+                    </div>
+                  )}
                 </CardContent>
               </Card>
-            </motion.div>
+            </div>
           </motion.div>
         </div>
       </div>

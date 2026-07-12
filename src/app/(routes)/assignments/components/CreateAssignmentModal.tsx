@@ -1,5 +1,5 @@
 // src/app/(routes)/assignments/components/CreateAssignmentModal.tsx
-// Vai trò: Modal tạo bài tập - HOÀN CHỈNH
+// HOÀN CHỈNH - ĐÃ TỐI ƯU VÀ SỬA LỖI
 
 "use client";
 
@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { useAssignments } from "@/hooks/use-assignments";
 import { supabase } from "@/lib/db/supabase-client";
 import { logger } from "@/lib/logger";
+import { cn } from "@/lib/utils";
 import { AnimatePresence, motion } from "framer-motion";
 import { Calendar, ChevronDown, FileText, Plus, X } from "lucide-react";
 import { useSession } from "next-auth/react";
@@ -15,27 +16,10 @@ import { useRef, useState } from "react";
 import { toast } from "sonner";
 
 // ============================================
-// CONSTANTS
+// CONSTANTS - ĐỒNG BỘ 50MB VỚI SUBMIT
 // ============================================
 
-const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
-const ALLOWED_FILE_TYPES = [
-  "application/pdf",
-  "application/msword",
-  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-  "application/vnd.ms-excel",
-  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-  "application/zip",
-  "application/x-zip-compressed",
-  "application/x-rar-compressed",
-  "application/x-7z-compressed",
-  "image/jpeg",
-  "image/png",
-  "image/gif",
-  "image/webp",
-  "text/plain",
-  "text/csv",
-];
+const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB - ĐỒNG BỘ VỚI SUBMIT
 
 const ALLOWED_EXTENSIONS = [
   ".pdf",
@@ -55,11 +39,84 @@ const ALLOWED_EXTENSIONS = [
   ".csv",
   ".pkt",
   ".pka",
-  ".pkz", // Packet Tracer
+  ".pkz",
   ".clab",
   ".yaml",
-  ".yml", // Containerlab
+  ".yml",
 ];
+
+// ============================================
+// CUSTOM SELECT COMPONENT - THAY THẾ SELECT HTML
+// ============================================
+
+interface CustomSelectProps {
+  value: string;
+  onChange: (value: string) => void;
+  options: string[];
+  label: string;
+  disabled?: boolean;
+}
+
+function CustomSelect({
+  value,
+  onChange,
+  options,
+  label,
+  disabled,
+}: CustomSelectProps) {
+  const [isOpen, setIsOpen] = useState(false);
+
+  return (
+    <div className="relative">
+      <label className="text-sm font-medium text-foreground mb-2 block">
+        {label}
+      </label>
+      <div
+        className={cn(
+          "w-full px-4 py-2 rounded-xl border border-input bg-background text-foreground cursor-pointer flex items-center justify-between transition-all",
+          disabled ? "opacity-50 cursor-not-allowed" : "hover:border-primary",
+          isOpen && "border-primary ring-2 ring-primary/20",
+        )}
+        onClick={() => !disabled && setIsOpen(!isOpen)}
+      >
+        <span className="truncate">{value}</span>
+        <ChevronDown
+          className={cn(
+            "w-4 h-4 transition-transform duration-300 flex-shrink-0",
+            isOpen && "rotate-180",
+          )}
+        />
+      </div>
+
+      <AnimatePresence>
+        {isOpen && !disabled && (
+          <motion.div
+            initial={{ opacity: 0, y: -10, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -10, scale: 0.95 }}
+            className="absolute top-full left-0 right-0 mt-2 bg-background rounded-xl shadow-2xl border border-border z-50 max-h-48 overflow-y-auto"
+          >
+            {options.map((option) => (
+              <button
+                key={option}
+                className={cn(
+                  "w-full px-4 py-2.5 text-left hover:bg-muted transition-colors text-sm",
+                  value === option && "bg-primary/10 text-primary font-medium",
+                )}
+                onClick={() => {
+                  onChange(option);
+                  setIsOpen(false);
+                }}
+              >
+                {option}
+              </button>
+            ))}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
 
 // ============================================
 // DATE TIME PICKER COMPONENT
@@ -143,11 +200,12 @@ function DateTimePicker({
   return (
     <div className="relative">
       <div
-        className={`w-full px-4 py-2 rounded-xl border border-input bg-background text-foreground cursor-pointer flex items-center justify-between ${
+        className={cn(
+          "w-full px-4 py-2 rounded-xl border border-input bg-background text-foreground cursor-pointer flex items-center justify-between",
           disabled
             ? "opacity-50 cursor-not-allowed"
-            : "hover:border-primary transition-colors"
-        }`}
+            : "hover:border-primary transition-colors",
+        )}
         onClick={() => !disabled && setIsOpen(!isOpen)}
       >
         <span className="flex items-center gap-2">
@@ -155,7 +213,10 @@ function DateTimePicker({
           {value ? new Date(value).toLocaleString("vi-VN") : "Chọn thời gian"}
         </span>
         <ChevronDown
-          className={`w-4 h-4 transition-transform ${isOpen ? "rotate-180" : ""}`}
+          className={cn(
+            "w-4 h-4 transition-transform",
+            isOpen ? "rotate-180" : "",
+          )}
         />
       </div>
 
@@ -168,14 +229,24 @@ function DateTimePicker({
             className="absolute top-full left-0 right-0 mt-2 bg-background rounded-2xl shadow-2xl border border-border p-4 z-50 min-w-[320px]"
           >
             <div className="flex items-center justify-between mb-4">
-              <Button variant="ghost" size="sm" onClick={() => changeMonth(-1)}>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => changeMonth(-1)}
+                className="hover:bg-muted"
+              >
                 <ChevronDown className="w-4 h-4 rotate-90" />
               </Button>
               <span className="font-semibold">
                 {monthNames[selectedDate.getMonth()]}{" "}
                 {selectedDate.getFullYear()}
               </span>
-              <Button variant="ghost" size="sm" onClick={() => changeMonth(1)}>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => changeMonth(1)}
+                className="hover:bg-muted"
+              >
                 <ChevronDown className="w-4 h-4 -rotate-90" />
               </Button>
             </div>
@@ -197,12 +268,15 @@ function DateTimePicker({
                   key={index}
                   onClick={() => day && handleDateSelect(day)}
                   disabled={!day}
-                  className={`
-                    text-center py-2 rounded-lg transition-all text-sm
-                    ${!day ? "opacity-0" : ""}
-                    ${day && isToday(day) ? "border border-primary" : ""}
-                    ${day && isSelected(day) ? "bg-primary text-white hover:bg-primary/90" : "hover:bg-muted"}
-                  `}
+                  className={cn(
+                    "text-center py-2 rounded-lg transition-all text-sm",
+                    !day && "opacity-0 pointer-events-none",
+                    day && isToday(day) && "border border-primary",
+                    day &&
+                      isSelected(day) &&
+                      "bg-primary text-white hover:bg-primary/90",
+                    day && !isSelected(day) && "hover:bg-muted",
+                  )}
                 >
                   {day?.getDate()}
                 </button>
@@ -215,12 +289,12 @@ function DateTimePicker({
                   type="time"
                   value={selectedTime}
                   onChange={(e) => handleTimeChange(e.target.value)}
-                  className="px-3 py-1 rounded-lg border border-input bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                  className="px-3 py-1.5 rounded-lg border border-input bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
                 />
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="ml-auto text-xs"
+                  className="ml-auto text-xs hover:bg-muted"
                   onClick={() => {
                     const now = new Date();
                     const time = now.toTimeString().slice(0, 5);
@@ -270,9 +344,7 @@ function FileAttachmentUpload({
   const [dragActive, setDragActive] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // ✅ Validate file
   const validateFile = (file: File): { valid: boolean; error?: string } => {
-    // Check file size
     if (file.size > MAX_FILE_SIZE) {
       return {
         valid: false,
@@ -280,7 +352,6 @@ function FileAttachmentUpload({
       };
     }
 
-    // Check file type
     const ext = `.${file.name.split(".").pop()?.toLowerCase()}`;
     if (!ALLOWED_EXTENSIONS.includes(ext)) {
       return {
@@ -369,17 +440,35 @@ function FileAttachmentUpload({
   return (
     <div className="space-y-3">
       <div
-        className={`border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-colors ${
+        className={cn(
+          "border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-all duration-300",
           dragActive
-            ? "border-primary bg-primary/5"
-            : "border-border hover:border-primary/50"
-        } ${disabled ? "opacity-50 cursor-not-allowed" : ""}`}
+            ? "border-primary bg-primary/5 scale-[1.02] shadow-lg shadow-primary/20"
+            : "border-border hover:border-primary/50 hover:scale-[1.01]",
+          disabled && "opacity-50 cursor-not-allowed",
+        )}
         onDragEnter={() => !disabled && setDragActive(true)}
         onDragLeave={() => !disabled && setDragActive(false)}
         onDragOver={(e) => e.preventDefault()}
         onDrop={!disabled ? handleDrop : undefined}
         onClick={() => !disabled && fileInputRef.current?.click()}
       >
+        {/* Pulse Effect khi drag active */}
+        {dragActive && (
+          <motion.div
+            className="absolute inset-0 rounded-xl border-2 border-primary/30 pointer-events-none"
+            animate={{
+              scale: [1, 1.02, 1],
+              opacity: [0.5, 1, 0.5],
+            }}
+            transition={{
+              duration: 1,
+              repeat: Infinity,
+              ease: "easeInOut",
+            }}
+          />
+        )}
+
         <input
           ref={fileInputRef}
           type="file"
@@ -390,7 +479,7 @@ function FileAttachmentUpload({
           disabled={disabled || files.length >= maxFiles}
         />
         <div className="text-4xl mb-2">📎</div>
-        <p className="text-sm font-medium">
+        <p className="text-sm font-medium text-foreground">
           Kéo thả file vào đây hoặc click để chọn
         </p>
         <p className="text-xs text-muted-foreground mt-1">
@@ -414,7 +503,9 @@ function FileAttachmentUpload({
             >
               <span className="text-2xl">📄</span>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium truncate">{file.name}</p>
+                <p className="text-sm font-medium text-foreground truncate">
+                  {file.name}
+                </p>
                 <p className="text-xs text-muted-foreground">
                   {formatFileSize(file.size)}
                 </p>
@@ -463,10 +554,21 @@ export function CreateAssignmentModal({
   const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
-  // ✅ Kiểm tra quyền
   const isTeacher =
     session?.user?.role === "TEACHER" || session?.user?.role === "ADMIN";
   const isAuthenticated = !!session?.user;
+
+  const subjectOptions = [
+    "Quản trị Mạng 3",
+    "Bảo mật Mạng",
+    "Linux Server",
+    "Mạng máy tính",
+    "Python",
+    "Docker",
+    "Network Automation",
+  ];
+
+  const typeOptions = ["Bài tập", "Lab", "Dự án", "Kiểm tra", "Thực hành"];
 
   const resetForm = () => {
     setTitle("");
@@ -479,7 +581,6 @@ export function CreateAssignmentModal({
     setIsLoading(false);
   };
 
-  // ✅ Upload file lên Supabase Storage
   const uploadFiles = async (files: File[]): Promise<string[]> => {
     const uploadedUrls: string[] = [];
 
@@ -488,7 +589,7 @@ export function CreateAssignmentModal({
       const fileName = `${Date.now()}-${Math.random().toString(36).substring(2, 8)}.${fileExt}`;
       const filePath = `assignments/${session?.user?.id}/${fileName}`;
 
-      const { data, error: uploadError } = await supabase.storage
+      const { error: uploadError } = await supabase.storage
         .from("assignments")
         .upload(filePath, file, {
           cacheControl: "3600",
@@ -513,7 +614,6 @@ export function CreateAssignmentModal({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // ✅ Kiểm tra quyền
     if (!isAuthenticated) {
       toast.error("Vui lòng đăng nhập để tạo bài tập");
       return;
@@ -524,23 +624,26 @@ export function CreateAssignmentModal({
       return;
     }
 
-    // ✅ Validate form
     if (!title.trim()) {
       toast.error("Vui lòng nhập tiêu đề");
       return;
     }
+
     if (!description.trim()) {
       toast.error("Vui lòng nhập mô tả");
       return;
     }
+
     if (!dueDate) {
       toast.error("Vui lòng chọn hạn nộp");
       return;
     }
+
     if (new Date(dueDate) < new Date()) {
       toast.error("Hạn nộp phải là thời gian trong tương lai");
       return;
     }
+
     if (points < 0 || points > 100) {
       toast.error("Điểm số phải từ 0 đến 100");
       return;
@@ -548,7 +651,6 @@ export function CreateAssignmentModal({
 
     setIsLoading(true);
     try {
-      // ✅ Upload files lên Storage
       let uploadedUrls: string[] = [];
       if (attachedFiles.length > 0) {
         const uploadToast = toast.loading(
@@ -558,7 +660,6 @@ export function CreateAssignmentModal({
         toast.dismiss(uploadToast);
       }
 
-      // ✅ Tạo bài tập với danh sách URL
       const result = await createAssignment({
         title: title.trim(),
         description: description.trim(),
@@ -567,7 +668,7 @@ export function CreateAssignmentModal({
         due_date: new Date(dueDate).toISOString(),
         points,
         attachments: uploadedUrls.length,
-        attachment_urls: uploadedUrls, // Lưu danh sách URL
+        attachment_urls: uploadedUrls,
         created_by: session.user.id,
       });
 
@@ -587,7 +688,6 @@ export function CreateAssignmentModal({
     }
   };
 
-  // ✅ Nếu không có quyền, không render modal
   if (!isOpen) return null;
 
   return (
@@ -598,16 +698,23 @@ export function CreateAssignmentModal({
         exit={{ opacity: 0, scale: 0.9 }}
         className="bg-background rounded-2xl shadow-2xl w-full max-w-2xl mx-4 p-6 border border-border max-h-[90vh] overflow-y-auto"
       >
+        {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-2xl font-bold gradient-text flex items-center gap-2">
             <FileText className="w-6 h-6 text-primary" /> Tạo bài tập mới
           </h2>
-          <Button variant="ghost" size="icon" onClick={onClose}>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onClose}
+            className="hover:bg-muted"
+          >
             <X className="w-5 h-5" />
           </Button>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Title */}
           <div>
             <label className="text-sm font-medium text-foreground mb-2 block">
               Tiêu đề <span className="text-destructive">*</span>
@@ -618,9 +725,11 @@ export function CreateAssignmentModal({
               placeholder="Nhập tiêu đề..."
               required
               disabled={isLoading}
+              className="focus:ring-2 focus:ring-primary"
             />
           </div>
 
+          {/* Description */}
           <div>
             <label className="text-sm font-medium text-foreground mb-2 block">
               Mô tả <span className="text-destructive">*</span>
@@ -636,52 +745,28 @@ export function CreateAssignmentModal({
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="text-sm font-medium mb-2 block">Môn học</label>
-              <select
-                value={subject}
-                onChange={(e) => setSubject(e.target.value)}
-                className="w-full px-4 py-2 rounded-xl border border-input bg-background focus:outline-none focus:ring-2 focus:ring-primary"
-                disabled={isLoading}
-              >
-                {[
-                  "Quản trị Mạng 3",
-                  "Bảo mật Mạng",
-                  "Linux Server",
-                  "Mạng máy tính",
-                  "Python",
-                  "Docker",
-                  "Network Automation",
-                ].map((s) => (
-                  <option key={s} value={s}>
-                    {s}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="text-sm font-medium mb-2 block">Loại</label>
-              <select
-                value={type}
-                onChange={(e) => setType(e.target.value)}
-                className="w-full px-4 py-2 rounded-xl border border-input bg-background focus:outline-none focus:ring-2 focus:ring-primary"
-                disabled={isLoading}
-              >
-                {["Bài tập", "Lab", "Dự án", "Kiểm tra", "Thực hành"].map(
-                  (t) => (
-                    <option key={t} value={t}>
-                      {t}
-                    </option>
-                  ),
-                )}
-              </select>
-            </div>
+          {/* Subject & Type - Sử dụng CustomSelect */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <CustomSelect
+              value={subject}
+              onChange={setSubject}
+              options={subjectOptions}
+              label="Môn học"
+              disabled={isLoading}
+            />
+            <CustomSelect
+              value={type}
+              onChange={setType}
+              options={typeOptions}
+              label="Loại"
+              disabled={isLoading}
+            />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          {/* Due Date & Points */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="text-sm font-medium mb-2 block">
+              <label className="text-sm font-medium text-foreground mb-2 block">
                 Hạn nộp <span className="text-destructive">*</span>
               </label>
               <DateTimePicker
@@ -691,7 +776,9 @@ export function CreateAssignmentModal({
               />
             </div>
             <div>
-              <label className="text-sm font-medium mb-2 block">Điểm số</label>
+              <label className="text-sm font-medium text-foreground mb-2 block">
+                Điểm số
+              </label>
               <Input
                 type="number"
                 value={points}
@@ -699,12 +786,14 @@ export function CreateAssignmentModal({
                 min={0}
                 max={100}
                 disabled={isLoading}
+                className="focus:ring-2 focus:ring-primary"
               />
             </div>
           </div>
 
+          {/* File Attachment */}
           <div>
-            <label className="text-sm font-medium mb-2 block">
+            <label className="text-sm font-medium text-foreground mb-2 block">
               File đính kèm
             </label>
             <FileAttachmentUpload
@@ -715,6 +804,7 @@ export function CreateAssignmentModal({
             />
           </div>
 
+          {/* Actions */}
           <div className="flex gap-3 pt-4 border-t border-border">
             <Button
               type="button"
@@ -727,7 +817,7 @@ export function CreateAssignmentModal({
             </Button>
             <Button
               type="submit"
-              className="flex-1 gap-2"
+              className="flex-1 gap-2 bg-gradient-to-r from-primary to-secondary hover:from-primary/90 hover:to-secondary/90"
               disabled={isLoading || !isTeacher}
             >
               {isLoading ? (
@@ -743,12 +833,16 @@ export function CreateAssignmentModal({
             </Button>
           </div>
 
-          {/* ✅ Hiển thị thông báo nếu không có quyền */}
+          {/* Permission Warning */}
           {!isTeacher && isAuthenticated && (
-            <p className="text-sm text-destructive text-center">
+            <motion.p
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="text-sm text-destructive text-center bg-destructive/10 p-3 rounded-xl border border-destructive/20"
+            >
               ⚠️ Bạn không có quyền tạo bài tập. Chỉ Giảng viên và Admin mới
               được phép.
-            </p>
+            </motion.p>
           )}
         </form>
       </motion.div>

@@ -53,7 +53,8 @@ export function CreateAnnouncementModal({
 
     setIsLoading(true);
     try {
-      const result = await createAnnouncement({
+      // ✅ Gọi createAnnouncement và không kiểm tra result vì nó trả về void
+      await createAnnouncement({
         title: title.trim(),
         content: content.trim(),
         priority,
@@ -61,16 +62,15 @@ export function CreateAnnouncementModal({
         category,
       });
 
-      if (result) {
-        toast.success("✅ Đã tạo thông báo thành công!");
-        onSuccess();
-        onClose();
-        setTitle("");
-        setContent("");
-        setCategory("Thông báo");
-        setPriority("medium");
-        setPinned(false);
-      }
+      // ✅ Luôn hiển thị thành công nếu không có lỗi
+      toast.success("✅ Đã tạo thông báo thành công!");
+      onSuccess();
+      onClose();
+      setTitle("");
+      setContent("");
+      setCategory("Thông báo");
+      setPriority("medium");
+      setPinned(false);
     } catch (error: any) {
       console.error("Create error:", error);
       toast.error(error?.message || "Có lỗi xảy ra khi tạo thông báo");

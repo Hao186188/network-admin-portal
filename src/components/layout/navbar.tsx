@@ -1,20 +1,18 @@
 // src/components/layout/navbar.tsx
-// Vai trò: Navbar - TỐI ƯU MOBILE & DESKTOP
+// FIXED: Dùng next-themes thay vì theme-provider
 
 "use client";
 
 import { Notifications } from "@/components/common/notifications";
 import { Search } from "@/components/common/search";
-import { useTheme } from "@/components/providers/theme-provider";
 import { Button } from "@/components/ui/button";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { cn } from "@/lib/utils";
 import { AnimatePresence, motion } from "framer-motion";
 import {
-  Award,
   Bell as BellIcon,
   BookMarked,
   BookOpen,
-  Calendar,
   ClipboardList,
   Code,
   Crown,
@@ -28,13 +26,11 @@ import {
   Mail,
   Menu,
   MessageCircle,
-  Moon,
-  Package,
   Sparkles,
-  Sun,
   User,
 } from "lucide-react";
 import { signOut, useSession } from "next-auth/react";
+import { useTheme } from "next-themes";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { memo, useCallback, useEffect, useMemo, useState } from "react";
@@ -43,7 +39,6 @@ import { memo, useCallback, useEffect, useMemo, useState } from "react";
 const desktopNavItems = [
   { name: "Trang chủ", href: "/", icon: Home },
   { name: "Diễn đàn", href: "/forum", icon: MessageCircle },
-  { name: "Chat", href: "/chat", icon: MessageCircle },
   { name: "Bài tập", href: "/assignments", icon: ClipboardList },
   { name: "Tài liệu", href: "/documents", icon: BookOpen },
   { name: "Bài giảng", href: "/lectures", icon: FileText },
@@ -55,13 +50,9 @@ const mobileNavItems = [
   { name: "Thông báo", href: "/announcements", icon: BellIcon },
   { name: "Môn học", href: "/courses", icon: BookMarked },
   { name: "Bài tập", href: "/assignments", icon: ClipboardList },
-  { name: "Lịch thi", href: "/exams", icon: Award },
   { name: "Tài liệu", href: "/documents", icon: BookOpen },
   { name: "Bài giảng", href: "/lectures", icon: FileText },
-  { name: "Lịch học", href: "/schedule", icon: Calendar },
   { name: "Diễn đàn", href: "/forum", icon: MessageCircle },
-  { name: "Chat", href: "/chat", icon: MessageCircle },
-  { name: "Kho phần mềm", href: "/software", icon: Package },
   { name: "Dự án", href: "/projects", icon: Code },
   { name: "Giới thiệu", href: "/about", icon: Info },
   { name: "FAQ", href: "/faq", icon: HelpCircle },
@@ -112,7 +103,7 @@ MobileNavItem.displayName = "MobileNavItem";
 export function Navbar() {
   const { data: session, status } = useSession();
   const pathname = usePathname();
-  const { toggleTheme, resolvedTheme } = useTheme();
+  const { theme, setTheme, resolvedTheme } = useTheme();
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
@@ -186,6 +177,10 @@ export function Navbar() {
     setIsProfileOpen(false);
   }, []);
 
+  const toggleThemeHandler = useCallback(() => {
+    setTheme(isDark ? "light" : "dark");
+  }, [isDark, setTheme]);
+
   // Ẩn navbar trên auth pages
   if (
     pathname?.startsWith("/login") ||
@@ -233,7 +228,7 @@ export function Navbar() {
       )}
     >
       <nav className="h-14 md:h-16 lg:h-20 px-2 sm:px-4 lg:px-6 flex items-center justify-between max-w-7xl mx-auto">
-        {/* Logo - Thu nhỏ trên mobile */}
+        {/* Logo */}
         <Link
           href="/"
           className="flex items-center gap-1.5 md:gap-2 group touch-friendly flex-shrink-0"
@@ -254,7 +249,6 @@ export function Navbar() {
               Quản trị Mạng
             </span>
           </div>
-          {/* ✅ Logo ngắn trên mobile */}
           <span className="sm:hidden text-sm font-bold gradient-text whitespace-nowrap">
             Mạng 3
           </span>
@@ -273,9 +267,9 @@ export function Navbar() {
           ))}
         </div>
 
-        {/* Right Actions - Tối ưu mobile */}
+        {/* Right Actions */}
         <div className="flex items-center gap-0.5 sm:gap-1 lg:gap-2 flex-shrink-0">
-          {/* ✅ Search - Thu gọn thành icon trên mobile */}
+          {/* Search */}
           <div className="hidden sm:block">
             <Search />
           </div>
@@ -284,15 +278,6 @@ export function Navbar() {
             size="icon"
             className="sm:hidden hover:bg-muted touch-friendly w-8 h-8 md:w-9 md:h-9 relative"
             aria-label="Tìm kiếm"
-            onClick={() => {
-              // Mở search modal hoặc focus search
-              const searchInput = document.querySelector(
-                'input[type="search"]',
-              ) as HTMLInputElement;
-              if (searchInput) {
-                searchInput.focus();
-              }
-            }}
           >
             <svg
               className="w-4 h-4 md:w-5 md:h-5"
@@ -309,38 +294,13 @@ export function Navbar() {
             </svg>
           </Button>
 
-          {/* ✅ Theme Toggle - Có border để nhìn rõ trên nền trắng */}
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={toggleTheme}
-            className={cn(
-              "relative transition-colors touch-friendly w-8 h-8 md:w-9 md:h-9",
-              "border-border/50 hover:bg-muted",
-              isDark
-                ? "bg-primary/10 border-primary/30 hover:bg-primary/20"
-                : "bg-background border-border hover:bg-muted",
-            )}
-            aria-label="Toggle theme"
-          >
-            <Sun
-              className={cn(
-                "h-3.5 w-3.5 md:h-4 md:w-4 lg:h-5 lg:w-5 theme-toggle-icon",
-                isDark ? "rotate-90 scale-0" : "rotate-0 scale-100",
-              )}
-            />
-            <Moon
-              className={cn(
-                "absolute h-3.5 w-3.5 md:h-4 md:w-4 lg:h-5 lg:w-5 theme-toggle-icon",
-                isDark ? "rotate-0 scale-100" : "rotate-90 scale-0",
-              )}
-            />
-          </Button>
+          {/* Theme Toggle - Sử dụng ThemeToggle component */}
+          <ThemeToggle />
 
-          {/* ✅ Notifications - Có badge */}
+          {/* Notifications */}
           <Notifications />
 
-          {/* Admin Button - Ẩn trên mobile, hiện trên tablet+ */}
+          {/* Admin Button */}
           {isAdmin && (
             <Link href="/admin" className="hidden md:block">
               <Button
@@ -407,41 +367,25 @@ export function Navbar() {
                           className="w-full justify-start gap-2 mt-1 hover:bg-primary/10 touch-friendly"
                           onClick={closeAllMenus}
                         >
-                          <User className="w-4 h-4" />
-                          Hồ sơ cá nhân
+                          <User className="w-4 h-4" /> Hồ sơ cá nhân
                         </Button>
                       </Link>
-
                       <Link href="/dashboard">
                         <Button
                           variant="ghost"
                           className="w-full justify-start gap-2 hover:bg-primary/10 touch-friendly"
                           onClick={closeAllMenus}
                         >
-                          <LayoutDashboard className="w-4 h-4" />
-                          Dashboard
+                          <LayoutDashboard className="w-4 h-4" /> Dashboard
                         </Button>
                       </Link>
-
                       <Link href="/announcements">
                         <Button
                           variant="ghost"
                           className="w-full justify-start gap-2 hover:bg-primary/10 touch-friendly"
                           onClick={closeAllMenus}
                         >
-                          <BellIcon className="w-4 h-4" />
-                          Thông báo
-                        </Button>
-                      </Link>
-
-                      <Link href="/chat">
-                        <Button
-                          variant="ghost"
-                          className="w-full justify-start gap-2 hover:bg-primary/10 touch-friendly"
-                          onClick={closeAllMenus}
-                        >
-                          <MessageCircle className="w-4 h-4" />
-                          Tin nhắn
+                          <BellIcon className="w-4 h-4" /> Thông báo
                         </Button>
                       </Link>
 
@@ -452,8 +396,8 @@ export function Navbar() {
                             className="w-full justify-start gap-2 hover:bg-primary/10 touch-friendly"
                             onClick={closeAllMenus}
                           >
-                            <Crown className="w-4 h-4 text-primary" />
-                            Quản trị hệ thống
+                            <Crown className="w-4 h-4 text-primary" /> Quản trị
+                            hệ thống
                           </Button>
                         </Link>
                       )}
@@ -462,8 +406,7 @@ export function Navbar() {
                         className="w-full justify-start gap-2 mt-1 text-destructive hover:bg-destructive/10 hover:text-destructive touch-friendly"
                         onClick={handleLogout}
                       >
-                        <LogOut className="w-4 h-4" />
-                        Đăng xuất
+                        <LogOut className="w-4 h-4" /> Đăng xuất
                       </Button>
                     </div>
                   </motion.div>

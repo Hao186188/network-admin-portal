@@ -1,0 +1,13 @@
+<IfModule mod_headers.c>
+  Header set Cross-Origin-Embedder-Policy "credentialless"
+  Header set Cross-Origin-Opener-Policy "same-origin"
+  Header set Cross-Origin-Resource-Policy "cross-origin"
+</IfModule>
+
+<FilesMatch "\.(ico|png|jpg|jpeg|webp|svg|css|js)$">
+  Header set Cache-Control "public, max-age=31536000, immutable"
+</FilesMatch>
+
+<FilesMatch "\.(json|xml|txt)$">
+  Header set Cache-Control "public, max-age=86400"
+</FilesMatch>

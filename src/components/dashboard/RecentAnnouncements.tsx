@@ -1,5 +1,5 @@
 // src/components/dashboard/RecentAnnouncements.tsx
-// Vai trò: Hiển thị thông báo gần đây - NÂNG CẤP
+// Recent Announcements - TỐI ƯU
 
 "use client";
 
@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAnnouncements } from "@/hooks/use-announcements";
+import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
 import { ArrowUpRight, Bell, Pin, Plus } from "lucide-react";
 import Link from "next/link";
@@ -35,7 +36,8 @@ export function RecentAnnouncements({
   onViewDetail,
   onCreateClick,
 }: RecentAnnouncementsProps) {
-  const { announcements, loading } = useAnnouncements();
+  // ✅ SỬA: loading -> isLoading
+  const { announcements, isLoading } = useAnnouncements();
   const recentAnnouncements = announcements.slice(0, 3);
 
   return (
@@ -51,7 +53,7 @@ export function RecentAnnouncements({
           <CardTitle className="flex items-center gap-2 text-base md:text-lg">
             <Bell className="w-4 h-4 md:w-5 md:h-5 text-primary" />
             Thông báo mới
-            {!loading && recentAnnouncements.length > 0 && (
+            {!isLoading && recentAnnouncements.length > 0 && (
               <Badge variant="secondary" className="text-xs">
                 {recentAnnouncements.length}
               </Badge>
@@ -80,7 +82,7 @@ export function RecentAnnouncements({
           </div>
         </CardHeader>
         <CardContent className="p-4 md:p-6 pt-0 space-y-3 md:space-y-4">
-          {loading ? (
+          {isLoading ? (
             [...Array(3)].map((_, i) => (
               <div
                 key={i}
@@ -104,13 +106,14 @@ export function RecentAnnouncements({
                 onClick={() => onViewDetail(item)}
               >
                 <div
-                  className={`w-1.5 h-1.5 md:w-2 md:h-2 rounded-full mt-1.5 md:mt-2 flex-shrink-0 ${
+                  className={cn(
+                    "w-1.5 h-1.5 md:w-2 md:h-2 rounded-full mt-1.5 md:mt-2 flex-shrink-0",
                     item.priority === "high"
                       ? "bg-red-500"
                       : item.priority === "medium"
                         ? "bg-yellow-500"
-                        : "bg-blue-500"
-                  }`}
+                        : "bg-blue-500",
+                  )}
                 />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-1.5 md:gap-2">

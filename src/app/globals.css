@@ -1,59 +1,106 @@
 /* src/app/globals.css */
+/* TỐI ƯU DARK MODE - KHÔNG GIẬT LAG */
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+/* =====================================================
+   BASE VARIABLES & THEMES
+   ===================================================== */
+
 @layer base {
   :root {
+    /* Primary Colors - Light Theme */
     --background: 0 0% 100%;
     --foreground: 222.2 84% 4.9%;
     --card: 0 0% 100%;
     --card-foreground: 222.2 84% 4.9%;
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 84% 4.9%;
+
+    /* Brand Colors - Light Theme */
     --primary: 221.2 83.2% 53.3%;
     --primary-foreground: 210 40% 98%;
     --secondary: 187 92.7% 41.8%;
     --secondary-foreground: 210 40% 98%;
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
     --accent: 262.1 83.3% 57.8%;
     --accent-foreground: 210 40% 98%;
+
+    /* UI Colors - Light Theme */
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
     --border: 214.3 31.8% 91.4%;
     --input: 214.3 31.8% 91.4%;
     --ring: 221.2 83.2% 53.3%;
     --radius: 0.625rem;
+
+    /* Cyberpunk Accents - Light */
+    --neon-cyan: #06b6d4;
+    --neon-blue: #3b82f6;
+    --neon-purple: #8b5cf6;
+    --neon-pink: #ec4899;
+    --neon-green: #22c55e;
+    --neon-orange: #f59e0b;
+
+    /* Glass Effect - Light */
+    --glass-bg: rgba(255, 255, 255, 0.7);
+    --glass-border: rgba(255, 255, 255, 0.2);
+    --glass-shadow: rgba(0, 0, 0, 0.05);
   }
 
   .dark {
+    /* Primary Colors - Dark Theme */
     --background: 222.2 84% 4.9%;
     --foreground: 210 40% 98%;
     --card: 222.2 84% 4.9%;
     --card-foreground: 210 40% 98%;
     --popover: 222.2 84% 4.9%;
     --popover-foreground: 210 40% 98%;
+
+    /* Brand Colors - Dark Theme */
     --primary: 217.2 91.2% 59.8%;
     --primary-foreground: 222.2 47.4% 11.2%;
     --secondary: 187 92.7% 41.8%;
     --secondary-foreground: 210 40% 98%;
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
     --accent: 262.1 83.3% 57.8%;
     --accent-foreground: 210 40% 98%;
+
+    /* UI Colors - Dark Theme */
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 210 40% 98%;
     --border: 217.2 32.6% 17.5%;
     --input: 217.2 32.6% 17.5%;
     --ring: 224.3 76.3% 48%;
+
+    /* Glass Effect - Dark */
+    --glass-bg: rgba(15, 23, 42, 0.7);
+    --glass-border: rgba(255, 255, 255, 0.05);
+    --glass-shadow: rgba(0, 0, 0, 0.3);
   }
 }
+
+/* =====================================================
+   BASE STYLES - TỐI ƯU HIỆU NĂNG
+   ===================================================== */
 
 @layer base {
   * {
     @apply border-border;
+    /* Tắt transition mặc định cho tất cả elements */
+    transition: none !important;
   }
+
+  /* CHỈ bật transition cho các element cần thiết */
+  html,
+  body {
+    transition: background-color 0.15s ease-in-out !important;
+  }
+
   body {
     @apply bg-background text-foreground;
     font-feature-settings:
@@ -61,28 +108,382 @@
       "calt" 1;
     min-height: 100vh;
     -webkit-tap-highlight-color: transparent;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    transition: background-color 0.15s ease-in-out !important;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    @apply font-bold tracking-tight;
   }
 }
 
 /* =====================================================
-   TỐI ƯU UI/UX CHO MOBILE
+   CLASS CHẶN TRANSITION KHI ĐỔI THEME
    ===================================================== */
 
-/* Touch targets - tối thiểu 44px cho mobile */
-button,
-a,
-[role="button"],
-input[type="submit"],
-input[type="button"] {
-  min-height: 44px;
-  min-width: 44px;
+.no-transition * {
+  transition: none !important;
+  animation: none !important;
 }
 
-/* Tối ưu spacing cho mobile */
+.no-transition {
+  transition: none !important;
+}
+
+/* =====================================================
+   TRANSITIONS TỐI ƯU - CHỈ TRANSITION CÁC PROP CẦN THIẾT
+   ===================================================== */
+
+@layer utilities {
+  .theme-transition {
+    transition:
+      background-color 0.12s ease-in-out,
+      border-color 0.12s ease-in-out,
+      color 0.12s ease-in-out,
+      fill 0.12s ease-in-out,
+      stroke 0.12s ease-in-out !important;
+  }
+
+  .theme-transition-slow {
+    transition:
+      background-color 0.2s ease-in-out,
+      border-color 0.2s ease-in-out,
+      color 0.2s ease-in-out !important;
+  }
+}
+
+/* =====================================================
+   OPTIMIZED TRANSITIONS - CHỈ ÁP DỤNG CHO ELEMENTS CẦN THIẾT
+   ===================================================== */
+
+/* Các elements chính cần transition */
+.bg-background,
+.bg-card,
+.bg-popover,
+.bg-muted,
+.border-border,
+.border-input,
+.text-foreground,
+.text-muted-foreground {
+  transition:
+    background-color 0.12s ease-in-out,
+    border-color 0.12s ease-in-out,
+    color 0.12s ease-in-out !important;
+}
+
+/* Card và container */
+.card,
+.glass,
+.glass-card {
+  transition:
+    background-color 0.12s ease-in-out,
+    border-color 0.12s ease-in-out,
+    box-shadow 0.12s ease-in-out !important;
+}
+
+/* Dark mode specific transitions */
+.dark .bg-background,
+.dark .bg-card,
+.dark .bg-popover,
+.dark .bg-muted {
+  transition:
+    background-color 0.12s ease-in-out,
+    border-color 0.12s ease-in-out !important;
+}
+
+/* =====================================================
+   THEME TOGGLE - TỐI ƯU
+   ===================================================== */
+
+.theme-toggle-btn {
+  @apply relative rounded-full;
+  background: hsl(var(--background));
+  border: 1px solid hsl(var(--border));
+  transition:
+    transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1),
+    border-color 0.15s ease-in-out,
+    box-shadow 0.15s ease-in-out !important;
+  will-change: transform;
+}
+
+.theme-toggle-btn:hover {
+  @apply scale-110;
+  border-color: hsl(var(--primary));
+  box-shadow: 0 0 20px rgba(59, 130, 246, 0.15);
+}
+
+.theme-toggle-btn:active {
+  @apply scale-90;
+}
+
+.dark .theme-toggle-btn {
+  background: hsl(var(--background));
+  border-color: hsl(var(--border) / 0.5);
+}
+
+.dark .theme-toggle-btn:hover {
+  border-color: hsl(var(--primary));
+  box-shadow: 0 0 30px rgba(59, 130, 246, 0.2);
+}
+
+/* Icon rotation - tối ưu */
+.theme-toggle-btn svg {
+  transition:
+    transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1),
+    opacity 0.15s ease-in-out !important;
+  will-change: transform, opacity;
+}
+
+/* =====================================================
+   CUSTOM SCROLLBAR
+   ===================================================== */
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: hsl(var(--muted));
+  border-radius: 9999px;
+  transition: background 0.12s ease-in-out !important;
+}
+
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--primary) / 0.4);
+  border-radius: 9999px;
+  transition: background 0.12s ease-in-out !important;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--primary) / 0.6);
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: hsl(var(--primary) / 0.3);
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--primary) / 0.5);
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: hsl(var(--primary) / 0.4) hsl(var(--muted));
+}
+
+.dark * {
+  scrollbar-color: hsl(var(--primary) / 0.3) hsl(var(--muted));
+}
+
+/* =====================================================
+   SELECTION & FOCUS
+   ===================================================== */
+
+::selection {
+  background: hsl(var(--primary) / 0.3);
+  color: hsl(var(--primary-foreground));
+}
+
+.dark ::selection {
+  background: hsl(var(--primary) / 0.3);
+  color: hsl(var(--primary-foreground));
+}
+
+*:focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* =====================================================
+   GRADIENT UTILITIES
+   ===================================================== */
+
+@layer utilities {
+  .gradient-text {
+    @apply bg-gradient-to-r from-primary via-secondary to-accent bg-clip-text text-transparent;
+  }
+
+  .gradient-text-cyan {
+    @apply bg-gradient-to-r from-cyan-400 via-blue-400 to-purple-400 bg-clip-text text-transparent;
+  }
+
+  .gradient-bg {
+    @apply bg-gradient-to-r from-primary via-secondary to-accent;
+  }
+
+  .gradient-bg-cyber {
+    @apply bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900;
+  }
+}
+
+/* =====================================================
+   GLASSMORPHISM - TỐI ƯU
+   ===================================================== */
+
+@layer utilities {
+  .glass {
+    background: var(--glass-bg);
+    backdrop-filter: blur(16px) saturate(180%);
+    -webkit-backdrop-filter: blur(16px) saturate(180%);
+    border: 1px solid var(--glass-border);
+    box-shadow: 0 8px 32px var(--glass-shadow);
+    transition:
+      background 0.12s ease-in-out,
+      border-color 0.12s ease-in-out,
+      box-shadow 0.12s ease-in-out !important;
+  }
+
+  .glass-card {
+    background: var(--glass-bg);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid var(--glass-border);
+    box-shadow: 0 4px 24px var(--glass-shadow);
+    transition:
+      background 0.12s ease-in-out,
+      border-color 0.12s ease-in-out,
+      box-shadow 0.12s ease-in-out,
+      transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+  }
+
+  .glass-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 40px var(--glass-shadow);
+  }
+
+  .dark .glass-card {
+    background: rgba(15, 23, 42, 0.6);
+    border-color: rgba(255, 255, 255, 0.05);
+  }
+}
+
+/* =====================================================
+   CARD & BUTTON - TỐI ƯU
+   ===================================================== */
+
+.card-hover {
+  transition:
+    transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1),
+    box-shadow 0.15s ease-in-out !important;
+  will-change: transform;
+}
+
+.card-hover:hover {
+  transform: translateY(-4px);
+}
+
+.navbar-transition {
+  transition:
+    background-color 0.12s ease-in-out,
+    border-color 0.12s ease-in-out,
+    box-shadow 0.12s ease-in-out !important;
+}
+
+/* =====================================================
+   RESPONSIVE BREAKPOINTS
+   ===================================================== */
+
+@media (max-width: 380px) {
+  .container {
+    padding-left: 8px;
+    padding-right: 8px;
+  }
+
+  .navbar-logo-text {
+    font-size: 12px !important;
+  }
+
+  .navbar-action-button {
+    width: 32px !important;
+    height: 32px !important;
+    min-width: 32px !important;
+    min-height: 32px !important;
+  }
+
+  .text-sm {
+    font-size: 11px !important;
+  }
+
+  .text-xs {
+    font-size: 9px !important;
+  }
+
+  .p-4 {
+    padding: 8px !important;
+  }
+
+  .gap-2 {
+    gap: 4px !important;
+  }
+}
+
 @media (max-width: 640px) {
   .container {
-    padding-left: 16px;
-    padding-right: 16px;
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+
+  .navbar-container {
+    padding: 0 8px;
+  }
+
+  .navbar-logo-text {
+    font-size: 14px !important;
+  }
+
+  .navbar-auth-text {
+    display: none !important;
+  }
+
+  .navbar-avatar {
+    width: 28px !important;
+    height: 28px !important;
+    font-size: 10px !important;
+  }
+
+  .navbar-action-button {
+    width: 36px !important;
+    height: 36px !important;
+    min-width: 36px !important;
+    min-height: 36px !important;
+  }
+
+  .search-mobile-btn {
+    width: 36px !important;
+    height: 36px !important;
+    min-width: 36px !important;
+    min-height: 36px !important;
+    padding: 0 !important;
+  }
+
+  .grid-cols-2 {
+    grid-template-columns: 1fr 1fr !important;
+  }
+
+  .grid-cols-3 {
+    grid-template-columns: 1fr 1fr !important;
+  }
+
+  .grid-cols-4 {
+    grid-template-columns: 1fr 1fr !important;
+  }
+
+  .text-3xl {
+    font-size: 1.5rem !important;
+    line-height: 2rem !important;
+  }
+
+  .text-4xl {
+    font-size: 1.75rem !important;
+    line-height: 2.25rem !important;
   }
 
   .p-4 {
@@ -101,63 +502,10 @@ input[type="button"] {
     gap: 16px !important;
   }
 
-  .text-3xl {
-    font-size: 1.5rem !important;
-    line-height: 2rem !important;
-  }
-
-  .text-4xl {
-    font-size: 1.75rem !important;
-    line-height: 2.25rem !important;
-  }
-}
-
-/* Tối ưu card trên mobile */
-@media (max-width: 640px) {
   .card {
     border-radius: 12px !important;
   }
 
-  .card-content {
-    padding: 16px !important;
-  }
-
-  .card-header {
-    padding: 16px 16px 8px 16px !important;
-  }
-}
-
-/* Tối ưu grid trên mobile */
-@media (max-width: 640px) {
-  .grid-cols-2 {
-    grid-template-columns: 1fr 1fr !important;
-  }
-
-  .grid-cols-3 {
-    grid-template-columns: 1fr 1fr !important;
-  }
-
-  .grid-cols-4 {
-    grid-template-columns: 1fr 1fr !important;
-  }
-}
-
-/* Tối ưu modal trên mobile */
-@media (max-width: 640px) {
-  .modal-content {
-    max-width: 100% !important;
-    margin: 8px !important;
-    border-radius: 16px !important;
-    max-height: 95vh !important;
-  }
-
-  .modal-content .p-6 {
-    padding: 16px !important;
-  }
-}
-
-/* Tối ưu dropdown trên mobile */
-@media (max-width: 640px) {
   .dropdown-content {
     position: fixed !important;
     bottom: 0 !important;
@@ -167,187 +515,21 @@ input[type="button"] {
     border-radius: 16px 16px 0 0 !important;
     max-height: 70vh !important;
     padding: 20px !important;
+    background: hsl(var(--background)) !important;
+    border-top: 1px solid hsl(var(--border)) !important;
+    transition:
+      background 0.12s ease-in-out,
+      border-color 0.12s ease-in-out !important;
+  }
+
+  .dark .dropdown-content {
+    background: hsl(var(--background)) !important;
+    border-top: 1px solid hsl(var(--border)) !important;
   }
 }
 
 /* =====================================================
-   TỐI ƯU ANIMATION
-   ===================================================== */
-
-html,
-body,
-main,
-section,
-header,
-footer,
-nav,
-article,
-.bg-background,
-.bg-card,
-.bg-popover,
-.bg-muted,
-.border-border,
-.border-input {
-  transition:
-    background-color 0.15s ease-in-out,
-    border-color 0.15s ease-in-out;
-}
-
-/* Theme toggle */
-.theme-toggle {
-  will-change: transform, opacity;
-  transition:
-    transform 0.2s cubic-bezier(0.4, 0, 0.2, 1),
-    opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.theme-toggle:hover {
-  transform: scale(1.1);
-}
-
-.theme-toggle:active {
-  transform: scale(0.9);
-}
-
-.theme-toggle-icon {
-  will-change: transform, opacity;
-  transition:
-    transform 0.25s cubic-bezier(0.4, 0, 0.2, 1),
-    opacity 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-/* Navbar transition */
-.navbar-transition {
-  transition:
-    background-color 0.15s ease-in-out,
-    border-color 0.15s ease-in-out,
-    box-shadow 0.15s ease-in-out;
-}
-
-/* Card hover */
-.card-hover {
-  transition:
-    transform 0.15s cubic-bezier(0.4, 0, 0.2, 1),
-    box-shadow 0.15s ease-in-out;
-}
-
-.card-hover:hover {
-  transform: translateY(-4px);
-}
-
-/* Skeleton pulse */
-.skeleton-pulse {
-  animation: skeletonPulse 1.5s ease-in-out infinite;
-}
-
-@keyframes skeletonPulse {
-  0%,
-  100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.5;
-  }
-}
-
-/* Floating animation */
-@keyframes float {
-  0%,
-  100% {
-    transform: translateY(0px);
-  }
-  50% {
-    transform: translateY(-20px);
-  }
-}
-
-.animate-float {
-  animation: float 6s ease-in-out infinite;
-}
-
-/* =====================================================
-   CUSTOM SCROLLBAR
-   ===================================================== */
-
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-
-::-webkit-scrollbar-track {
-  background: hsl(var(--muted));
-}
-
-::-webkit-scrollbar-thumb {
-  background: hsl(var(--primary) / 0.5);
-  border-radius: 9999px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: hsl(var(--primary));
-}
-
-/* =====================================================
-   SELECTION & FOCUS
-   ===================================================== */
-
-::selection {
-  background: hsl(var(--primary) / 0.3);
-  color: hsl(var(--primary-foreground));
-}
-
-*:focus-visible {
-  outline: none;
-  ring: 2px solid hsl(var(--ring));
-  ring-offset: 2px;
-  ring-offset: hsl(var(--background));
-}
-
-/* =====================================================
-   GLASSMORPHISM
-   ===================================================== */
-
-.glass {
-  @apply bg-white/10 backdrop-blur-md border border-white/20;
-}
-
-.dark .glass {
-  @apply bg-gray-900/50 border-gray-700/50;
-}
-
-/* =====================================================
-   GRADIENT TEXT & BACKGROUND
-   ===================================================== */
-
-.gradient-text {
-  @apply bg-gradient-to-r from-primary via-secondary to-accent bg-clip-text text-transparent;
-}
-
-.gradient-bg {
-  @apply bg-gradient-to-r from-primary via-secondary to-accent;
-}
-
-.gradient-border {
-  position: relative;
-  border: 2px solid transparent;
-  background-clip: padding-box;
-}
-
-.gradient-border::before {
-  content: "";
-  position: absolute;
-  inset: -2px;
-  border-radius: inherit;
-  background: linear-gradient(
-    to right,
-    hsl(var(--primary)),
-    hsl(var(--secondary))
-  );
-  z-index: -1;
-}
-
-/* =====================================================
-   DARK MODE OVERRIDES
+   DARK MODE OVERRIDES - TỐI ƯU
    ===================================================== */
 
 .dark .text-muted-foreground {
@@ -367,7 +549,7 @@ article,
 }
 
 .dark .bg-gray-50 {
-  background-color: rgba(31, 41, 55, 0.5);
+  background-color: rgba(31, 41, 55, 0.3);
 }
 
 .dark .bg-gray-100 {
@@ -383,22 +565,19 @@ article,
 }
 
 .dark .hover\:bg-gray-50:hover {
-  background-color: rgba(31, 41, 55, 0.5);
+  background-color: rgba(31, 41, 55, 0.3);
 }
 
-/* Card dark mode */
-.dark .card {
-  background-color: hsl(var(--card));
-  color: hsl(var(--card-foreground));
-}
-
-/* Input dark mode */
 .dark input,
 .dark textarea,
 .dark select {
   background-color: hsl(var(--background));
   color: hsl(var(--foreground));
   border-color: hsl(var(--input));
+  transition:
+    background-color 0.12s ease-in-out,
+    border-color 0.12s ease-in-out,
+    color 0.12s ease-in-out !important;
 }
 
 .dark input::placeholder,
@@ -406,20 +585,147 @@ article,
   color: hsl(var(--muted-foreground));
 }
 
+.dark .card {
+  background-color: hsl(var(--card));
+  color: hsl(var(--card-foreground));
+  transition:
+    background-color 0.12s ease-in-out,
+    color 0.12s ease-in-out !important;
+}
+
 /* =====================================================
-   UTILITY CLASSES
+   CYBERPUNK ANIMATIONS - TỐI ƯU
    ===================================================== */
 
-/* Safe area padding cho notch phones */
-.safe-area-bottom {
-  padding-bottom: env(safe-area-inset-bottom);
+@layer utilities {
+  @keyframes glowPulse {
+    0%,
+    100% {
+      opacity: 0.3;
+      transform: scale(1);
+    }
+    50% {
+      opacity: 0.6;
+      transform: scale(1.05);
+    }
+  }
+
+  .glow-pulse {
+    animation: glowPulse 2s ease-in-out infinite;
+    will-change: transform, opacity;
+  }
+
+  @keyframes float {
+    0%,
+    100% {
+      transform: translateY(0px);
+    }
+    50% {
+      transform: translateY(-10px);
+    }
+  }
+
+  .animate-float {
+    animation: float 3s ease-in-out infinite;
+    will-change: transform;
+  }
+
+  @keyframes skeletonPulse {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.5;
+    }
+  }
+
+  .skeleton-pulse {
+    animation: skeletonPulse 1.2s ease-in-out infinite;
+    will-change: opacity;
+  }
 }
 
-.safe-area-top {
-  padding-top: env(safe-area-inset-top);
+/* =====================================================
+   REDUCED MOTION
+   ===================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .animate-pulse {
+    animation: none !important;
+  }
+
+  .glow-pulse {
+    animation: none !important;
+  }
+
+  .animate-float {
+    animation: none !important;
+  }
 }
 
-/* Hide scrollbar */
+/* =====================================================
+   HIGH CONTRAST
+   ===================================================== */
+
+@media (prefers-contrast: high) {
+  .glass,
+  .glass-card {
+    background: rgba(0, 0, 0, 0.8) !important;
+    border: 2px solid white !important;
+  }
+
+  .dark .glass,
+  .dark .glass-card {
+    background: rgba(255, 255, 255, 0.1) !important;
+    border: 2px solid white !important;
+  }
+
+  .gradient-text {
+    background: none !important;
+    color: hsl(var(--primary)) !important;
+  }
+}
+
+/* =====================================================
+   VIEW TRANSITION - TỐI ƯU
+   ===================================================== */
+
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none !important;
+  mix-blend-mode: normal;
+}
+
+::view-transition-old(root) {
+  z-index: 1;
+}
+
+::view-transition-new(root) {
+  z-index: 9999;
+}
+
+.dark::view-transition-old(root) {
+  z-index: 9999;
+}
+
+.dark::view-transition-new(root) {
+  z-index: 1;
+}
+
+/* =====================================================
+   HIDE SCROLLBAR
+   ===================================================== */
+
 .hide-scrollbar {
   -ms-overflow-style: none;
   scrollbar-width: none;
@@ -429,202 +735,361 @@ article,
   display: none;
 }
 
-/* Touch-friendly spacing */
+/* =====================================================
+   TOUCH TARGETS
+   ===================================================== */
+
+button,
+a,
+[role="button"],
+input[type="submit"],
+input[type="button"],
+.touch-target {
+  min-height: 44px;
+  min-width: 44px;
+}
+
 .touch-friendly {
   padding: 10px 12px;
   min-height: 48px;
 }
 
-/* Keyboard shortcut hint */
-.kbd-hint {
-  font-size: 10px;
-  padding: 2px 6px;
-  border-radius: 4px;
-  background: hsl(var(--muted));
+/* src/app/globals.css - Thêm vào cuối file */
+
+/* =====================================================
+   ANNOUNCEMENTS - DARK MODE OPTIMIZED
+   ===================================================== */
+
+/* Card backgrounds */
+.announcement-card {
+  background: hsl(var(--card));
   border: 1px solid hsl(var(--border));
-  font-family: monospace;
+  transition: all 0.2s ease-in-out;
+}
+
+.announcement-card:hover {
+  border-color: hsl(var(--primary) / 0.3);
+  box-shadow: 0 8px 30px hsl(var(--primary) / 0.05);
+}
+
+.dark .announcement-card {
+  background: hsl(var(--card));
+  border-color: hsl(var(--border));
+}
+
+.dark .announcement-card:hover {
+  border-color: hsl(var(--primary) / 0.2);
+  box-shadow: 0 8px 30px hsl(var(--primary) / 0.1);
+}
+
+/* Hero section */
+.announcement-hero {
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+}
+
+.dark .announcement-hero {
+  background: hsl(var(--card));
+  border-color: hsl(var(--border));
+}
+
+/* Stats cards */
+.stats-card {
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  transition: all 0.2s ease-in-out;
+}
+
+.stats-card:hover {
+  transform: translateY(-2px);
+  border-color: hsl(var(--primary) / 0.3);
+}
+
+.dark .stats-card {
+  background: hsl(var(--card));
+  border-color: hsl(var(--border));
+}
+
+.dark .stats-card:hover {
+  border-color: hsl(var(--primary) / 0.2);
+  box-shadow: 0 8px 30px hsl(var(--primary) / 0.05);
+}
+
+/* Comment section */
+.comment-item {
+  background: hsl(var(--muted));
+  border-radius: 0.75rem;
+  padding: 0.75rem;
+  transition: background 0.2s ease-in-out;
+}
+
+.dark .comment-item {
+  background: hsl(var(--muted) / 0.5);
+}
+
+/* Input fields */
+.announcement-input {
+  background: hsl(var(--background));
+  border: 1px solid hsl(var(--border));
+  color: hsl(var(--foreground));
+}
+
+.dark .announcement-input {
+  background: hsl(var(--background));
+  border-color: hsl(var(--border));
+  color: hsl(var(--foreground));
+}
+
+.announcement-input:focus {
+  border-color: hsl(var(--primary) / 0.5);
+  ring: 2px solid hsl(var(--primary) / 0.2);
+}
+
+/* Badge colors */
+.badge-priority-high {
+  background: hsl(var(--destructive) / 0.15);
+  color: hsl(var(--destructive));
+  border-color: hsl(var(--destructive) / 0.3);
+}
+
+.badge-priority-medium {
+  background: hsl(45 100% 50% / 0.15);
+  color: hsl(45 100% 50%);
+  border-color: hsl(45 100% 50% / 0.3);
+}
+
+.badge-priority-low {
+  background: hsl(210 100% 50% / 0.15);
+  color: hsl(210 100% 50%);
+  border-color: hsl(210 100% 50% / 0.3);
+}
+
+.dark .badge-priority-high {
+  background: hsl(var(--destructive) / 0.2);
+  color: hsl(var(--destructive));
+}
+
+.dark .badge-priority-medium {
+  background: hsl(45 100% 50% / 0.2);
+  color: hsl(45 100% 50%);
+}
+
+.dark .badge-priority-low {
+  background: hsl(210 100% 50% / 0.2);
+  color: hsl(210 100% 50%);
+}
+
+/* Ticker */
+.ticker-container {
+  background: hsl(var(--card));
+  border-color: hsl(var(--border));
+}
+
+.dark .ticker-container {
+  background: hsl(var(--card));
+  border-color: hsl(var(--border));
+}
+
+/* Skeleton */
+.skeleton-dark {
+  background: hsl(var(--muted));
+}
+
+.dark .skeleton-dark {
+  background: hsl(var(--muted) / 0.5);
+}
+
+/* Modal */
+.announcement-modal {
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+}
+
+.dark .announcement-modal {
+  background: hsl(var(--card));
+  border-color: hsl(var(--border));
+}
+
+/* Text colors - đảm bảo tương phản */
+.text-announcement-title {
+  color: hsl(var(--foreground));
+}
+
+.text-announcement-meta {
   color: hsl(var(--muted-foreground));
 }
 
-/* Glass card */
-.glass-card {
-  background: rgba(255, 255, 255, 0.05);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+.text-announcement-content {
+  color: hsl(var(--foreground) / 0.9);
 }
 
-.dark .glass-card {
-  background: rgba(15, 23, 42, 0.5);
-  border-color: rgba(255, 255, 255, 0.05);
+.dark .text-announcement-title {
+  color: hsl(var(--foreground));
 }
 
-/* =====================================================
-   NAVBAR SPECIFIC
-   ===================================================== */
-
-.navbar-container {
-  max-width: 1400px;
-  margin: 0 auto;
-  padding: 0 1rem;
+.dark .text-announcement-meta {
+  color: hsl(var(--muted-foreground));
 }
 
-@media (min-width: 640px) {
-  .navbar-container {
-    padding: 0 1.5rem;
+.dark .text-announcement-content {
+  color: hsl(var(--foreground) / 0.9);
+}
+
+/* Like button animation */
+@keyframes likeAnim {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.3);
+  }
+  100% {
+    transform: scale(1);
   }
 }
 
-@media (min-width: 1024px) {
-  .navbar-container {
-    padding: 0 2rem;
-  }
-}
-
-.truncate-text {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-/* =====================================================
-   SEARCH SPECIFIC
-   ===================================================== */
-
-@media (max-width: 640px) {
-  .search-results {
-    max-height: 60vh !important;
-    border-radius: 12px !important;
-    margin: 4px 8px !important;
-  }
-
-  .search-input {
-    font-size: 16px !important; /* Prevent zoom on iOS */
-  }
-}
-
-.search-result-item {
-  transition: all 0.15s ease;
-}
-
-.search-result-item:active {
-  transform: scale(0.98);
-}
-
-.dark .search-results {
-  background: hsl(var(--background));
-  border-color: hsl(var(--border));
+.like-anim {
+  animation: likeAnim 0.3s ease-in-out;
 }
 
 /* src/app/globals.css - Thêm vào cuối file */
 
 /* =====================================================
-   NAVBAR MOBILE OPTIMIZATION
+   CINEMATIC HERO ANIMATIONS
    ===================================================== */
 
-/* Mobile navbar height */
+@keyframes fade-rise {
+  0% {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fade-rise-delay {
+  0% {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fade-rise-delay-2 {
+  0% {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-rise {
+  animation: fade-rise 0.8s ease-out forwards;
+}
+
+.animate-fade-rise-delay {
+  animation: fade-rise-delay 0.8s ease-out 0.2s forwards;
+  opacity: 0;
+}
+
+.animate-fade-rise-delay-2 {
+  animation: fade-rise-delay-2 0.8s ease-out 0.4s forwards;
+  opacity: 0;
+}
+
+/* Hover scale */
+.hover\:scale-103:hover {
+  transform: scale(1.03);
+}
+
+/* Instrument Serif font */
+.font-\[Instrument_Serif\] {
+  font-family: "Instrument Serif", serif;
+}
+
+/* src/app/globals.css - Thêm vào cuối file */
+
+/* =====================================================
+   MOBILE OPTIMIZATION
+   ===================================================== */
+
+/* Touch targets lớn hơn trên mobile */
 @media (max-width: 640px) {
-  .navbar-container {
-    padding: 0 8px;
+  button,
+  a,
+  [role="button"],
+  .touch-target {
+    min-height: 48px;
+    min-width: 48px;
   }
 
-  /* Tối ưu các nút trên navbar mobile */
-  .navbar-action-button {
-    width: 36px !important;
-    height: 36px !important;
-    min-width: 36px !important;
-    min-height: 36px !important;
+  /* Card spacing */
+  .card-content {
+    padding: 16px !important;
   }
 
-  /* Ẩn text trên nút đăng nhập/đăng ký trên mobile */
-  .navbar-auth-text {
-    display: none !important;
+  /* Grid mobile */
+  .grid-cols-2,
+  .grid-cols-3,
+  .grid-cols-4 {
+    grid-template-columns: 1fr !important;
   }
 
-  /* Thu nhỏ avatar trên mobile */
-  .navbar-avatar {
-    width: 28px !important;
-    height: 28px !important;
-    font-size: 10px !important;
+  /* Modal fullscreen trên mobile */
+  .dialog-content {
+    max-width: 100% !important;
+    margin: 8px !important;
+    border-radius: 16px !important;
+    max-height: 95vh !important;
   }
 
-  /* Logo text trên mobile */
-  .navbar-logo-text {
-    font-size: 14px !important;
+  /* Input lớn hơn để dễ touch */
+  input,
+  textarea,
+  select {
+    font-size: 16px !important; /* Prevent zoom on iOS */
+    padding: 12px 16px !important;
+  }
+
+  /* Button padding */
+  .btn-mobile {
+    padding: 14px 20px !important;
+    font-size: 15px !important;
+  }
+
+  /* Scrollbar mỏng trên mobile */
+  ::-webkit-scrollbar {
+    width: 3px;
+    height: 3px;
   }
 }
 
-/* Extra small devices */
-@media (max-width: 380px) {
-  .navbar-logo-text {
-    font-size: 12px !important;
-  }
-
-  .navbar-action-button {
-    width: 32px !important;
-    height: 32px !important;
-    min-width: 32px !important;
-    min-height: 32px !important;
-  }
+/* Safe area cho notch phones */
+.safe-bottom {
+  padding-bottom: env(safe-area-inset-bottom);
 }
 
-/* Tablet optimization */
-@media (min-width: 641px) and (max-width: 1024px) {
-  .navbar-avatar {
-    width: 32px !important;
-    height: 32px !important;
-  }
-
-  .navbar-logo-text {
-    font-size: 16px !important;
-  }
-}
-
-/* Desktop optimization */
-@media (min-width: 1025px) {
-  .navbar-avatar {
-    width: 36px !important;
-    height: 36px !important;
-  }
+.safe-top {
+  padding-top: env(safe-area-inset-top);
 }
 
 /* =====================================================
-   THEME TOGGLE - HIỂN THỊ RÕ TRÊN CẢ 2 MODE
+   TOUCH FEEDBACK
    ===================================================== */
 
-.theme-toggle-btn {
-  border: 1px solid hsl(var(--border));
-  background: hsl(var(--background));
+.touch-feedback {
+  -webkit-tap-highlight-color: transparent;
 }
 
-.theme-toggle-btn:hover {
-  background: hsl(var(--muted));
-}
-
-.dark .theme-toggle-btn {
-  border: 1px solid hsl(var(--border) / 0.5);
-  background: hsl(var(--background) / 0.5);
-}
-
-.dark .theme-toggle-btn:hover {
-  background: hsl(var(--muted) / 0.5);
-}
-
-/* =====================================================
-   SEARCH ICON TRÊN MOBILE
-   ===================================================== */
-
-@media (max-width: 640px) {
-  .search-mobile-btn {
-    width: 36px !important;
-    height: 36px !important;
-    min-width: 36px !important;
-    min-height: 36px !important;
-    padding: 0 !important;
-  }
-
-  .search-mobile-btn svg {
-    width: 18px !important;
-    height: 18px !important;
-  }
+.touch-feedback:active {
+  transform: scale(0.96);
+  transition: transform 0.1s ease;
 }

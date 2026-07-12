@@ -1,5 +1,5 @@
 // src/app/layout.tsx
-// Vai trò: Layout chính - THÊM GOOGLE VERIFICATION
+// LAYOUT - HOÀN CHỈNH TỐI ƯU
 
 import type { Metadata, Viewport } from "next";
 import { Inter, Poppins } from "next/font/google";
@@ -44,13 +44,8 @@ export const metadata: Metadata = {
       "max-snippet": -1,
     },
   },
-  // ✅ THÊM GOOGLE VERIFICATION
   verification: {
     google: "xDi7yQEL2pog2kHYPth3-zWqrvkkgldFURSfgDdVVtU",
-    other: {
-      "msvalidate.01": "YOUR_BING_VERIFICATION_CODE",
-      "yandex-verification": "YOUR_YANDEX_VERIFICATION_CODE",
-    },
   },
   openGraph: {
     title: "Mạng 3 Hub - Quản trị Mạng 3",
@@ -92,7 +87,10 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   maximumScale: 5,
-  themeColor: "#2563eb",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#2563eb" },
+    { media: "(prefers-color-scheme: dark)", color: "#0f172a" },
+  ],
 };
 
 export default function RootLayout({
@@ -103,19 +101,14 @@ export default function RootLayout({
   return (
     <html lang="vi" suppressHydrationWarning>
       <head>
-        {/* ✅ GOOGLE VERIFICATION - META TAG */}
         <meta
           name="google-site-verification"
           content="xDi7yQEL2pog2kHYPth3-zWqrvkkgldFURSfgDdVVtU"
         />
-        {/* ✅ Sitemap */}
         <link rel="sitemap" type="application/xml" href="/sitemap.xml" />
-        {/* ✅ Favicon */}
         <link rel="icon" href="/favicon.ico" sizes="any" />
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-        {/* ✅ Manifest */}
         <link rel="manifest" href="/manifest.json" />
-        {/* ✅ RSS Feed */}
         <link
           rel="alternate"
           type="application/rss+xml"

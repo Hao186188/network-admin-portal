@@ -1,8 +1,10 @@
 // src/components/dashboard/DashboardHero.tsx
-// Vai trò: Hero section của Dashboard - CYBERPUNK / FUTURISTIC STYLE
+// HOÀN CHỈNH - ĐÃ TÍCH HỢP TERMINAL TYPING & BEACON PULSE
 
 "use client";
 
+import { BeaconPulse } from "@/components/animations/BeaconPulse";
+import { TerminalTyping } from "@/components/animations/TerminalTyping";
 import { Badge } from "@/components/ui/badge";
 import { useStats } from "@/hooks/use-stats";
 import { cn } from "@/lib/utils";
@@ -16,31 +18,31 @@ import {
   Database,
   Globe,
   Shield,
-  Signal,
   TrendingUp,
   Users,
   Video,
-  Zap
+  Zap,
 } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { useEffect, useState } from "react";
 
 // ============================================
-// COMPONENTS
+// SUB-COMPONENTS
 // ============================================
 
-// 1. Animated Counter với Number
-function AnimatedNumber({
+// 1. Animated Number - Fixed Memory Leak
+const AnimatedNumber = ({
   value,
   duration = 2000,
 }: {
   value: number;
   duration?: number;
-}) {
+}) => {
   const [displayValue, setDisplayValue] = useState(0);
 
   useEffect(() => {
     let startTime: number;
+    let frameId: number;
     const startValue = 0;
     const endValue = value;
 
@@ -50,37 +52,24 @@ function AnimatedNumber({
       const eased = 1 - Math.pow(1 - progress, 3);
       setDisplayValue(Math.floor(eased * (endValue - startValue) + startValue));
       if (progress < 1) {
-        requestAnimationFrame(animate);
+        frameId = requestAnimationFrame(animate);
       }
     };
 
-    requestAnimationFrame(animate);
+    frameId = requestAnimationFrame(animate);
+
+    return () => {
+      if (frameId) {
+        cancelAnimationFrame(frameId);
+      }
+    };
   }, [value, duration]);
 
   return <span className="tabular-nums">{displayValue.toLocaleString()}</span>;
-}
+};
 
-// 2. Neon Border Effect
-function NeonBorder({
-  children,
-  className,
-}: {
-  children: React.ReactNode;
-  className?: string;
-}) {
-  return (
-    <div
-      className={cn("relative p-[1px] rounded-2xl overflow-hidden", className)}
-    >
-      <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-cyan-500 via-blue-500 to-purple-500 animate-pulse" />
-      <div className="absolute inset-[1px] rounded-2xl bg-background/90 backdrop-blur-sm" />
-      <div className="relative z-10">{children}</div>
-    </div>
-  );
-}
-
-// 3. Floating Particles
-function FloatingParticles() {
+// 2. Floating Particles
+const FloatingParticles = () => {
   const particles = Array.from({ length: 20 }, (_, i) => ({
     id: i,
     x: Math.random() * 100,
@@ -117,58 +106,122 @@ function FloatingParticles() {
       ))}
     </div>
   );
-}
+};
 
-// 4. Grid Background
-function GridBackground() {
+// 3. Grid Background
+const GridBackground = () => (
+  <div className="absolute inset-0 pointer-events-none">
+    <svg
+      className="w-full h-full opacity-10"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <defs>
+        <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+          <path
+            d="M 40 0 L 0 0 0 40"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="0.5"
+            className="text-cyan-400"
+          />
+        </pattern>
+        <radialGradient id="glow" cx="50%" cy="50%" r="50%">
+          <stop offset="0%" stopColor="#06b6d4" stopOpacity="0.3" />
+          <stop offset="100%" stopColor="#06b6d4" stopOpacity="0" />
+        </radialGradient>
+      </defs>
+      <rect width="100%" height="100%" fill="url(#grid)" />
+      <rect width="100%" height="100%" fill="url(#glow)" />
+    </svg>
+  </div>
+);
+
+// 4. Status Badge - Fixed Dynamic Tailwind Classes
+const STATUS_BADGE_COLORS = {
+  green: {
+    bg: "bg-green-500/10",
+    border: "border-green-500/20",
+    text: "text-green-400",
+    icon: "text-green-400",
+  },
+  cyan: {
+    bg: "bg-cyan-500/10",
+    border: "border-cyan-500/20",
+    text: "text-cyan-400",
+    icon: "text-cyan-400",
+  },
+  purple: {
+    bg: "bg-purple-500/10",
+    border: "border-purple-500/20",
+    text: "text-purple-400",
+    icon: "text-purple-400",
+  },
+} as const;
+
+type StatusColor = keyof typeof STATUS_BADGE_COLORS;
+
+const StatusBadge = ({
+  icon: Icon,
+  label,
+  color,
+}: {
+  icon: React.ElementType;
+  label: string;
+  color: StatusColor;
+}) => {
+  const colors = STATUS_BADGE_COLORS[color];
+
   return (
-    <div className="absolute inset-0 pointer-events-none">
-      <svg
-        className="w-full h-full opacity-10"
-        xmlns="http://www.w3.org/2000/svg"
-      >
-        <defs>
-          <pattern
-            id="grid"
-            width="40"
-            height="40"
-            patternUnits="userSpaceOnUse"
-          >
-            <path
-              d="M 40 0 L 0 0 0 40"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="0.5"
-              className="text-cyan-400"
-            />
-          </pattern>
-          <radialGradient id="glow" cx="50%" cy="50%" r="50%">
-            <stop offset="0%" stopColor="#06b6d4" stopOpacity="0.3" />
-            <stop offset="100%" stopColor="#06b6d4" stopOpacity="0" />
-          </radialGradient>
-        </defs>
-        <rect width="100%" height="100%" fill="url(#grid)" />
-        <rect width="100%" height="100%" fill="url(#glow)" />
-      </svg>
+    <div
+      className={cn(
+        "flex items-center gap-2 px-3 py-1 rounded-full border",
+        colors.bg,
+        colors.border,
+      )}
+    >
+      <Icon className={cn("w-3 h-3", colors.icon)} />
+      <span className={cn("text-xs font-mono", colors.text)}>{label}</span>
     </div>
   );
-}
+};
 
-// 5. Stat Item với Glow Effect
-function StatItem({
+// 5. Stat Item - Fixed Dynamic Tailwind Classes
+const STAT_COLORS = {
+  "from-blue-500 to-cyan-500": {
+    bg: "from-blue-500 to-cyan-500",
+    glow: "bg-blue-500/20",
+  },
+  "from-purple-500 to-pink-500": {
+    bg: "from-purple-500 to-pink-500",
+    glow: "bg-purple-500/20",
+  },
+  "from-orange-500 to-red-500": {
+    bg: "from-orange-500 to-red-500",
+    glow: "bg-orange-500/20",
+  },
+  "from-green-500 to-emerald-500": {
+    bg: "from-green-500 to-emerald-500",
+    glow: "bg-green-500/20",
+  },
+} as const;
+
+type StatColor = keyof typeof STAT_COLORS;
+
+const StatItem = ({
   icon: Icon,
   label,
   value,
   color,
   delay,
 }: {
-  icon: any;
+  icon: React.ElementType;
   label: string;
   value: number;
-  color: string;
+  color: StatColor;
   delay: number;
-}) {
+}) => {
   const [isHovered, setIsHovered] = useState(false);
+  const colors = STAT_COLORS[color];
 
   return (
     <motion.div
@@ -188,12 +241,11 @@ function StatItem({
             : "border-white/10",
         )}
       >
-        {/* Glow effect */}
         <div
           className={cn(
             "absolute -inset-1 rounded-xl opacity-0 transition-opacity duration-300 blur-xl",
             isHovered && "opacity-100",
-            color,
+            colors.glow,
           )}
         />
 
@@ -202,7 +254,7 @@ function StatItem({
             className={cn(
               "w-10 h-10 rounded-lg flex items-center justify-center transition-all duration-300",
               "bg-gradient-to-br",
-              color,
+              colors.bg,
               isHovered && "scale-110 shadow-lg shadow-cyan-500/25",
             )}
           >
@@ -218,7 +270,6 @@ function StatItem({
           </div>
         </div>
 
-        {/* Scan line effect */}
         <div
           className={cn(
             "absolute bottom-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-cyan-400 to-transparent transition-all duration-1000",
@@ -228,7 +279,7 @@ function StatItem({
       </div>
     </motion.div>
   );
-}
+};
 
 // ============================================
 // MAIN COMPONENT
@@ -237,9 +288,29 @@ function StatItem({
 export function DashboardHero() {
   const { data: session } = useSession();
   const stats = useStats();
-  const [isLoaded, setIsLoaded] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
+  const [systemStats, setSystemStats] = useState({
+    uptime: 0,
+    node: 0,
+    cpu: 0,
+    mem: 0,
+  });
+  const [showTerminal, setShowTerminal] = useState(false);
 
-  // Mouse parallax effect
+  // Random values chỉ được sinh sau khi mounted để tránh hydration error
+  useEffect(() => {
+    setIsMounted(true);
+    setSystemStats({
+      uptime: Math.floor(Math.random() * 100 + 24),
+      node: Math.floor(Math.random() * 10 + 1),
+      cpu: Math.floor(Math.random() * 30 + 10),
+      mem: Math.floor(Math.random() * 40 + 20),
+    });
+    // Hiển thị terminal sau 1.5s
+    setTimeout(() => setShowTerminal(true), 1500);
+  }, []);
+
+  // Mouse parallax effect - Chỉ chạy trên desktop
   const mouseX = useMotionValue(0);
   const mouseY = useMotionValue(0);
   const springX = useSpring(mouseX, { stiffness: 100, damping: 30 });
@@ -248,27 +319,30 @@ export function DashboardHero() {
   const rotateY = useTransform(springX, [-0.5, 0.5], [-5, 5]);
 
   useEffect(() => {
-    const handleMouseMove = (e: MouseEvent) => {
-      const x = (e.clientX / window.innerWidth - 0.5) * 2;
-      const y = (e.clientY / window.innerHeight - 0.5) * 2;
-      mouseX.set(x);
-      mouseY.set(y);
-    };
-    window.addEventListener("mousemove", handleMouseMove);
-    setIsLoaded(true);
-    return () => window.removeEventListener("mousemove", handleMouseMove);
+    // Chỉ thêm mousemove khi là desktop
+    const isTouchDevice =
+      "ontouchstart" in window || navigator.maxTouchPoints > 0;
+
+    if (!isTouchDevice) {
+      const handleMouseMove = (e: MouseEvent) => {
+        const x = (e.clientX / window.innerWidth - 0.5) * 2;
+        const y = (e.clientY / window.innerHeight - 0.5) * 2;
+        mouseX.set(x);
+        mouseY.set(y);
+      };
+      window.addEventListener("mousemove", handleMouseMove);
+      return () => window.removeEventListener("mousemove", handleMouseMove);
+    }
   }, [mouseX, mouseY]);
 
-  const currentHour = new Date().getHours();
-  let greeting = "🌅 Chào buổi sáng";
-  let emoji = "☀️";
-  if (currentHour >= 12 && currentHour < 18) {
-    greeting = "🌤️ Chào buổi chiều";
-    emoji = "☀️";
-  } else if (currentHour >= 18) {
-    greeting = "🌙 Chào buổi tối";
-    emoji = "🌙";
-  }
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return { text: "Chào buổi sáng", emoji: "🌅" };
+    if (hour < 18) return { text: "Chào buổi chiều", emoji: "🌤️" };
+    return { text: "Chào buổi tối", emoji: "🌙" };
+  };
+
+  const greeting = getGreeting();
 
   return (
     <motion.div
@@ -276,72 +350,56 @@ export function DashboardHero() {
       animate={{ opacity: 1, scale: 1 }}
       transition={{ duration: 0.8, ease: "easeOut" }}
       className="relative overflow-hidden rounded-2xl p-6 md:p-8 lg:p-10 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900"
-      style={{
-        perspective: 1000,
-        transformStyle: "preserve-3d",
-      }}
+      style={{ perspective: 1000, transformStyle: "preserve-3d" }}
     >
-      {/* Background Elements */}
+      {/* Background */}
       <GridBackground />
       <FloatingParticles />
-
-      {/* Glow Orbs */}
       <div className="absolute -top-40 -right-40 w-80 h-80 bg-cyan-500/20 rounded-full blur-3xl animate-pulse" />
       <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-purple-500/20 rounded-full blur-3xl animate-pulse delay-1000" />
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl" />
 
-      {/* Status Bar - Top */}
+      {/* Status Bar với Beacon Pulse */}
       <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, delay: 0.2 }}
         className="relative z-10 flex flex-wrap items-center justify-between gap-2 mb-4 pb-4 border-b border-white/5"
       >
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-green-500/10 border border-green-500/20">
-            <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
-            <span className="text-xs text-green-400 font-mono">
-              SYSTEM ONLINE
-            </span>
-          </div>
-          <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/20">
-            <Signal className="w-3 h-3 text-cyan-400" />
-            <span className="text-xs text-cyan-400 font-mono">LIVE</span>
-          </div>
-          <div className="hidden md:flex items-center gap-2 px-3 py-1 rounded-full bg-purple-500/10 border border-purple-500/20">
-            <Shield className="w-3 h-3 text-purple-400" />
-            <span className="text-xs text-purple-400 font-mono">SECURE</span>
-          </div>
+        <div className="flex items-center gap-3 flex-wrap">
+          <BeaconPulse color="bg-green-400" label="SYSTEM ONLINE" />
+          <BeaconPulse color="bg-cyan-400" label="LIVE" />
+          <StatusBadge icon={Shield} label="SECURE" color="purple" />
         </div>
         <div className="flex items-center gap-2 text-white/40 text-xs font-mono">
           <Clock className="w-3 h-3" />
           <span>{new Date().toLocaleTimeString("vi-VN")}</span>
-          <span className="hidden md:inline">•</span>
-          <span className="hidden md:inline">v3.2.1</span>
+          <span className="hidden sm:inline">•</span>
+          <span className="hidden sm:inline">v3.2.1</span>
         </div>
       </motion.div>
 
-      {/* Main Content with 3D Parallax */}
+      {/* Main Content */}
       <motion.div
         className="relative z-10"
         style={{
-          rotateX,
-          rotateY,
+          rotateX: rotateX,
+          rotateY: rotateY,
           transformStyle: "preserve-3d",
         }}
       >
         <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
-          {/* Left - Greeting & Info */}
+          {/* Left */}
           <div className="flex-1">
             <motion.div
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.5, delay: 0.3 }}
-              className="flex items-center gap-2 mb-2"
+              className="flex items-center gap-2 mb-2 flex-wrap"
             >
-              <span className="text-2xl">{emoji}</span>
+              <span className="text-2xl">🚀</span>
               <span className="text-white/60 text-sm font-medium tracking-wider">
-                {greeting}
+                Terminal
               </span>
               <Badge className="bg-gradient-to-r from-cyan-500/20 to-blue-500/20 text-cyan-300 border-0 backdrop-blur-sm text-[10px]">
                 <Zap className="w-3 h-3 mr-1" />
@@ -360,10 +418,19 @@ export function DashboardHero() {
               </span>
               <span className="text-white/60">,</span>
               <br />
-              <span className="text-white/80 text-lg md:text-2xl">
-                Chào mừng đến với{" "}
-                <span className="text-cyan-400 font-semibold">Mạng 3 Hub</span>
-              </span>
+              <div className="text-white/80 text-lg md:text-2xl mt-1">
+                {showTerminal ? (
+                  <TerminalTyping
+                    text="Chào mừng đến với Mạng 3 Hub"
+                    speed={40}
+                    className="text-cyan-400 font-semibold"
+                  />
+                ) : (
+                  <span className="text-cyan-400 font-semibold">
+                    Mạng 3 Hub
+                  </span>
+                )}
+              </div>
             </motion.h2>
 
             <motion.p
@@ -376,7 +443,7 @@ export function DashboardHero() {
               gian thực
             </motion.p>
 
-            {/* Quick Status Tags */}
+            {/* Quick Tags */}
             <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
@@ -405,7 +472,7 @@ export function DashboardHero() {
             </motion.div>
           </div>
 
-          {/* Right - Status Badges */}
+          {/* Right */}
           <motion.div
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
@@ -467,7 +534,7 @@ export function DashboardHero() {
         </motion.div>
       </motion.div>
 
-      {/* Bottom Status Bar */}
+      {/* Bottom Bar */}
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
@@ -476,20 +543,20 @@ export function DashboardHero() {
       >
         <div className="flex items-center gap-4">
           <span>⚡ SYSTEM v3.2.1</span>
-          <span className="hidden md:inline">•</span>
-          <span className="hidden md:inline">
-            UPTIME: {Math.floor(Math.random() * 100 + 24)}h
+          <span className="hidden sm:inline">•</span>
+          <span className="hidden sm:inline">
+            UPTIME: {isMounted ? systemStats.uptime : 0}h
           </span>
           <span className="hidden lg:inline">•</span>
           <span className="hidden lg:inline">
-            NODE: {Math.floor(Math.random() * 10 + 1)}/12
+            NODE: {isMounted ? systemStats.node : 0}/12
           </span>
         </div>
         <div className="flex items-center gap-4">
-          <span>CPU: {Math.floor(Math.random() * 30 + 10)}%</span>
-          <span>MEM: {Math.floor(Math.random() * 40 + 20)}%</span>
-          <span className="hidden md:inline flex items-center gap-1">
-            <span className="w-1.5 h-1.5 rounded-full bg-green-400" />
+          <span>CPU: {isMounted ? systemStats.cpu : 0}%</span>
+          <span>MEM: {isMounted ? systemStats.mem : 0}%</span>
+          <span className="hidden sm:inline-flex items-center gap-1">
+            <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
             LIVE
           </span>
         </div>

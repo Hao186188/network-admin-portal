@@ -1,5 +1,5 @@
 // src/proxy.ts
-// Vai trò: Middleware bảo vệ routes - FIXED & BỔ SUNG
+// Vai trò: Middleware bảo vệ routes - FIXED
 
 import { withAuth } from "next-auth/middleware";
 import { NextResponse } from "next/server";
@@ -15,16 +15,12 @@ const PUBLIC_ROUTES = [
   "/faq",
   "/contact",
   "/terms",
-  // ✅ THÊM: Google Search Console Verification
   "/googlefd0bb1779e2131d9.html",
-  // ✅ THÊM: Robots.txt & Sitemap
   "/robots.txt",
   "/sitemap.xml",
-  "/sitemap",
   "/manifest.json",
   "/manifest.webmanifest",
   "/og-image",
-  "/og-image.png",
 ];
 
 // Static file extensions
@@ -36,77 +32,50 @@ export default withAuth(
     const token = req.nextauth.token;
     const path = req.nextUrl.pathname;
 
-    // Debug log (chỉ trong development)
+    // Debug log
     if (process.env.NODE_ENV === "development") {
       console.log("🔍 Middleware:", path, "Token:", !!token);
     }
 
-    // 1. Cho phép static files và API auth
-    if (
-      path.startsWith("/_next") ||
-      path.startsWith("/api/auth") ||
-      STATIC_EXTENSIONS.test(path)
-    ) {
+    // ✅ 1. QUAN TRỌNG: Cho phép tất cả API routes của NextAuth
+    if (path.startsWith("/api/auth")) {
       return NextResponse.next();
     }
 
-    // 2. Kiểm tra public routes
-    const isPublicRoute =
-      PUBLIC_ROUTES.includes(path) ||
-      PUBLIC_ROUTES.some((route) => path === route);
+    // 2. Cho phép static files
+    if (path.startsWith("/_next") || STATIC_EXTENSIONS.test(path)) {
+      return NextResponse.next();
+    }
 
+    // 3. Kiểm tra public routes
+    const isPublicRoute = PUBLIC_ROUTES.includes(path);
     if (isPublicRoute) {
       return NextResponse.next();
     }
 
-    // ✅ 3. Kiểm tra verification routes (thêm an toàn)
+    // 4. Cho phép verification routes
     if (path.includes("google") && path.includes(".html")) {
       return NextResponse.next();
     }
 
-    // 4. Kiểm tra đăng nhập
+    // 5. Kiểm tra đăng nhập
     if (!token) {
       const loginUrl = new URL("/login", req.url);
       loginUrl.searchParams.set("callbackUrl", path);
       return NextResponse.redirect(loginUrl);
     }
 
-    // 5. ADMIN ONLY routes
+    // 6. ADMIN ONLY routes
     if (path.startsWith("/admin")) {
       if (token.role !== "ADMIN") {
         return NextResponse.redirect(new URL("/dashboard", req.url));
       }
     }
 
-    // 6. TEACHER và ADMIN routes
+    // 7. TEACHER và ADMIN routes
     if (path.startsWith("/submissions")) {
       if (token.role !== "TEACHER" && token.role !== "ADMIN") {
         return NextResponse.redirect(new URL("/dashboard", req.url));
-      }
-    }
-
-    // 7. CHAT routes - cần đăng nhập
-    if (path.startsWith("/chat")) {
-      if (!token) {
-        const loginUrl = new URL("/login", req.url);
-        loginUrl.searchParams.set("callbackUrl", path);
-        return NextResponse.redirect(loginUrl);
-      }
-    }
-
-    // 8. FORUM routes - cần đăng nhập
-    if (path.startsWith("/forum")) {
-      // Ngoại lệ: xem bài viết công khai
-      if (path === "/forum" || path.match(/^\/forum\/[a-f0-9-]+$/)) {
-        return NextResponse.next();
-      }
-      // Tạo bài viết cần đăng nhập
-      if (path.startsWith("/forum/create")) {
-        if (!token) {
-          const loginUrl = new URL("/login", req.url);
-          loginUrl.searchParams.set("callbackUrl", path);
-          return NextResponse.redirect(loginUrl);
-        }
       }
     }
 
@@ -115,7 +84,6 @@ export default withAuth(
   {
     callbacks: {
       authorized: ({ token }) => {
-        // Cho phép tất cả request, middleware sẽ xử lý logic
         return true;
       },
     },
@@ -124,14 +92,6 @@ export default withAuth(
 
 export const config = {
   matcher: [
-    /*
-     * Match all request paths except:
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     * - files with extensions (static files)
-     * - verification files
-     */
     "/((?!_next/static|_next/image|favicon.ico|.*\\..*$|google.*\\.html$).*)",
   ],
 };

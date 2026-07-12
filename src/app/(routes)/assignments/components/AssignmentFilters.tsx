@@ -1,19 +1,20 @@
 // src/app/(routes)/assignments/components/AssignmentFilters.tsx
-// Vai trò: Filter và search cho trang assignments
+// HOÀN CHỈNH - XÓA HÀM cn THỦ CÔNG
 
 "use client";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/utils"; // ✅ Import từ đúng file
 import { AnimatePresence, motion } from "framer-motion";
 import {
-    ChevronDown,
-    Filter,
-    Grid as GridIcon,
-    List,
-    Search,
-    X,
+  ChevronDown,
+  Filter,
+  Grid as GridIcon,
+  List,
+  Search,
+  X,
 } from "lucide-react";
 
 interface AssignmentFiltersProps {
@@ -35,6 +36,22 @@ const statusLabels: Record<string, string> = {
   pending: "Chưa nộp",
   submitted: "Đã nộp",
   graded: "Đã chấm",
+};
+
+// ✅ Stagger children animation
+const containerVariants = {
+  hidden: { opacity: 0 },
+  show: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.05,
+    },
+  },
+};
+
+const itemVariants = {
+  hidden: { opacity: 0, y: -10 },
+  show: { opacity: 1, y: 0 },
 };
 
 export function AssignmentFilters({
@@ -88,16 +105,17 @@ export function AssignmentFilters({
             <Filter className="w-4 h-4" />
             <span className="hidden sm:inline">Lọc</span>
             <ChevronDown
-              className={`w-4 h-4 transition-transform duration-300 ${
-                showFilters ? "rotate-180" : ""
-              }`}
+              className={cn(
+                "w-4 h-4 transition-transform duration-300",
+                showFilters && "rotate-180",
+              )}
             />
           </Button>
           <Button
             variant={viewMode === "grid" ? "default" : "outline"}
             size="icon"
             onClick={() => setViewMode("grid")}
-            className="transition-all duration-300"
+            className="transition-all duration-300 view-mode-btn"
           >
             <GridIcon className="w-4 h-4" />
           </Button>
@@ -105,7 +123,7 @@ export function AssignmentFilters({
             variant={viewMode === "list" ? "default" : "outline"}
             size="icon"
             onClick={() => setViewMode("list")}
-            className="transition-all duration-300"
+            className="transition-all duration-300 view-mode-btn"
           >
             <List className="w-4 h-4" />
           </Button>
@@ -121,8 +139,13 @@ export function AssignmentFilters({
             transition={{ duration: 0.3 }}
             className="overflow-hidden"
           >
-            <div className="flex flex-wrap gap-6 pt-2 pb-4 border-t border-border/50">
-              <div>
+            <motion.div
+              variants={containerVariants}
+              initial="hidden"
+              animate="show"
+              className="flex flex-wrap gap-6 pt-2 pb-4 border-t border-border/50"
+            >
+              <motion.div variants={itemVariants}>
                 <label className="text-sm font-medium text-foreground mb-2 block">
                   Trạng thái
                 </label>
@@ -147,8 +170,9 @@ export function AssignmentFilters({
                     </Badge>
                   ))}
                 </div>
-              </div>
-              <div>
+              </motion.div>
+
+              <motion.div variants={itemVariants}>
                 <label className="text-sm font-medium text-foreground mb-2 block">
                   Loại
                 </label>
@@ -169,16 +193,11 @@ export function AssignmentFilters({
                     </Badge>
                   ))}
                 </div>
-              </div>
-            </div>
+              </motion.div>
+            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
     </motion.div>
   );
-}
-
-// Helper
-function cn(...classes: any[]) {
-  return classes.filter(Boolean).join(" ");
 }

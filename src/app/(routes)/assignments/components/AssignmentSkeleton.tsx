@@ -1,5 +1,5 @@
 // src/app/(routes)/assignments/components/AssignmentSkeleton.tsx
-// Vai trò: Skeleton loading với Shimmer Effect
+// THÊM SCANNER GRID EFFECT
 
 "use client";
 
@@ -13,9 +13,12 @@ interface AssignmentSkeletonProps {
 export function AssignmentSkeleton({
   viewMode = "grid",
 }: AssignmentSkeletonProps) {
+  // ✅ Scanner Grid Effect Class
+  const skeletonClass = "scanner-grid animate-pulse";
+
   if (viewMode === "list") {
     return (
-      <Card className="animate-pulse">
+      <Card className={skeletonClass}>
         <CardContent className="p-6">
           <div className="flex flex-col md:flex-row md:items-center gap-4">
             <div className="flex-1">
@@ -43,7 +46,7 @@ export function AssignmentSkeleton({
   }
 
   return (
-    <Card className="animate-pulse h-full">
+    <Card className={`${skeletonClass} h-full`}>
       <CardContent className="p-6 flex flex-col h-full">
         <div className="flex items-start justify-between mb-4">
           <div className="flex items-center gap-3">

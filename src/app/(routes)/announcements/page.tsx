@@ -1,5 +1,5 @@
 // src/app/(routes)/announcements/page.tsx
-// Vai trò: Trang danh sách thông báo - THÊM DEBUG
+// HOÀN CHỈNH - FIX ALL ERRORS
 
 "use client";
 
@@ -11,12 +11,7 @@ import { useAnnouncements } from "@/hooks/use-announcements";
 import { useToast } from "@/hooks/use-toast";
 import { logger } from "@/lib/logger";
 import { motion } from "framer-motion";
-import {
-  Bell,
-  Plus,
-  Search,
-  X
-} from "lucide-react";
+import { Bell, Plus, Search, X } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -31,7 +26,8 @@ import { CreateAnnouncementModal } from "./components/CreateAnnouncementModal";
 export default function AnnouncementsPage() {
   const { data: session } = useSession();
   const { toast } = useToast();
-  const { announcements, loading, error, refresh } = useAnnouncements();
+  const { announcements, isLoading, isFetching, error, refresh } =
+    useAnnouncements();
   const router = useRouter();
 
   const [searchQuery, setSearchQuery] = useState("");
@@ -41,12 +37,14 @@ export default function AnnouncementsPage() {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [favorites, setFavorites] = useState<string[]>([]);
 
+  const loading = isLoading || isFetching;
+
   // ✅ Debug log
   useEffect(() => {
     logger.log("📊 Announcements state:", {
       loading,
       count: announcements.length,
-      error,
+      error: error?.message || null,
       total: announcements.length,
     });
   }, [loading, announcements, error]);
@@ -94,6 +92,11 @@ export default function AnnouncementsPage() {
   const handleCreateSuccess = () => {
     refresh();
     toast.success("Đã cập nhật danh sách thông báo");
+  };
+
+  // ✅ Handle refresh với đúng type
+  const handleRefresh = () => {
+    refresh();
   };
 
   const formatDate = (dateString: string) => {
@@ -178,8 +181,10 @@ export default function AnnouncementsPage() {
               ))
             ) : error ? (
               <div className="col-span-full text-center py-12">
-                <p className="text-red-400">{error}</p>
-                <Button className="mt-4" onClick={refresh}>
+                <p className="text-red-400">
+                  {error.message || "Có lỗi xảy ra"}
+                </p>
+                <Button className="mt-4" onClick={handleRefresh}>
                   Thử lại
                 </Button>
               </div>
@@ -224,7 +229,7 @@ export default function AnnouncementsPage() {
               <Button
                 variant="outline"
                 className="border-slate-700 text-slate-400 hover:text-slate-200 hover:border-slate-600"
-                onClick={refresh}
+                onClick={handleRefresh}
               >
                 Tải thêm
               </Button>

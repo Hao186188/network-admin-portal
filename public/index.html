@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🚀 Mạng 3 Hub</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            background: #0f172a;
+            color: #e2e8f0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 900px;
+            width: 100%;
+            background: #1e293b;
+            border-radius: 20px;
+            padding: 40px;
+            border: 1px solid #334155;
+        }
+        h1 {
+            font-size: 32px;
+            font-weight: 700;
+            background: linear-gradient(135deg, #06b6d4, #3b82f6, #8b5cf6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .subtitle { color: #94a3b8; margin-bottom: 30px; }
+        .btn {
+            display: inline-block;
+            padding: 10px 24px;
+            background: linear-gradient(135deg, #06b6d4, #3b82f6);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+            margin: 4px;
+        }
+        .btn:hover { transform: scale(1.05); box-shadow: 0 8px 24px rgba(6,182,212,0.3); }
+        .btn-secondary { background: transparent; border: 1px solid #334155; }
+        .btn-secondary:hover { border-color: #06b6d4; background: rgba(6,182,212,0.1); }
+        .success {
+            background: #0f172a;
+            border: 1px solid #22c55e;
+            border-radius: 12px;
+            padding: 16px 20px;
+            margin: 20px 0;
+            color: #22c55e;
+        }
+        .footer {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid #334155;
+            text-align: center;
+            color: #64748b;
+            font-size: 13px;
+        }
+        .icon-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+            gap: 12px;
+            margin: 20px 0;
+        }
+        .icon-item {
+            background: #0f172a;
+            border-radius: 12px;
+            padding: 16px;
+            text-align: center;
+            border: 1px solid #334155;
+        }
+        .icon-preview {
+            width: 48px;
+            height: 48px;
+            margin: 0 auto 8px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            background: linear-gradient(135deg, #06b6d4, #3b82f6);
+        }
+        .icon-name { font-size: 11px; color: #94a3b8; }
+        .icon-size { font-size: 9px; color: #64748b; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 Mạng 3 Hub</h1>
+        <p class="subtitle">PWA đã sẵn sàng!</p>
+
+        <div class="success">
+            ✅ Manifest và icon đã được tạo thành công!
+        </div>
+
+        <div class="icon-grid">
+            <div class="icon-item">
+                <div class="icon-preview">📄</div>
+                <div class="icon-name">manifest.json</div>
+                <div class="icon-size">PWA Config</div>
+            </div>
+            <div class="icon-item">
+                <div class="icon-preview">🌐</div>
+                <div class="icon-name">favicon.ico</div>
+                <div class="icon-size">16-64x</div>
+            </div>
+            <div class="icon-item">
+                <div class="icon-preview">📱</div>
+                <div class="icon-name">icon-192.png</div>
+                <div class="icon-size">192x192</div>
+            </div>
+            <div class="icon-item">
+                <div class="icon-preview">📱</div>
+                <div class="icon-name">icon-512.png</div>
+                <div class="icon-size">512x512</div>
+            </div>
+            <div class="icon-item">
+                <div class="icon-preview" style="background: linear-gradient(135deg, #06b6d4, #8b5cf6);">🍎</div>
+                <div class="icon-name">apple-touch-icon.png</div>
+                <div class="icon-size">180x180</div>
+            </div>
+            <div class="icon-item">
+                <div class="icon-preview" style="background: linear-gradient(135deg, #8b5cf6, #ec4899);">🛡️</div>
+                <div class="icon-name">maskable-icon-192.png</div>
+                <div class="icon-size">192x192</div>
+            </div>
+            <div class="icon-item">
+                <div class="icon-preview" style="background: linear-gradient(135deg, #8b5cf6, #ec4899);">🛡️</div>
+                <div class="icon-name">maskable-icon-512.png</div>
+                <div class="icon-size">512x512</div>
+            </div>
+            <div class="icon-item">
+                <div class="icon-preview" style="background: linear-gradient(135deg, #f59e0b, #ef4444);">📸</div>
+                <div class="icon-name">og-image.png</div>
+                <div class="icon-size">1200x630</div>
+            </div>
+        </div>
+
+        <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+            <a href="/" class="btn">🏠 Về trang chủ</a>
+            <a href="/manifest.json" class="btn btn-secondary">📄 Manifest</a>
+            <a href="/robots.txt" class="btn btn-secondary">🤖 Robots</a>
+        </div>
+
+        <div class="footer">
+            <p>📱 Mạng 3 Hub - Quản trị Mạng 3 | Cao đẳng Nghề Kiên Giang</p>
+            <p style="font-size: 12px;">v3.2.1 • PWA Ready</p>
+        </div>
+    </div>
+</body>
+</html>

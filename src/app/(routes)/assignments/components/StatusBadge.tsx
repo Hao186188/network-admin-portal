@@ -1,5 +1,5 @@
 // src/app/(routes)/assignments/components/StatusBadge.tsx
-// Vai trò: Badge trạng thái với hiệu ứng pulse
+// THÊM PING SIGNAL INDICATOR
 
 "use client";
 
@@ -12,6 +12,7 @@ interface StatusBadgeProps {
   isOverdue?: boolean;
   className?: string;
   size?: "sm" | "md" | "lg";
+  showPing?: boolean;
 }
 
 const statusConfig = {
@@ -21,6 +22,7 @@ const statusConfig = {
     color: "text-yellow-500",
     bg: "bg-yellow-500/10",
     border: "border-yellow-500/20",
+    pingColor: "bg-yellow-500",
   },
   submitted: {
     label: "Đã nộp",
@@ -28,6 +30,7 @@ const statusConfig = {
     color: "text-green-500",
     bg: "bg-green-500/10",
     border: "border-green-500/20",
+    pingColor: "bg-green-500",
   },
   graded: {
     label: "Đã chấm",
@@ -35,6 +38,7 @@ const statusConfig = {
     color: "text-blue-500",
     bg: "bg-blue-500/10",
     border: "border-blue-500/20",
+    pingColor: "bg-blue-500",
   },
 };
 
@@ -49,9 +53,11 @@ export function StatusBadge({
   isOverdue = false,
   className = "",
   size = "md",
+  showPing = true,
 }: StatusBadgeProps) {
   const config = statusConfig[status];
   const Icon = config.icon;
+  const pingColor = isOverdue ? "bg-red-500" : config.pingColor;
 
   return (
     <motion.div
@@ -59,15 +65,40 @@ export function StatusBadge({
       animate={{ scale: 1, opacity: 1 }}
       transition={{ type: "spring", stiffness: 400, damping: 25 }}
       className={cn(
-        "flex items-center rounded-full border font-medium",
+        "flex items-center rounded-full border font-medium relative",
         config.bg,
         config.border,
         config.color,
         sizeConfig[size],
-        isOverdue && "animate-pulse border-red-500 bg-red-500/10 text-red-500",
+        isOverdue && "border-red-500 bg-red-500/10 text-red-500",
         className,
       )}
     >
+      {/* ✅ Ping Signal Indicator */}
+      {showPing && (status === "pending" || isOverdue) && (
+        <div className="relative flex items-center mr-1">
+          <span className={cn("w-1.5 h-1.5 rounded-full", pingColor)} />
+          <span
+            className={cn(
+              "absolute w-1.5 h-1.5 rounded-full animate-ping",
+              pingColor,
+            )}
+            style={{ animationDuration: "1.5s" }}
+          />
+          <span
+            className={cn(
+              "absolute w-3 h-3 rounded-full animate-ping",
+              pingColor,
+            )}
+            style={{
+              animationDuration: "1.5s",
+              animationDelay: "0.5s",
+              opacity: 0.3,
+            }}
+          />
+        </div>
+      )}
+
       <Icon className={cn("w-3 h-3", size === "lg" ? "w-4 h-4" : "w-3 h-3")} />
       <span>{isOverdue ? "Quá hạn" : config.label}</span>
     </motion.div>

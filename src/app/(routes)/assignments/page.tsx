@@ -1,5 +1,5 @@
 // src/app/(routes)/assignments/page.tsx
-// Vai trò: Trang quản lý bài tập - FIXED
+// HOÀN CHỈNH - ĐÃ DỌN DẸP CODE TRÙNG LẶP
 
 "use client";
 
@@ -9,18 +9,14 @@ import { Button } from "@/components/ui/button";
 import { useAssignments } from "@/hooks/use-assignments";
 import { useToast } from "@/hooks/use-toast";
 import { motion } from "framer-motion";
-import {
-  FileText,
-  Plus
-} from "lucide-react";
+import { FileText, Plus } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { AssignmentCard } from "./components/AssignmentCard";
 import { AssignmentFilters } from "./components/AssignmentFilters";
 import { AssignmentHero } from "./components/AssignmentHero";
 import { AssignmentSkeleton } from "./components/AssignmentSkeleton";
-import { AssignmentStats } from "./components/AssignmentStats";
 import { CreateAssignmentModal } from "./components/CreateAssignmentModal";
 import { SubmitAssignmentModal } from "./components/SubmitAssignmentModal";
 
@@ -42,30 +38,37 @@ export default function AssignmentsPage() {
   const isTeacher =
     session?.user?.role === "TEACHER" || session?.user?.role === "ADMIN";
 
-  const filteredAssignments = assignments.filter((item: any) => {
-    const matchesSearch =
-      item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.subject.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesStatus =
-      selectedStatus === "Tất cả" || item.status === selectedStatus;
-    const matchesType = selectedType === "Tất cả" || item.type === selectedType;
-    return matchesSearch && matchesStatus && matchesType;
-  });
+  // ✅ useMemo cho stats - TÍNH TOÁN 1 LẦN DUY NHẤT
+  const stats = useMemo(() => {
+    const total = assignments.length;
+    const pending = assignments.filter(
+      (a: any) => a.status === "pending",
+    ).length;
+    const submitted = assignments.filter(
+      (a: any) => a.status === "submitted",
+    ).length;
+    const graded = assignments.filter((a: any) => a.status === "graded").length;
+    const overdue = assignments.filter(
+      (a: any) => new Date(a.due_date) < new Date() && a.status === "pending",
+    ).length;
+    const completedPercentage = total > 0 ? (graded / total) * 100 : 0;
+    return { total, pending, submitted, graded, overdue, completedPercentage };
+  }, [assignments]);
 
-  // ✅ TÍNH TOÁN DỮ LIỆU THỰC TẾ
-  const totalAssignments = assignments.length;
-  const pendingCount = assignments.filter(
-    (a: any) => a.status === "pending",
-  ).length;
-  const submittedCount = assignments.filter(
-    (a: any) => a.status === "submitted",
-  ).length;
-  const gradedCount = assignments.filter(
-    (a: any) => a.status === "graded",
-  ).length;
-  const completedPercentage =
-    totalAssignments > 0 ? (gradedCount / totalAssignments) * 100 : 0;
+  // ✅ useMemo cho filteredAssignments
+  const filteredAssignments = useMemo(() => {
+    return assignments.filter((item: any) => {
+      const matchesSearch =
+        item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        item.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        item.subject.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesStatus =
+        selectedStatus === "Tất cả" || item.status === selectedStatus;
+      const matchesType =
+        selectedType === "Tất cả" || item.type === selectedType;
+      return matchesSearch && matchesStatus && matchesType;
+    });
+  }, [assignments, searchQuery, selectedStatus, selectedType]);
 
   const handleUpload = (assignment: any) => {
     if (assignment.status === "submitted" || assignment.status === "graded") {
@@ -94,30 +97,27 @@ export default function AssignmentsPage() {
     toast.success("Đã cập nhật danh sách bài tập");
   };
 
-  const handleSearch = (query: string) => {
-    setSearchQuery(query);
-  };
+  // ✅ Xóa bỏ các biến đơn lẻ, dùng stats object
 
   return (
     <>
       <Navbar />
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50 dark:from-slate-950 dark:via-slate-900 dark:to-slate-800 pt-16 md:pt-20">
         <div className="max-w-7xl mx-auto p-4 md:p-8 space-y-8">
-          {/* ✅ Hero Section - ĐÃ THÊM completedPercentage */}
+          {/* ✅ Hero Section - Dùng stats object */}
           <AssignmentHero
-            totalAssignments={totalAssignments}
-            pendingCount={pendingCount}
-            submittedCount={submittedCount}
-            gradedCount={gradedCount}
-            completedPercentage={completedPercentage}
-            onSearch={handleSearch}
+            totalAssignments={stats.total}
+            pendingCount={stats.pending}
+            submittedCount={stats.submitted}
+            gradedCount={stats.graded}
+            overdueCount={stats.overdue}
+            completedPercentage={stats.completedPercentage}
             onCreateClick={() => setIsCreateModalOpen(true)}
           />
 
-          {/* Stats */}
-          <AssignmentStats assignments={assignments} loading={loading} />
+          {/* ✅ XÓA BỎ AssignmentStats - Đã tích hợp vào Hero */}
 
-          {/* Filters */}
+          {/* Filters - Chỉ giữ 1 ô tìm kiếm */}
           <AssignmentFilters
             searchQuery={searchQuery}
             setSearchQuery={setSearchQuery}

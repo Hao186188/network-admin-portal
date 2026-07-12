@@ -56,6 +56,18 @@ export default function Head() {
         name="google-site-verification"
         content="fWJ9xSva7OMPit8NxNyIzmzItlhloIppaCNr6cIhoJQ"
       />
+
+      {/* Fonts - SỬA crossorigin thành crossOrigin */}
+      <link rel="preconnect" href="https://fonts.googleapis.com" />
+      <link
+        rel="preconnect"
+        href="https://fonts.gstatic.com"
+        crossOrigin="anonymous" // ✅ SỬA: crossOrigin thay vì crossorigin
+      />
+      <link
+        href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@400;500;600;700&display=swap"
+        rel="stylesheet"
+      />
     </>
   );
 }

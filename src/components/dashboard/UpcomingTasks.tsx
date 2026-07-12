@@ -1,5 +1,5 @@
 // src/components/dashboard/UpcomingTasks.tsx
-// Vai trò: Hiển thị bài tập sắp đến hạn - NÂNG CẤP
+// Upcoming Tasks - TỐI ƯU
 
 "use client";
 
@@ -7,13 +7,9 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useDashboard } from "@/hooks/use-dashboard";
+import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
-import {
-  AlertCircle,
-  ArrowUpRight,
-  CheckCircle,
-  Clock
-} from "lucide-react";
+import { AlertCircle, ArrowUpRight, CheckCircle, Clock } from "lucide-react";
 import Link from "next/link";
 
 const formatDate = (dateString: string) => {
@@ -28,6 +24,21 @@ const formatDate = (dateString: string) => {
   if (hours < 24) return `${hours} giờ trước`;
   if (days < 7) return `${days} ngày trước`;
   return date.toLocaleDateString("vi-VN");
+};
+
+const STATUS_CONFIG = {
+  urgent: {
+    label: "Gấp",
+    className: "bg-red-500/10 text-red-500 hover:bg-red-500/20",
+  },
+  pending: {
+    label: "Chờ",
+    className: "bg-yellow-500/10 text-yellow-500 hover:bg-yellow-500/20",
+  },
+  upcoming: {
+    label: "Sắp tới",
+    className: "bg-blue-500/10 text-blue-500 hover:bg-blue-500/20",
+  },
 };
 
 export function UpcomingTasks() {
@@ -76,62 +87,47 @@ export function UpcomingTasks() {
               </div>
             ))
           ) : upcomingTasks.length > 0 ? (
-            upcomingTasks.map((task, index) => (
-              <motion.div
-                key={task.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3, delay: 0.4 + index * 0.1 }}
-                className="flex items-center justify-between p-4 rounded-xl bg-muted/30 hover:bg-muted/50 transition-all cursor-pointer group border border-transparent hover:border-secondary/20 relative overflow-hidden"
-              >
-                <div className="flex items-center gap-3">
-                  <div
-                    className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                      task.status === "urgent"
-                        ? "bg-red-100 dark:bg-red-900/30 text-red-600"
-                        : task.status === "pending"
-                          ? "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-600"
-                          : "bg-blue-100 dark:bg-blue-900/30 text-blue-600"
-                    }`}
-                  >
-                    <AlertCircle className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <p className="font-medium text-foreground group-hover:text-secondary transition-colors">
-                      {task.title}
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      {task.due_date
-                        ? formatDate(task.due_date)
-                        : "Chưa có hạn"}
-                    </p>
-                  </div>
-                </div>
-                <Badge
-                  variant={
-                    task.status === "urgent"
-                      ? "destructive"
-                      : task.status === "pending"
-                        ? "secondary"
-                        : "secondary"
-                  }
-                  className={
-                    task.status === "urgent"
-                      ? "bg-red-500/10 text-red-500 hover:bg-red-500/20"
-                      : task.status === "pending"
-                        ? "bg-yellow-500/10 text-yellow-500 hover:bg-yellow-500/20"
-                        : "bg-blue-500/10 text-blue-500 hover:bg-blue-500/20"
-                  }
+            upcomingTasks.map((task, index) => {
+              const status = task.status as keyof typeof STATUS_CONFIG;
+              const config = STATUS_CONFIG[status] || STATUS_CONFIG.upcoming;
+
+              return (
+                <motion.div
+                  key={task.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.3, delay: 0.4 + index * 0.1 }}
+                  className="flex items-center justify-between p-4 rounded-xl bg-muted/30 hover:bg-muted/50 transition-all cursor-pointer group border border-transparent hover:border-secondary/20 relative overflow-hidden"
                 >
-                  {task.status === "urgent"
-                    ? "Gấp"
-                    : task.status === "pending"
-                      ? "Chờ"
-                      : "Sắp tới"}
-                </Badge>
-                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
-              </motion.div>
-            ))
+                  <div className="flex items-center gap-3">
+                    <div
+                      className={cn(
+                        "w-10 h-10 rounded-full flex items-center justify-center",
+                        status === "urgent"
+                          ? "bg-red-100 dark:bg-red-900/30 text-red-600"
+                          : status === "pending"
+                            ? "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-600"
+                            : "bg-blue-100 dark:bg-blue-900/30 text-blue-600",
+                      )}
+                    >
+                      <AlertCircle className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <p className="font-medium text-foreground group-hover:text-secondary transition-colors">
+                        {task.title}
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        {task.due_date
+                          ? formatDate(task.due_date)
+                          : "Chưa có hạn"}
+                      </p>
+                    </div>
+                  </div>
+                  <Badge className={config.className}>{config.label}</Badge>
+                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
+                </motion.div>
+              );
+            })
           ) : (
             <motion.div
               initial={{ opacity: 0 }}

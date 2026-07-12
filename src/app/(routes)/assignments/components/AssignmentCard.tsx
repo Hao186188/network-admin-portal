@@ -1,5 +1,5 @@
 // src/app/(routes)/assignments/components/AssignmentCard.tsx
-// Vai trò: Card bài tập với hiệu ứng công nghệ cao - HOÀN CHỈNH
+// HOÀN CHỈNH - TÍCH HỢP CYBERPUNK EFFECTS
 
 "use client";
 
@@ -9,14 +9,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { ProgressBarFluid } from "@/components/ui/progress-bar-fluid";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
-import {
-    Clock,
-    Eye,
-    File,
-    Star,
-    Upload,
-    Users
-} from "lucide-react";
+import { Clock, Eye, File, Star, Upload, Users } from "lucide-react";
 import { useState } from "react";
 import { StatusBadge } from "./StatusBadge";
 
@@ -80,7 +73,6 @@ export function AssignmentCard({
 }: AssignmentCardProps) {
   const [isHovered, setIsHovered] = useState(false);
 
-  // ✅ TÍNH TOÁN DỮ LIỆU THỰC TẾ
   const isOverdue =
     new Date(assignment.due_date) < new Date() &&
     assignment.status === "pending";
@@ -131,20 +123,41 @@ export function AssignmentCard({
       >
         <Card
           className={cn(
-            "group h-full cursor-pointer overflow-hidden border-border/50 transition-all duration-300",
+            "group h-full cursor-pointer overflow-hidden border-border/50 transition-all duration-300 relative",
             "hover:shadow-2xl hover:border-primary/30",
             isOverdue && "border-red-500/30 shadow-red-500/10",
             isSubmitted && "border-green-500/30 shadow-green-500/10",
+            isHovered && "shadow-[0_0_30px_rgba(6,182,212,0.15)]",
           )}
           onClick={() => onViewDetail(assignment)}
         >
-          {/* Neon border glow khi hover */}
+          {/* Cyber Border Glow Effect */}
           <div
             className={cn(
-              "absolute inset-0 rounded-2xl bg-gradient-to-r from-primary/0 via-primary/0 to-primary/0 transition-opacity duration-500 pointer-events-none",
+              "absolute inset-0 rounded-2xl pointer-events-none transition-all duration-500",
               isHovered && "opacity-100",
             )}
+            style={{
+              boxShadow: `inset 0 0 40px ${
+                isOverdue
+                  ? "rgba(239,68,68,0.15)"
+                  : isSubmitted
+                    ? "rgba(34,197,94,0.15)"
+                    : "rgba(6,182,212,0.15)"
+              }`,
+            }}
           />
+
+          {/* Scan Line Effect */}
+          {isHovered && (
+            <motion.div
+              className="absolute inset-0 pointer-events-none overflow-hidden"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 0.3 }}
+            >
+              <div className="absolute inset-0 bg-gradient-to-b from-transparent via-cyan-400/5 to-transparent animate-scan" />
+            </motion.div>
+          )}
 
           <CardContent className="p-6 flex flex-col h-full relative">
             {/* Header */}
@@ -175,6 +188,7 @@ export function AssignmentCard({
                 status={assignment.status}
                 isOverdue={isOverdue}
                 size="sm"
+                showPing={isOverdue}
               />
             </div>
 
@@ -297,15 +311,30 @@ export function AssignmentCard({
     >
       <Card
         className={cn(
-          "group cursor-pointer transition-all duration-300 hover:shadow-xl border-border/50 hover:border-primary/30",
+          "group cursor-pointer transition-all duration-300 hover:shadow-xl border-border/50 hover:border-primary/30 relative",
           isOverdue && "border-red-500/30",
           isSubmitted && "border-green-500/30",
         )}
         onClick={() => onViewDetail(assignment)}
       >
-        <CardContent className="p-6">
+        {/* Cyber Border Glow for List View */}
+        {isHovered && (
+          <div
+            className="absolute inset-0 rounded-2xl pointer-events-none transition-opacity duration-500"
+            style={{
+              boxShadow: `inset 0 0 30px ${
+                isOverdue
+                  ? "rgba(239,68,68,0.1)"
+                  : isSubmitted
+                    ? "rgba(34,197,94,0.1)"
+                    : "rgba(6,182,212,0.1)"
+              }`,
+            }}
+          />
+        )}
+
+        <CardContent className="p-6 relative">
           <div className="flex flex-col md:flex-row md:items-center gap-4">
-            {/* Left - Info */}
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 flex-wrap mb-2">
                 <Badge variant="outline" className="text-xs border-primary/30">
@@ -321,6 +350,7 @@ export function AssignmentCard({
                   status={assignment.status}
                   isOverdue={isOverdue}
                   size="sm"
+                  showPing={isOverdue}
                 />
                 {assignment.attachments > 0 && (
                   <Badge variant="outline" className="text-xs">
@@ -359,7 +389,6 @@ export function AssignmentCard({
               </div>
             </div>
 
-            {/* Right - Actions */}
             <div className="flex gap-2 flex-shrink-0">
               <Button
                 size="sm"

@@ -1,17 +1,19 @@
 // src/components/dashboard/UserActions.tsx
-// Vai trò: User actions menu - NÂNG CẤP
+// NÂNG CẤP: Tích hợp GlitchText
 
 "use client";
 
+import { GlitchText } from "@/components/animations/GlitchText";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
 import { HelpCircle, LogOut, Settings, Sparkles, User } from "lucide-react";
 import { signOut } from "next-auth/react";
 import Link from "next/link";
 import { useState } from "react";
 
-const userActions = [
+const USER_ACTIONS = [
   {
     icon: User,
     label: "Hồ sơ",
@@ -41,9 +43,7 @@ const userActions = [
 export function UserActions() {
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
 
-  const handleLogout = () => {
-    signOut({ callbackUrl: "/login" });
-  };
+  const handleLogout = () => signOut({ callbackUrl: "/login" });
 
   return (
     <motion.div
@@ -61,7 +61,7 @@ export function UserActions() {
         </CardHeader>
         <CardContent>
           <div className="flex flex-wrap gap-3">
-            {userActions.map((action, index) => {
+            {USER_ACTIONS.map((action, index) => {
               const Icon = action.icon;
               const isLogout = action.action === "logout";
 
@@ -83,11 +83,17 @@ export function UserActions() {
                       onClick={handleLogout}
                     >
                       <div
-                        className={`w-8 h-8 rounded-lg bg-gradient-to-r ${action.color} flex items-center justify-center`}
+                        className={cn(
+                          "w-8 h-8 rounded-lg bg-gradient-to-r",
+                          action.color,
+                          "flex items-center justify-center",
+                        )}
                       >
                         <Icon className="w-4 h-4 text-white" />
                       </div>
-                      {action.label}
+                      <GlitchText glitchIntensity={3}>
+                        {action.label}
+                      </GlitchText>
                       {hoveredIndex === index && (
                         <motion.div
                           layoutId="action-glow"
@@ -105,7 +111,11 @@ export function UserActions() {
                         className="gap-2 hover:bg-primary/10 hover:text-primary hover:border-primary/30 transition-all relative overflow-hidden group"
                       >
                         <div
-                          className={`w-8 h-8 rounded-lg bg-gradient-to-r ${action.color} flex items-center justify-center`}
+                          className={cn(
+                            "w-8 h-8 rounded-lg bg-gradient-to-r",
+                            action.color,
+                            "flex items-center justify-center",
+                          )}
                         >
                           <Icon className="w-4 h-4 text-white" />
                         </div>

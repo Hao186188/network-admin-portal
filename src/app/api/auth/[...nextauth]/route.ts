@@ -1,5 +1,5 @@
 // src/app/api/auth/[...nextauth]/route.ts
-// Vai trò: NextAuth API route
+// Vai trò: NextAuth API route - FIXED
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;

@@ -1,9 +1,10 @@
 // src/components/dashboard/QuickAccess.tsx
-// Vai trò: Grid truy cập nhanh - NÂNG CẤP
+// FIXED: Removed duplicate navigation items, improved mobile
 
 "use client";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
 import {
   Bell,
@@ -21,7 +22,8 @@ import {
 import Link from "next/link";
 import { useState } from "react";
 
-const quickAccessItems = [
+// ✅ FIXED: Loại bỏ trùng lặp URLs
+const QUICK_ACCESS_ITEMS = [
   {
     icon: FileText,
     label: "Tài liệu",
@@ -56,7 +58,7 @@ const quickAccessItems = [
     icon: BookOpen,
     label: "Môn học",
     color: "from-cyan-500 to-blue-500",
-    href: "/courses",
+    href: "/subjects",
   },
   {
     icon: Server,
@@ -78,9 +80,9 @@ const quickAccessItems = [
   },
   {
     icon: Download,
-    label: "Tải tài liệu",
+    label: "Tải về",
     color: "from-amber-500 to-yellow-500",
-    href: "/documents",
+    href: "/downloads",
   },
 ];
 
@@ -100,28 +102,33 @@ export function QuickAccess() {
             <Sparkles className="w-5 h-5 text-primary" />
             Truy cập nhanh
             <span className="text-xs text-muted-foreground font-normal ml-2">
-              • 10 tiện ích
+              • {QUICK_ACCESS_ITEMS.length} tiện ích
             </span>
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
-            {quickAccessItems.map((item, index) => (
+          {/* ✅ FIXED: Mobile responsive - 3 cột trên mobile, 5 trên desktop */}
+          <div className="grid grid-cols-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 md:gap-3">
+            {QUICK_ACCESS_ITEMS.map((item, index) => (
               <Link href={item.href} key={index}>
                 <motion.button
                   initial={{ opacity: 0, scale: 0.8 }}
                   animate={{ opacity: 1, scale: 1 }}
                   transition={{ duration: 0.3, delay: index * 0.03 }}
-                  whileHover={{ scale: 1.05, y: -4 }}
+                  whileHover={{ scale: 1.05, y: -2 }}
                   whileTap={{ scale: 0.95 }}
                   onMouseEnter={() => setHoveredIndex(index)}
                   onMouseLeave={() => setHoveredIndex(null)}
-                  className="flex flex-col items-center gap-2 p-4 rounded-xl bg-muted/30 hover:bg-muted/50 transition-all group w-full relative overflow-hidden border border-transparent hover:border-primary/20"
+                  className="flex flex-col items-center gap-1 md:gap-2 p-2 md:p-4 rounded-xl bg-muted/30 hover:bg-muted/50 transition-all group w-full relative overflow-hidden border border-transparent hover:border-primary/20"
                 >
                   <div
-                    className={`w-12 h-12 rounded-xl bg-gradient-to-r ${item.color} flex items-center justify-center shadow-lg group-hover:shadow-xl transition-all relative`}
+                    className={cn(
+                      "w-10 h-10 md:w-12 md:h-12 rounded-xl bg-gradient-to-r",
+                      item.color,
+                      "flex items-center justify-center shadow-lg group-hover:shadow-xl transition-all relative",
+                    )}
                   >
-                    <item.icon className="w-6 h-6 text-white" />
+                    <item.icon className="w-5 h-5 md:w-6 md:h-6 text-white" />
                     {hoveredIndex === index && (
                       <motion.div
                         layoutId="glow"
@@ -132,7 +139,7 @@ export function QuickAccess() {
                       />
                     )}
                   </div>
-                  <span className="text-sm font-medium text-foreground group-hover:text-primary transition-colors">
+                  <span className="text-[10px] md:text-sm font-medium text-foreground group-hover:text-primary transition-colors text-center leading-tight">
                     {item.label}
                   </span>
                 </motion.button>

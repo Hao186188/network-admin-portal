@@ -11,48 +11,70 @@ Lớp Quản trị Mạng 3
 Trường Cao đẳng Nghề Kiên Giang
 Trạng thái ✅ Đang phát triển
 Website https://qtm3k14.vercel.app
+Repository https://github.com/Hao186188/network-admin-portal
 🚀 CÔNG NGHỆ SỬ DỤNG
 Frontend
 Công nghệ Vai trò
 Next.js 16.2.10 Framework chính
 TypeScript Ngôn ngữ lập trình
-TailwindCSS UI styling
+TailwindCSS 3.4.1 UI styling
 Shadcn UI Component library
-Framer Motion Animation
-React Hook Form Form handling
-Zod Validation
-Zustand State management
-Lucide React Icons
+Framer Motion 12.42.2 Animation
+React Hook Form 7.80.0 Form handling
+Zod 4.4.3 Validation
+Zustand 5.0.14 State management
+Lucide React 1.23.0 Icons
 Backend & Database
 Công nghệ Vai trò
 NextAuth.js (v4) Authentication
 Supabase (PostgreSQL) Database
 Next.js API Routes Backend API
 Supabase Storage File storage
+TanStack React Query Data fetching & caching
 Deployment
 Công nghệ Vai trò
 Vercel Hosting
 Git, GitHub Version control
 Vercel Auto Deploy CI/CD
 📁 CẤU TRÚC THƯ MỤC CHI TIẾT
+text
 network-admin-portal/
-├── .next/ # Next.js build output (tự động tạo)
-├── .vercel/ # Vercel deployment config
-├── node_modules/ # Dependencies
+├── .env.local # Environment variables (local)
+├── .env.example # Environment variables template
+├── .gitignore
+├── components.json # Shadcn UI config
+├── next-sitemap.config.js # Sitemap config
+├── next.config.js # Next.js config - ĐÃ TỐI ƯU
+├── package.json # Dependencies - ĐÃ TỐI ƯU
+├── postcss.config.js
+├── tailwind.config.js
+├── tsconfig.json
+├── vercel.json # Vercel deployment config
+├── README.md # This file
+│
 ├── public/ # Static files
-│ ├── favicon.ico # Favicon
-│ ├── grid.svg # Grid pattern background
-│ └── manifest.json # PWA manifest
+│ ├── favicon.ico
+│ ├── grid.svg
+│ ├── manifest.json
+│ ├── robots.txt
+│ ├── apple-touch-icon.png
+│ ├── og-image.png
+│ ├── icon-192.png
+│ ├── icon-512.png
+│ ├── maskable-icon-192.png
+│ ├── maskable-icon-512.png
+│ └── googlefd0bb1779e2131d9.html
+│
 ├── src/ # Source code
 │ ├── app/ # Next.js App Router
-│ │ ├── (auth)/ # Authentication pages (layout riêng)
+│ │ ├── (auth)/ # Authentication pages
 │ │ │ ├── forgot-password/
-│ │ │ │ └── page.tsx # Quên mật khẩu
+│ │ │ │ └── page.tsx
 │ │ │ ├── login/
-│ │ │ │ └── page.tsx # Đăng nhập
-│ │ │ ├── register/ # Đăng ký - ĐÃ NÂNG CẤP
-│ │ │ │ ├── page.tsx # Trang chính
-│ │ │ │ ├── components/ # Components của register
+│ │ │ │ └── page.tsx
+│ │ │ ├── register/
+│ │ │ │ ├── page.tsx
+│ │ │ │ ├── components/
 │ │ │ │ │ ├── RegisterForm.tsx
 │ │ │ │ │ ├── RegisterHero.tsx
 │ │ │ │ │ ├── RegisterInput.tsx
@@ -60,20 +82,22 @@ network-admin-portal/
 │ │ │ │ └── hooks/
 │ │ │ │ └── useRegister.ts
 │ │ │ └── reset-password/
-│ │ │ └── page.tsx # Đặt lại mật khẩu
-│ │ ├── (dashboard)/ # Dashboard pages (có sidebar)
+│ │ │ └── page.tsx
+│ │ │
+│ │ ├── (dashboard)/ # Dashboard pages
 │ │ │ ├── dashboard/
-│ │ │ │ └── page.tsx # Trang Dashboard
-│ │ │ └── layout.tsx # Dashboard layout
+│ │ │ │ └── page.tsx
+│ │ │ └── layout.tsx
+│ │ │
 │ │ ├── (routes)/ # Public routes
 │ │ │ ├── about/
-│ │ │ │ └── page.tsx # Giới thiệu
+│ │ │ │ └── page.tsx
 │ │ │ ├── admin/
-│ │ │ │ └── page.tsx # Quản trị hệ thống
-│ │ │ ├── announcements/ # Thông báo - ĐÃ NÂNG CẤP
-│ │ │ │ ├── page.tsx # Trang danh sách
+│ │ │ │ └── page.tsx
+│ │ │ ├── announcements/ # Thông báo - ĐÃ HOÀN CHỈNH
+│ │ │ │ ├── page.tsx
 │ │ │ │ ├── [id]/
-│ │ │ │ │ └── page.tsx # Trang chi tiết
+│ │ │ │ │ └── page.tsx
 │ │ │ │ └── components/
 │ │ │ │ ├── AnnouncementCard.tsx
 │ │ │ │ ├── AnnouncementFilters.tsx
@@ -82,10 +106,10 @@ network-admin-portal/
 │ │ │ │ ├── AnnouncementStats.tsx
 │ │ │ │ ├── AnnouncementTicker.tsx
 │ │ │ │ └── CreateAnnouncementModal.tsx
-│ │ │ ├── assignments/ # Bài tập - ĐÃ NÂNG CẤP
-│ │ │ │ ├── page.tsx # Trang danh sách
+│ │ │ ├── assignments/ # Bài tập - ĐÃ HOÀN CHỈNH
+│ │ │ │ ├── page.tsx
 │ │ │ │ ├── [id]/
-│ │ │ │ │ └── page.tsx # Trang chi tiết
+│ │ │ │ │ └── page.tsx
 │ │ │ │ └── components/
 │ │ │ │ ├── AssignmentCard.tsx
 │ │ │ │ ├── AssignmentFilters.tsx
@@ -96,27 +120,44 @@ network-admin-portal/
 │ │ │ │ ├── StatusBadge.tsx
 │ │ │ │ └── SubmitAssignmentModal.tsx
 │ │ │ ├── chat/
-│ │ │ │ └── page.tsx # Chat realtime
+│ │ │ │ └── page.tsx
 │ │ │ ├── cisco-lab/
-│ │ │ │ └── page.tsx # Cisco Lab
+│ │ │ │ └── page.tsx
 │ │ │ ├── contact/
-│ │ │ │ └── page.tsx # Liên hệ
+│ │ │ │ └── page.tsx
 │ │ │ ├── courses/
-│ │ │ │ └── page.tsx # Môn học
+│ │ │ │ └── page.tsx
 │ │ │ ├── docker/
-│ │ │ │ └── page.tsx # Docker
-│ │ │ ├── documents/
-│ │ │ │ └── page.tsx # Tài liệu
-│ │ │ ├── exams/
-│ │ │ │ └── page.tsx # Lịch thi
-│ │ │ ├── faq/
-│ │ │ │ └── page.tsx # FAQ
-│ │ │ ├── forum/ # Diễn đàn - ĐÃ NÂNG CẤP
-│ │ │ │ ├── page.tsx # Trang danh sách
+│ │ │ │ └── page.tsx
+│ │ │ ├── documents/ # Tài liệu - ĐÃ HOÀN CHỈNH
+│ │ │ │ ├── page.tsx
 │ │ │ │ ├── [id]/
-│ │ │ │ │ └── page.tsx # Trang chi tiết
+│ │ │ │ │ └── page.tsx
+│ │ │ │ ├── components/
+│ │ │ │ │ ├── DocumentsCard.tsx
+│ │ │ │ │ ├── DocumentsFilters.tsx
+│ │ │ │ │ ├── DocumentsGrid.tsx
+│ │ │ │ │ ├── DocumentsHero.tsx
+│ │ │ │ │ ├── DocumentsPagination.tsx
+│ │ │ │ │ ├── DocumentsSearch.tsx
+│ │ │ │ │ ├── DocumentsStats.tsx
+│ │ │ │ │ ├── EditDocumentModal.tsx
+│ │ │ │ │ └── UploadDocumentModal.tsx
+│ │ │ │ ├── hooks/
+│ │ │ │ │ ├── useDocumentInteractions.ts
+│ │ │ │ │ └── useDocuments.ts
+│ │ │ │ └── types/
+│ │ │ │ └── index.ts
+│ │ │ ├── exams/
+│ │ │ │ └── page.tsx
+│ │ │ ├── faq/
+│ │ │ │ └── page.tsx
+│ │ │ ├── forum/ # Diễn đàn - ĐÃ HOÀN CHỈNH
+│ │ │ │ ├── page.tsx
+│ │ │ │ ├── [id]/
+│ │ │ │ │ └── page.tsx
 │ │ │ │ ├── create/
-│ │ │ │ │ └── page.tsx # Tạo bài viết
+│ │ │ │ │ └── page.tsx
 │ │ │ │ └── components/
 │ │ │ │ ├── ForumImageGallery.tsx
 │ │ │ │ ├── ForumImageViewer.tsx
@@ -125,103 +166,106 @@ network-admin-portal/
 │ │ │ │ ├── ForumPostSkeleton.tsx
 │ │ │ │ └── UserProfileModal.tsx
 │ │ │ ├── iso/
-│ │ │ │ └── page.tsx # Kho ISO
+│ │ │ │ └── page.tsx
 │ │ │ ├── lectures/
-│ │ │ │ └── page.tsx # Bài giảng
+│ │ │ │ └── page.tsx
 │ │ │ ├── linux/
-│ │ │ │ └── page.tsx # Linux
+│ │ │ │ └── page.tsx
 │ │ │ ├── network-automation/
-│ │ │ │ └── page.tsx # Network Automation
+│ │ │ │ └── page.tsx
 │ │ │ ├── packet-tracer/
-│ │ │ │ └── page.tsx # Packet Tracer
+│ │ │ │ └── page.tsx
 │ │ │ ├── profile/
-│ │ │ │ └── page.tsx # Hồ sơ cá nhân
+│ │ │ │ └── page.tsx
 │ │ │ ├── projects/
-│ │ │ │ └── page.tsx # Dự án
+│ │ │ │ └── page.tsx
 │ │ │ ├── python/
-│ │ │ │ └── page.tsx # Python
+│ │ │ │ └── page.tsx
 │ │ │ ├── schedule/
-│ │ │ │ └── page.tsx # Lịch học
+│ │ │ │ └── page.tsx
 │ │ │ ├── software/
-│ │ │ │ └── page.tsx # Kho phần mềm
+│ │ │ │ └── page.tsx
 │ │ │ ├── source-code/
-│ │ │ │ └── page.tsx # Source code
+│ │ │ │ └── page.tsx
 │ │ │ ├── submissions/
-│ │ │ │ └── page.tsx # Bài nộp
+│ │ │ │ └── page.tsx
 │ │ │ ├── terms/
-│ │ │ │ └── page.tsx # Điều khoản
+│ │ │ │ └── page.tsx
 │ │ │ └── vm/
-│ │ │ └── page.tsx # Virtual Machines
+│ │ │ └── page.tsx
+│ │ │
 │ │ ├── api/ # API Routes
 │ │ │ ├── auth/
 │ │ │ │ ├── [...nextauth]/
-│ │ │ │ │ └── route.ts # NextAuth configuration
+│ │ │ │ │ └── route.ts
 │ │ │ │ ├── forgot-password/
-│ │ │ │ │ └── route.ts # Quên mật khẩu API
+│ │ │ │ │ └── route.ts
 │ │ │ │ ├── register/
-│ │ │ │ │ └── route.ts # Đăng ký API
+│ │ │ │ │ └── route.ts
 │ │ │ │ └── session/
-│ │ │ │ └── route.ts # Session API
-│ │ │ └── test-supabase/
-│ │ │ └── route.ts # Test Supabase connection
-│ │ ├── favicon.ico # Favicon
-│ │ ├── globals.css # Global styles
-│ │ ├── layout.tsx # Root layout
-│ │ ├── page.tsx # Trang chủ
-│ │ └── providers.tsx # Providers (Session, Theme)
+│ │ │ │ └── route.ts
+│ │ │ ├── test-supabase/
+│ │ │ │ └── route.ts
+│ │ │ └── verify/
+│ │ │ └── route.ts
+│ │ │
+│ │ ├── favicon.ico
+│ │ ├── globals.css
+│ │ ├── layout.tsx # Root layout - ĐÃ TỐI ƯU SEO
+│ │ ├── page.tsx # Trang chủ - ĐÃ TỐI ƯU SEO
+│ │ ├── providers.tsx # Providers - ĐÃ TỐI ƯU
+│ │ ├── robots.ts # Robots.txt generation
+│ │ ├── sitemap.ts # Sitemap generation
+│ │ ├── manifest.ts # PWA manifest
+│ │ ├── head.tsx # Head component
+│ │ └── og-image/
+│ │ └── route.tsx # Open Graph image
+│ │
 │ ├── components/ # React components
-│ │ ├── animations/
-│ │ │ └── fade-in.tsx # Fade animation
+│ │ ├── animations/ # Animation components
+│ │ │ ├── BeaconPulse.tsx
+│ │ │ ├── BorderBeam.tsx
+│ │ │ ├── DataPacketFlow.tsx
+│ │ │ ├── GlitchText.tsx
+│ │ │ ├── MagneticButton.tsx
+│ │ │ ├── NetworkPulse.tsx
+│ │ │ ├── NetworkTicker.tsx
+│ │ │ ├── ScanLine.tsx
+│ │ │ ├── TerminalTyping.tsx
+│ │ │ └── index.ts
 │ │ ├── cards/
-│ │ │ └── feature-card.tsx # Feature card
-│ │ ├── chat/ # Chat components
+│ │ │ └── feature-card.tsx
+│ │ ├── chat/
 │ │ │ ├── ChatInput.tsx
 │ │ │ ├── ChatMessages.tsx
 │ │ │ └── ChatSidebar.tsx
-│ │ ├── common/ # Common components
+│ │ ├── common/
 │ │ │ ├── animated-counter.tsx
 │ │ │ ├── command-palette.tsx
 │ │ │ ├── ExportButton.tsx
-│ │ │ ├── file-upload.tsx # Upload file
+│ │ │ ├── file-upload.tsx
 │ │ │ ├── grid-pattern.tsx
 │ │ │ ├── notifications.tsx
 │ │ │ ├── search.tsx
 │ │ │ ├── session-checker.tsx
 │ │ │ └── session-debugger.tsx
-│ │ ├── dashboard/ # Dashboard components
+│ │ ├── dashboard/
 │ │ │ ├── DashboardHero.tsx
 │ │ │ ├── DropdownMenu.tsx
 │ │ │ ├── QuickAccess.tsx
 │ │ │ ├── RecentAnnouncements.tsx
 │ │ │ ├── StatsCard.tsx
 │ │ │ ├── UpcomingTasks.tsx
-│ │ │ └── UserActions.tsx
+│ │ │ ├── UserActions.tsx
+│ │ │ └── index.ts
 │ │ ├── features/
 │ │ │ └── stats.tsx
-│ │ ├── forum/ # Forum components
-│ │ │ ├── CreatePostHero.tsx
-│ │ │ ├── ForumFilters.tsx
-│ │ │ ├── ForumImageGallery.tsx
-│ │ │ ├── ForumImageViewer.tsx
-│ │ │ ├── ForumPageHero.tsx
-│ │ │ ├── ForumPostCard.tsx
-│ │ │ ├── ForumPostMenu.tsx
-│ │ │ ├── ForumPostSkeleton.tsx
-│ │ │ ├── ForumSkeleton.tsx
-│ │ │ ├── OnboardingGuide.tsx
-│ │ │ ├── PostCard.tsx
-│ │ │ ├── PostCardEnhanced.tsx
-│ │ │ ├── PostDetailContent.tsx
-│ │ │ ├── PostDetailHeader.tsx
-│ │ │ ├── PostDetailHero.tsx
-│ │ │ ├── PostDetailReplies.tsx
-│ │ │ └── UserProfileModal.tsx
 │ │ ├── forms/
 │ │ │ └── input-with-icon.tsx
-│ │ ├── layout/ # Layout components
+│ │ ├── layout/
 │ │ │ ├── footer.tsx
 │ │ │ ├── navbar-client.tsx
-│ │ │ └── navbar.tsx # Navbar - TỐI ƯU
+│ │ │ └── navbar.tsx
 │ │ ├── providers/
 │ │ │ └── theme-provider.tsx
 │ │ ├── sections/
@@ -232,6 +276,7 @@ network-admin-portal/
 │ │ ├── badge.tsx
 │ │ ├── button.tsx
 │ │ ├── card.tsx
+│ │ ├── confirm-dialog.tsx
 │ │ ├── dialog.tsx
 │ │ ├── dropdown-menu.tsx
 │ │ ├── input.tsx
@@ -239,12 +284,15 @@ network-admin-portal/
 │ │ ├── scroll-area.tsx
 │ │ ├── scroll-progress.tsx
 │ │ ├── skeleton.tsx
+│ │ ├── theme-toggle.tsx
 │ │ └── toast.tsx
+│ │
 │ ├── hooks/ # Custom hooks
-│ │ ├── use-announcements.ts # Announcements - ĐÃ HOÀN CHỈNH
-│ │ ├── use-assignments.ts # Assignments - ĐÃ HOÀN CHỈNH
-│ │ ├── use-chat.ts # Chat - ĐÃ HOÀN CHỈNH
+│ │ ├── use-announcements.ts # Quản lý thông báo - ĐÃ HOÀN CHỈNH
+│ │ ├── use-assignments.ts
+│ │ ├── use-chat.ts
 │ │ ├── use-click-away.ts
+│ │ ├── use-dashboard.ts
 │ │ ├── use-forum-infinity.ts
 │ │ ├── use-forum.ts
 │ │ ├── use-like-status.ts
@@ -254,35 +302,35 @@ network-admin-portal/
 │ │ ├── use-stats.ts
 │ │ ├── use-storage.ts
 │ │ └── use-toast.ts
+│ │
 │ ├── lib/ # Utilities & configs
 │ │ ├── db/
-│ │ │ ├── json-db.ts # JSON database (backup)
-│ │ │ └── supabase-client.ts # Supabase client
-│ │ ├── auth.ts # NextAuth config
-│ │ ├── logger.ts # Logging utility
-│ │ ├── realtime.ts # Realtime utility
-│ │ └── utils.ts # Utility functions
+│ │ │ ├── json-db.ts
+│ │ │ └── supabase-client.ts
+│ │ ├── auth.ts
+│ │ ├── event-bus.ts
+│ │ ├── logger.ts
+│ │ ├── realtime.ts
+│ │ └── utils.ts
+│ │
+│ ├── store/ # Zustand stores
+│ │ └── documents-store.ts
+│ │
 │ ├── types/ # Type definitions
-│ │ ├── index.ts # Types - ĐÃ HOÀN CHỈNH
-│ │ └── next-auth.d.ts # NextAuth types
-│ └── proxy.ts # Middleware - ĐÃ SỬA
+│ │ ├── index.ts
+│ │ └── next-auth.d.ts
+│ │
+│ └── proxy.ts # Middleware - ĐÃ HOÀN CHỈNH
+│
 ├── data/ # JSON data (backup)
-│ └── db.json # Database backup
+│ └── db.json
+│
 ├── scripts/ # Utility scripts
 │ ├── check-user.js
 │ ├── create-admin.js
 │ └── test-password.js
-├── .env.local # Environment variables (local)
-├── .env.example # Environment variables template
-├── .gitignore
-├── components.json # Shadcn UI config
-├── next.config.js # Next.js config - ĐÃ TỐI ƯU
-├── package.json # Dependencies - ĐÃ TỐI ƯU
-├── postcss.config.js
-├── tailwind.config.js
-├── tsconfig.json
-└── README.md # This file
-
+│
+└── .next/ # Build folder (generated)
 🎨 TÍNH NĂNG CHÍNH
 🔐 Hệ thống xác thực
 ✅ Đăng nhập với Email/Password
@@ -295,12 +343,8 @@ network-admin-portal/
 
 ✅ Tự động cấp quyền Admin khi đăng ký số điện thoại 0366017767
 
-✅ Floating label với laser line effect
-
-✅ Password strength indicator
-
 📚 Quản lý học tập
-✅ Kho tài liệu với tìm kiếm và lọc
+✅ Kho tài liệu với tìm kiếm và lọc (Documents)
 
 ✅ Bài giảng video và slide
 
@@ -310,11 +354,9 @@ network-admin-portal/
 
 ✅ Môn học và tiến độ
 
-✅ Thông báo và tin tức
+✅ Thông báo và tin tức (Announcements)
 
 ✅ Dashboard với dữ liệu thực tế
-
-✅ Animated Counter cho stats
 
 💬 Cộng đồng
 ✅ Diễn đàn thảo luận với infinity scroll
@@ -323,13 +365,7 @@ network-admin-portal/
 
 ✅ Chia sẻ dự án
 
-✅ Chia sẻ source code
-
 ✅ Chat realtime với bạn bè
-
-✅ Kết bạn và gửi tin nhắn
-
-✅ Xem ảnh fullscreen với zoom
 
 🛠️ Công cụ
 ✅ Kho phần mềm
@@ -342,16 +378,6 @@ network-admin-portal/
 
 ✅ Cisco Lab files
 
-✅ Tài nguyên Linux
-
-✅ Windows Server
-
-✅ Docker
-
-✅ Python
-
-✅ Network Automation
-
 🎨 Giao diện
 ✅ Dark/Light Mode
 
@@ -361,190 +387,114 @@ network-admin-portal/
 
 ✅ Smooth animations (Framer Motion)
 
-✅ Command Palette (⌘K)
-
-✅ Search với phím tắt ⌘K
-
-✅ Notifications real-time
-
-✅ Animated stats counters
-
-✅ Onboarding guide
-
 ✅ Cyberpunk / Futuristic style
 
-👑 Quản trị (Admin)
-✅ Quản lý tài khoản người dùng
+🚧 VẤN ĐỀ ĐANG GẶP PHẢI
 
-✅ Xem danh sách tài khoản đang hoạt động
+1. Rating không cập nhật ra bên ngoài ⚠️
+   Mô tả: Khi đánh giá trong trang chi tiết, rating được cập nhật trong database nhưng không hiển thị ở trang danh sách
 
-✅ Phân quyền tài khoản (Admin/Teacher/Student)
+Nguyên nhân: Không refresh cache sau khi mutation thành công
 
-✅ Chỉnh sửa thông tin tài khoản
+Trạng thái: Đang khắc phục
 
-✅ Xóa tài khoản
+Giải pháp đề xuất: Sử dụng React Query invalidation
 
-✅ Thống kê người dùng
+2. Like và Comments không cập nhật real-time ⚠️
+   Mô tả: Khi like hoặc comment, số lượng không tự động cập nhật
 
-👥 PHÂN QUYỀN NGƯỜI DÙNG
-Vai trò Quyền hạn
-ADMIN Toàn quyền truy cập, quản trị hệ thống, quản lý người dùng
-TEACHER Tạo bài tập, xem bài nộp, chấm điểm, quản lý môn học
-STUDENT Xem tài liệu, nộp bài tập, tham gia diễn đàn
-🗄️ CẤU TRÚC DATABASE (Supabase)
-Bảng USERS
-sql
+Nguyên nhân: Không có real-time subscription
 
-- id (UUID, PK)
-- username (TEXT, UNIQUE)
-- name (TEXT)
-- email (TEXT, UNIQUE)
-- password (TEXT)
-- role (TEXT) - ADMIN, TEACHER, STUDENT
-- phone (TEXT)
-- bio (TEXT)
-- student_id (TEXT)
-- image (TEXT)
-- specialties (TEXT[])
-- reset_token (TEXT) -- Forgot password
-- reset_token_expiry (TIMESTAMPTZ)
-- created_at (TIMESTAMPTZ)
-- updated_at (TIMESTAMPTZ)
-  Bảng ANNOUNCEMENTS
-  sql
-- id (UUID, PK)
-- title (TEXT)
-- content (TEXT)
-- priority (TEXT) - high, medium, low
-- pinned (BOOLEAN)
-- category (TEXT)
-- author (TEXT)
-- author_id (UUID, FK)
-- views (INTEGER)
-- comments (INTEGER)
-- likes (INTEGER)
-- created_at (TIMESTAMPTZ)
-- updated_at (TIMESTAMPTZ)
-  Bảng ANNOUNCEMENT_LIKES
-  sql
-- id (UUID, PK)
-- announcement_id (UUID, FK)
-- user_id (UUID, FK)
-- created_at (TIMESTAMPTZ)
-- UNIQUE(announcement_id, user_id)
-  Bảng ANNOUNCEMENT_COMMENTS
-  sql
-- id (UUID, PK)
-- announcement_id (UUID, FK)
-- user_id (UUID, FK)
-- user_name (TEXT)
-- user_avatar (TEXT)
-- content (TEXT)
-- created_at (TIMESTAMPTZ)
-- updated_at (TIMESTAMPTZ)
-  Bảng ASSIGNMENTS
-  sql
-- id (UUID, PK)
-- title (TEXT)
-- description (TEXT)
-- subject (TEXT)
-- type (TEXT)
-- due_date (TIMESTAMPTZ)
-- status (TEXT) - pending, submitted, graded
-- submissions (INTEGER)
-- total_students (INTEGER)
-- points (INTEGER)
-- attachments (INTEGER)
-- attachment_urls (TEXT[])
-- user_id (UUID, FK)
-- created_by (UUID, FK)
-- created_at (TIMESTAMPTZ)
-- updated_at (TIMESTAMPTZ)
-  Bảng SUBMISSIONS
-  sql
-- id (UUID, PK)
-- assignment_id (UUID, FK)
-- user_id (UUID, FK)
-- file_url (TEXT)
-- file_name (TEXT)
-- file_size (INTEGER)
-- status (TEXT) - PENDING, APPROVED, REJECTED
-- grade (FLOAT)
-- feedback (TEXT)
-- created_at (TIMESTAMPTZ)
-- updated_at (TIMESTAMPTZ)
-  Bảng FORUM_POSTS
-  sql
-- id (UUID, PK)
-- title (TEXT)
-- content (TEXT)
-- category (TEXT)
-- author_id (UUID, FK)
-- author_name (TEXT)
-- author_avatar (TEXT)
-- is_pinned (BOOLEAN)
-- is_locked (BOOLEAN)
-- views (INTEGER)
-- likes (INTEGER)
-- replies (INTEGER)
-- tags (TEXT[])
-- created_at (TIMESTAMPTZ)
-- updated_at (TIMESTAMPTZ)
-  Bảng FORUM_ATTACHMENTS
-  sql
-- id (UUID, PK)
-- post_id (UUID, FK)
-- user_id (UUID, FK)
-- file_url (TEXT)
-- file_name (TEXT)
-- file_type (TEXT)
-- file_size (INTEGER)
-- created_at (TIMESTAMPTZ)
-  Bảng FORUM_REPLIES
-  sql
-- id (UUID, PK)
-- post_id (UUID, FK)
-- user_id (UUID, FK)
-- user_name (TEXT)
-- user_avatar (TEXT)
-- content (TEXT)
-- likes (INTEGER)
-- created_at (TIMESTAMPTZ)
-- updated_at (TIMESTAMPTZ)
-  Bảng FRIENDS
-  sql
-- id (UUID, PK)
-- user_id (UUID, FK)
-- friend_id (UUID, FK)
-- status (TEXT) - pending, accepted, rejected, blocked
-- created_at (TIMESTAMPTZ)
-- updated_at (TIMESTAMPTZ)
-  Bảng MESSAGES
-  sql
-- id (UUID, PK)
-- sender_id (UUID, FK)
-- receiver_id (UUID, FK)
-- content (TEXT)
-- file_url (TEXT)
-- file_name (TEXT)
-- file_type (TEXT)
-- file_size (INTEGER)
-- read (BOOLEAN)
-- created_at (TIMESTAMPTZ)
-- updated_at (TIMESTAMPTZ)
-  Bảng USER_STATUS
-  sql
-- user_id (UUID, PK, FK)
-- is_online (BOOLEAN)
-- last_seen (TIMESTAMPTZ)
-- updated_at (TIMESTAMPTZ)
-  🔧 CÀI ĐẶT & CHẠY DỰ ÁN
-  Yêu cầu hệ thống
-  Node.js 18+
+Trạng thái: Đang khắc phục
+
+Giải pháp đề xuất: Thêm Supabase Realtime subscriptions
+
+3. View tăng nhiều lần khi refresh ⚠️
+   Mô tả: Mỗi lần refresh trang, view lại tăng thêm 1
+
+Nguyên nhân: useEffect gọi incrementView nhiều lần
+
+Trạng thái: Đã khắc phục một phần
+
+Giải pháp đề xuất: Dùng ref để kiểm soát
+
+4. Dark Mode không hoạt động ⚠️
+   Mô tả: Chuyển dark/light mode không có hiệu ứng
+
+Nguyên nhân: Thiếu next-themes hoặc cấu hình sai
+
+Trạng thái: Đang khắc phục
+
+Giải pháp đề xuất: Cài đặt và cấu hình next-themes
+
+5. Skeleton Comments hiển thị mãi không biến mất ⚠️
+   Mô tả: Loading skeleton của comments không biến mất sau khi load
+
+Nguyên nhân: State loading không được set false
+
+Trạng thái: Đã khắc phục một phần
+
+Giải pháp đề xuất: Kiểm tra và set loading false đúng cách
+
+6. Lỗi RLS Policy trên Supabase ⚠️
+   Mô tả: new row violates row-level security policy
+
+Nguyên nhân: Policies trên bảng chưa đúng
+
+Trạng thái: Đã khắc phục một phần
+
+Giải pháp đề xuất: Cập nhật RLS policies
+
+7. Upload file lỗi Storage ⚠️
+   Mô tả: Không thể upload file lên Supabase Storage
+
+Nguyên nhân: Bucket chưa được tạo hoặc policies sai
+
+Trạng thái: Đã khắc phục
+
+Giải pháp đề xuất: Tạo bucket và policies đúng
+
+📊 BẢNG TỔNG HỢP COMPONENT CHÍNH
+✅ Documents (Tài liệu)
+Component File Trạng thái
+DocumentsHero components/DocumentsHero.tsx ✅ Hoàn chỉnh
+DocumentsGrid components/DocumentsGrid.tsx ✅ Hoàn chỉnh
+DocumentsCard components/DocumentsCard.tsx ✅ Hoàn chỉnh
+DocumentsFilters components/DocumentsFilters.tsx ✅ Hoàn chỉnh
+DocumentsStats components/DocumentsStats.tsx ✅ Hoàn chỉnh
+DocumentsSearch components/DocumentsSearch.tsx ✅ Hoàn chỉnh
+DocumentsPagination components/DocumentsPagination.tsx ✅ Hoàn chỉnh
+UploadDocumentModal components/UploadDocumentModal.tsx ✅ Hoàn chỉnh
+EditDocumentModal components/EditDocumentModal.tsx ✅ Hoàn chỉnh
+useDocuments hooks/useDocuments.ts ✅ Hoàn chỉnh
+✅ Announcements (Thông báo)
+Component File Trạng thái
+AnnouncementHero components/AnnouncementHero.tsx ✅ Hoàn chỉnh
+AnnouncementCard components/AnnouncementCard.tsx ✅ Hoàn chỉnh
+AnnouncementFilters components/AnnouncementFilters.tsx ✅ Hoàn chỉnh
+AnnouncementStats components/AnnouncementStats.tsx ✅ Hoàn chỉnh
+AnnouncementTicker components/AnnouncementTicker.tsx ✅ Hoàn chỉnh
+AnnouncementSkeleton components/AnnouncementSkeleton.tsx ✅ Hoàn chỉnh
+CreateAnnouncementModal components/CreateAnnouncementModal.tsx ✅ Hoàn chỉnh
+useAnnouncements hooks/use-announcements.ts ✅ Hoàn chỉnh
+✅ Assignments (Bài tập)
+Component File Trạng thái
+AssignmentHero components/AssignmentHero.tsx ✅ Hoàn chỉnh
+AssignmentCard components/AssignmentCard.tsx ✅ Hoàn chỉnh
+AssignmentFilters components/AssignmentFilters.tsx ✅ Hoàn chỉnh
+AssignmentStats components/AssignmentStats.tsx ✅ Hoàn chỉnh
+AssignmentSkeleton components/AssignmentSkeleton.tsx ✅ Hoàn chỉnh
+StatusBadge components/StatusBadge.tsx ✅ Hoàn chỉnh
+CreateAssignmentModal components/CreateAssignmentModal.tsx ✅ Hoàn chỉnh
+SubmitAssignmentModal components/SubmitAssignmentModal.tsx ✅ Hoàn chỉnh
+useAssignments hooks/use-assignments.ts ✅ Hoàn chỉnh
+🛠️ HƯỚNG DẪN CÀI ĐẶT
+Yêu cầu hệ thống
+Node.js 18+
 
 npm hoặc yarn
 
-Supabase account (hoặc PostgreSQL)
+Supabase account
 
 Cài đặt
 bash
@@ -562,12 +512,13 @@ npm install
 
 cp .env.example .env.local
 
-# 4. Cập nhật biến môi trường trong .env.local
+# 4. Cập nhật biến môi trường
 
 # Supabase
 
 NEXT_PUBLIC_SUPABASE_URL="your-supabase-url"
 NEXT_PUBLIC_SUPABASE_ANON_KEY="your-anon-key"
+SUPABASE_SERVICE_ROLE_KEY="your-service-role-key"
 
 # NextAuth
 
@@ -607,95 +558,31 @@ vercel login
 vercel --prod
 📖 HƯỚNG DẪN SỬ DỤNG
 Cho sinh viên
-Đăng ký tài khoản: Điền đầy đủ thông tin (tên đăng nhập, họ tên, email, số điện thoại, mật khẩu)
+Đăng ký tài khoản: Điền đầy đủ thông tin
 
-Đăng nhập: Có thể đăng nhập bằng email hoặc tên đăng nhập
+Đăng nhập: Bằng email hoặc tên đăng nhập
 
-Xem tài liệu: Truy cập /documents để xem tài liệu học tập
+Xem tài liệu: Truy cập /documents
 
 Nộp bài tập: Vào /assignments, chọn bài tập và nộp file
 
-Theo dõi thông báo: Xem thông báo mới tại icon chuông trên navbar
+Theo dõi thông báo: Icon chuông trên navbar
 
 Cho giáo viên
-Tạo bài tập: Vào /assignments, click "Tạo bài tập"
+Tạo bài tập: /assignments → "Tạo bài tập"
 
-Xem bài nộp: Vào /submissions để xem bài nộp của học sinh
+Xem bài nộp: /submissions
 
 Chấm điểm: Click "Chấm điểm" trên bài nộp
 
-Quản lý môn học: Vào /courses để quản lý môn học
+Quản lý môn học: /courses
 
 Cho Admin
-Quản trị hệ thống: Vào /admin (chỉ hiển thị với Admin)
+Quản trị hệ thống: /admin
 
-Quản lý tài khoản: Xem, sửa, xóa, phân quyền người dùng
+Quản lý tài khoản: Xem, sửa, xóa, phân quyền
 
-Xem thống kê: Dashboard hiển thị thống kê tổng quan
-
-🛠️ CÁC LỖI ĐÃ SỬA
-Lỗi Giải pháp
-Hydration Error Thêm suppressHydrationWarning
-NextAuth 400 Bad Request Đúng cấu trúc route handler
-Build Error useSession Chuyển sang Client Component
-500 Server Error Xử lý session đúng cách
-Sidebar Collapse Tối ưu responsive
-Dark Mode Custom Theme Context
-Search & Notifications Phím tắt và real-time
-UUID error "class-3" Tìm theo name thay vì id
-Upload file Tạo bucket trên Supabase Storage
-Middleware bypass Sửa logic public routes
-Register tự chọn TEACHER Chỉ cho phép STUDENT mặc định
-Realtime infinite loop Sửa subscription logic
-Like không lưu Trigger tự động cập nhật count
-Skeleton kẹt Ref để chỉ fetch 1 lần
-💡 LƯU Ý CHO NGƯỜI PHÁT TRIỂN
-
-1. Theme Provider
-   ✅ Sử dụng custom Theme Context (KHÔNG dùng next-themes)
-
-Theme được lưu trong localStorage với key theme
-
-Hỗ trợ system, light, dark
-
-2. Authentication
-   Sử dụng NextAuth v4 với Credentials Provider
-
-Session được lưu bằng JWT
-
-Hỗ trợ đăng nhập bằng email hoặc username
-
-Phân quyền: ADMIN, TEACHER, STUDENT
-
-3. Database
-   CHỈ sử dụng Supabase (PostgreSQL) (KHÔNG dùng Prisma)
-
-Có RLS policies bảo vệ dữ liệu
-
-Triggers tự động cập nhật likes/comments count
-
-4. Components Pattern
-   use client cho tất cả component tương tác
-
-Atomic Design: ui → common → layout → features
-
-Shadcn UI cho components cơ bản
-
-5. Styling
-   TailwindCSS với dark mode
-
-Custom CSS variables trong globals.css
-
-Glassmorphism và gradient effects
-
-Cyberpunk / Futuristic style
-
-6. Realtime
-   Sử dụng Supabase Realtime
-
-Broadcast cho notifications và chat
-
-Presence cho online status
+Xem thống kê: Dashboard
 
 📞 LIÊN HỆ
 Thông tin Chi tiết
@@ -704,7 +591,28 @@ Developer Võ Nhật Hào
 Email vonhathaoqtm3k14@gmail.com
 GitHub https://github.com/Hao186188
 Website https://qtm3k14.vercel.app
-📄 GIẤY PHÉP
-Dự án được phát triển cho mục đích học tập và sử dụng nội bộ tại Trường Cao đẳng Nghề Kiên Giang.
+🔜 KẾ HOẠCH PHÁT TRIỂN TIẾP THEO
+Ưu tiên cao
+✅ Fix Rating không cập nhật
+
+✅ Fix Dark Mode
+
+✅ Fix Skeleton Comments
+
+✅ Hoàn thiện RLS Policies
+
+Ưu tiên trung bình
+Thêm real-time subscription cho likes/comments
+
+Tối ưu performance với React Query
+
+Thêm unit tests
+
+Ưu tiên thấp
+Thêm PWA support
+
+Tối ưu SEO
+
+Thêm analytics
 
 "Kết nối tri thức - Làm chủ hệ thống mạng" 🚀

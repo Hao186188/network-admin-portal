@@ -248,7 +248,7 @@ export function HeroSection() {
                   <ChevronRight className="ml-2 w-4 h-4 group-hover:translate-x-1 transition-transform" />
                 </Button>
               </Link>
-              <Link href="#">
+              <Link href="/about">
                 <Button
                   className="border-2 border-primary-200 dark:border-primary-700 text-gray-700 dark:text-white hover:bg-primary-50 dark:hover:bg-primary-900/20"
                   size="lg"
