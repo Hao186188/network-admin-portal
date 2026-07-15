@@ -1,5 +1,5 @@
 // src/app/(routes)/assignments/components/CreateAssignmentModal.tsx
-// HOÀN CHỈNH - ĐÃ TỐI ƯU VÀ SỬA LỖI
+// HOÀN CHỈNH - FIX TYPE ERROR
 
 "use client";
 
@@ -16,10 +16,10 @@ import { useRef, useState } from "react";
 import { toast } from "sonner";
 
 // ============================================
-// CONSTANTS - ĐỒNG BỘ 50MB VỚI SUBMIT
+// CONSTANTS
 // ============================================
 
-const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB - ĐỒNG BỘ VỚI SUBMIT
+const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
 
 const ALLOWED_EXTENSIONS = [
   ".pdf",
@@ -45,8 +45,18 @@ const ALLOWED_EXTENSIONS = [
   ".yml",
 ];
 
+// ✅ Định nghĩa type options với giá trị đúng
+const TYPE_OPTIONS = [
+  { value: "homework", label: "Bài tập" },
+  { value: "project", label: "Dự án" },
+  { value: "quiz", label: "Kiểm tra" },
+  { value: "exam", label: "Thi" },
+] as const;
+
+type AssignmentType = "homework" | "project" | "quiz" | "exam";
+
 // ============================================
-// CUSTOM SELECT COMPONENT - THAY THẾ SELECT HTML
+// CUSTOM SELECT COMPONENT
 // ============================================
 
 interface CustomSelectProps {
@@ -453,7 +463,6 @@ function FileAttachmentUpload({
         onDrop={!disabled ? handleDrop : undefined}
         onClick={() => !disabled && fileInputRef.current?.click()}
       >
-        {/* Pulse Effect khi drag active */}
         {dragActive && (
           <motion.div
             className="absolute inset-0 rounded-xl border-2 border-primary/30 pointer-events-none"
@@ -548,7 +557,8 @@ export function CreateAssignmentModal({
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [subject, setSubject] = useState("Quản trị Mạng 3");
-  const [type, setType] = useState("Bài tập");
+  // ✅ SỬA: type là AssignmentType
+  const [type, setType] = useState<AssignmentType>("homework");
   const [dueDate, setDueDate] = useState("");
   const [points, setPoints] = useState(10);
   const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
@@ -568,13 +578,14 @@ export function CreateAssignmentModal({
     "Network Automation",
   ];
 
-  const typeOptions = ["Bài tập", "Lab", "Dự án", "Kiểm tra", "Thực hành"];
+  // ✅ SỬA: typeOptions là danh sách label để hiển thị
+  const typeLabels = TYPE_OPTIONS.map((t) => t.label);
 
   const resetForm = () => {
     setTitle("");
     setDescription("");
     setSubject("Quản trị Mạng 3");
-    setType("Bài tập");
+    setType("homework");
     setDueDate("");
     setPoints(10);
     setAttachedFiles([]);
@@ -660,6 +671,7 @@ export function CreateAssignmentModal({
         toast.dismiss(uploadToast);
       }
 
+      // ✅ SỬA: type đã là AssignmentType
       const result = await createAssignment({
         title: title.trim(),
         description: description.trim(),
@@ -669,7 +681,6 @@ export function CreateAssignmentModal({
         points,
         attachments: uploadedUrls.length,
         attachment_urls: uploadedUrls,
-        created_by: session.user.id,
       });
 
       if (result) {
@@ -689,6 +700,17 @@ export function CreateAssignmentModal({
   };
 
   if (!isOpen) return null;
+
+  // ✅ Hàm chuyển đổi giữa label và value
+  const getTypeValueFromLabel = (label: string): AssignmentType => {
+    const found = TYPE_OPTIONS.find((t) => t.label === label);
+    return found?.value || "homework";
+  };
+
+  const getTypeLabelFromValue = (value: AssignmentType): string => {
+    const found = TYPE_OPTIONS.find((t) => t.value === value);
+    return found?.label || "Bài tập";
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
@@ -745,7 +767,7 @@ export function CreateAssignmentModal({
             />
           </div>
 
-          {/* Subject & Type - Sử dụng CustomSelect */}
+          {/* Subject & Type */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <CustomSelect
               value={subject}
@@ -754,10 +776,11 @@ export function CreateAssignmentModal({
               label="Môn học"
               disabled={isLoading}
             />
+            {/* ✅ SỬA: Type sử dụng CustomSelect với label */}
             <CustomSelect
-              value={type}
-              onChange={setType}
-              options={typeOptions}
+              value={getTypeLabelFromValue(type)}
+              onChange={(label) => setType(getTypeValueFromLabel(label))}
+              options={typeLabels}
               label="Loại"
               disabled={isLoading}
             />

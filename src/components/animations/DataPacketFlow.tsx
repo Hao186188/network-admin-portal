@@ -1,54 +1,56 @@
 // src/components/animations/DataPacketFlow.tsx
-// DATA PACKET FLOW BACKGROUND ANIMATION
+// FIX HYDRATION - DÙNG useEffect ĐỂ RENDER CLIENT-SIDE
 
 "use client";
 
-import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
+import { useEffect, useState } from "react";
 
 interface DataPacketFlowProps {
-  className?: string;
   count?: number;
-  color?: string;
-  density?: "low" | "medium" | "high";
+  className?: string;
 }
 
-const densityConfig = {
-  low: 8,
-  medium: 16,
-  high: 24,
-};
-
 export function DataPacketFlow({
+  count = 12,
   className = "",
-  count,
-  color = "cyan-400",
-  density = "medium",
 }: DataPacketFlowProps) {
-  const packetCount = count || densityConfig[density];
+  const [particles, setParticles] = useState<
+    Array<{
+      id: number;
+      size: number;
+      x: number;
+      y: number;
+      duration: number;
+      delay: number;
+    }>
+  >([]);
 
-  const packets = Array.from({ length: packetCount }, (_, i) => ({
-    id: i,
-    x: Math.random() * 100,
-    y: Math.random() * 100,
-    size: Math.random() * 4 + 2,
-    duration: Math.random() * 8 + 4,
-    delay: Math.random() * 4,
-    xOffset: Math.random() * 200 - 100,
-    yOffset: Math.random() * 200 - 100,
-  }));
+  // ✅ Chỉ tạo particles trên client để tránh hydration mismatch
+  useEffect(() => {
+    const newParticles = Array.from({ length: count }).map((_, i) => ({
+      id: i,
+      size: 2 + Math.random() * 4,
+      x: 5 + Math.random() * 90,
+      y: 5 + Math.random() * 90,
+      duration: 3 + Math.random() * 4,
+      delay: Math.random() * 2,
+    }));
+    setParticles(newParticles);
+  }, [count]);
+
+  if (particles.length === 0) {
+    return null; // Hoặc return skeleton
+  }
 
   return (
     <div
-      className={cn(
-        "absolute inset-0 pointer-events-none overflow-hidden",
-        className,
-      )}
+      className={`absolute inset-0 pointer-events-none overflow-hidden ${className}`}
     >
-      {packets.map((p) => (
+      {particles.map((p) => (
         <motion.div
           key={p.id}
-          className={cn(`absolute rounded-full bg-${color}/20`)}
+          className="absolute rounded-full bg-cyan-400/20"
           style={{
             width: p.size,
             height: p.size,
@@ -56,15 +58,15 @@ export function DataPacketFlow({
             top: `${p.y}%`,
           }}
           animate={{
-            x: [0, p.xOffset, 0],
-            y: [0, p.yOffset, 0],
-            opacity: [0, 0.6, 0],
-            scale: [1, 2, 1],
+            x: [0, (Math.random() - 0.5) * 100],
+            y: [0, (Math.random() - 0.5) * 100],
+            opacity: [0.2, 0.6, 0.2],
+            scale: [1, 1.5, 1],
           }}
           transition={{
             duration: p.duration,
-            delay: p.delay,
             repeat: Infinity,
+            delay: p.delay,
             ease: "easeInOut",
           }}
         />

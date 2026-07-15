@@ -13,7 +13,7 @@ import {
   FileText,
   Sparkles,
   Star,
-  Zap
+  Zap,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 
@@ -75,18 +75,38 @@ function TerminalTyping({
 }
 
 // ============================================
-// DATA PACKET FLOW - BACKGROUND ANIMATION
+// DATA PACKET FLOW - FIX HYDRATION
 // ============================================
 
 function DataPacketFlow() {
-  const packets = Array.from({ length: 12 }, (_, i) => ({
-    id: i,
-    x: Math.random() * 100,
-    y: Math.random() * 100,
-    size: Math.random() * 4 + 2,
-    duration: Math.random() * 8 + 4,
-    delay: Math.random() * 4,
-  }));
+  const [packets, setPackets] = useState<
+    Array<{
+      id: number;
+      x: number;
+      y: number;
+      size: number;
+      duration: number;
+      delay: number;
+    }>
+  >([]);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+    const newPackets = Array.from({ length: 12 }, (_, i) => ({
+      id: i,
+      x: Math.random() * 100,
+      y: Math.random() * 100,
+      size: Math.random() * 4 + 2,
+      duration: Math.random() * 8 + 4,
+      delay: Math.random() * 4,
+    }));
+    setPackets(newPackets);
+  }, []);
+
+  if (!mounted || packets.length === 0) {
+    return null;
+  }
 
   return (
     <div className="absolute inset-0 pointer-events-none overflow-hidden">
@@ -119,7 +139,7 @@ function DataPacketFlow() {
 }
 
 // ============================================
-// ANIMATED COUNTER WITH GLITCH
+// ANIMATED COUNTER
 // ============================================
 
 function AnimatedCounter({ value, label, icon: Icon, color }: any) {
@@ -146,7 +166,6 @@ function AnimatedCounter({ value, label, icon: Icon, color }: any) {
     requestAnimationFrame(animate);
   }, [value]);
 
-  // Random glitch effect
   useEffect(() => {
     const glitchInterval = setInterval(() => {
       if (Math.random() > 0.7) {
@@ -174,7 +193,6 @@ function AnimatedCounter({ value, label, icon: Icon, color }: any) {
       <div>
         <motion.p
           key={displayValue}
-          initial={{ y: -10, opacity: 0 }}
           animate={{
             y: isGlitching ? [0, -2, 2, -1, 1, 0] : 0,
             opacity: 1,
@@ -211,7 +229,6 @@ export function AssignmentHero({
   submittedCount,
   gradedCount,
   overdueCount,
-  completedPercentage,
   onCreateClick,
 }: AssignmentHeroProps) {
   const [showTerminal, setShowTerminal] = useState(false);
@@ -302,40 +319,38 @@ export function AssignmentHero({
           </motion.div>
         </div>
 
-        {/* Stats Counters */}
-        <div className="flex items-center gap-4">
-          <div className="grid grid-cols-2 gap-2">
-            <AnimatedCounter
-              value={totalAssignments}
-              label="Tổng bài tập"
-              icon={FileText}
-              color="from-blue-500 to-cyan-500"
-            />
-            <AnimatedCounter
-              value={pendingCount}
-              label="Chưa nộp"
-              icon={Clock}
-              color="from-yellow-500 to-orange-500"
-            />
-            <AnimatedCounter
-              value={submittedCount}
-              label="Đã nộp"
-              icon={CheckCircle}
-              color="from-green-500 to-emerald-500"
-            />
-            <AnimatedCounter
-              value={gradedCount}
-              label="Đã chấm"
-              icon={Star}
-              color="from-purple-500 to-pink-500"
-            />
-            <AnimatedCounter
-              value={overdueCount}
-              label="Quá hạn ⚠️"
-              icon={AlertCircle}
-              color="from-red-500 to-rose-500"
-            />
-          </div>
+        {/* Stats Counters - Grid responsive */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-2 xl:grid-cols-3 gap-2 w-full lg:w-auto">
+          <AnimatedCounter
+            value={totalAssignments}
+            label="Tổng bài tập"
+            icon={FileText}
+            color="from-blue-500 to-cyan-500"
+          />
+          <AnimatedCounter
+            value={pendingCount}
+            label="Chưa nộp"
+            icon={Clock}
+            color="from-yellow-500 to-orange-500"
+          />
+          <AnimatedCounter
+            value={submittedCount}
+            label="Đã nộp"
+            icon={CheckCircle}
+            color="from-green-500 to-emerald-500"
+          />
+          <AnimatedCounter
+            value={gradedCount}
+            label="Đã chấm"
+            icon={Star}
+            color="from-purple-500 to-pink-500"
+          />
+          <AnimatedCounter
+            value={overdueCount}
+            label="Quá hạn"
+            icon={AlertCircle}
+            color="from-red-500 to-rose-500"
+          />
         </div>
       </div>
 
@@ -346,24 +361,24 @@ export function AssignmentHero({
         transition={{ delay: 0.6 }}
         className="relative z-10 mt-6 pt-4 border-t border-white/5 flex flex-wrap items-center justify-between gap-2 text-[10px] text-white/30 font-mono"
       >
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-4 flex-wrap">
           <span className="flex items-center gap-1">
             <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
             LIVE
           </span>
           <span>•</span>
-          <span>UPTIME: {Math.floor(Math.random() * 100 + 24)}h</span>
+          <span>UPTIME: 24h</span>
           <span>•</span>
-          <span>NODE: {Math.floor(Math.random() * 10 + 1)}/12</span>
+          <span>NODE: 12/12</span>
           <span>•</span>
-          <span>PACKETS: {(Math.random() * 1000 + 100).toFixed(0)}</span>
+          <span>PACKETS: 1.2k</span>
         </div>
-        <div className="flex items-center gap-4">
-          <span>CPU: {Math.floor(Math.random() * 30 + 10)}%</span>
-          <span>MEM: {Math.floor(Math.random() * 40 + 20)}%</span>
+        <div className="flex items-center gap-4 flex-wrap">
+          <span>CPU: 32%</span>
+          <span>MEM: 45%</span>
           <span className="flex items-center gap-1">
             <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
-            NET: {Math.floor(Math.random() * 100 + 50)}ms
+            NET: 72ms
           </span>
         </div>
       </motion.div>

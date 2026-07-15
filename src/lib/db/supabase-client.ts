@@ -3,6 +3,10 @@
 
 import { createClient } from "@supabase/supabase-js";
 
+// ============================================
+// ENVIRONMENT VARIABLES
+// ============================================
+
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
 const supabaseServiceKey =
@@ -10,63 +14,120 @@ const supabaseServiceKey =
   process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY ||
   "";
 
-// Log để debug
-console.log(
-  "🔌 Supabase URL:",
-  supabaseUrl ? "✅ Đã cấu hình" : "❌ Chưa cấu hình",
-);
-console.log(
-  "🔑 Supabase Anon Key:",
-  supabaseAnonKey ? "✅ Đã cấu hình" : "❌ Chưa cấu hình",
-);
-console.log(
-  "🔑 Supabase Service Role Key:",
-  supabaseServiceKey ? "✅ Đã cấu hình" : "❌ Chưa cấu hình",
-);
+// ============================================
+// DEBUG LOGS
+// ============================================
+
+const isDev = process.env.NODE_ENV === "development";
+
+if (isDev) {
+  console.log(
+    "🔌 Supabase URL:",
+    supabaseUrl ? "✅ Đã cấu hình" : "❌ Chưa cấu hình",
+  );
+  console.log(
+    "🔑 Supabase Anon Key:",
+    supabaseAnonKey ? "✅ Đã cấu hình" : "❌ Chưa cấu hình",
+  );
+  console.log(
+    "🔑 Supabase Service Role Key:",
+    supabaseServiceKey ? "✅ Đã cấu hình" : "❌ Chưa cấu hình",
+  );
+  console.log("🔑 Service Role Key length:", supabaseServiceKey?.length || 0);
+}
 
 if (!supabaseUrl || !supabaseAnonKey) {
   console.warn("⚠️ Supabase environment variables are missing!");
 }
 
-// Client cho frontend (dùng anon key)
+// ============================================
+// SUPABASE CLIENTS
+// ============================================
+
+/**
+ * Client cho frontend (dùng anon key)
+ * - Dùng cho các query thông thường
+ * - Tuân theo RLS policies
+ */
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     persistSession: true,
     autoRefreshToken: true,
+    detectSessionInUrl: true,
+  },
+  global: {
+    headers: {
+      "x-application-name": "network-admin-portal",
+    },
   },
 });
 
-// Client cho admin (dùng service role key - bypass RLS)
+/**
+ * Client cho admin (dùng service role key)
+ * - Bypass RLS policies
+ * - Chỉ dùng cho các operation cần quyền admin
+ * - KHÔNG bao giờ dùng ở client-side (chỉ server-side)
+ */
 export const supabaseAdmin =
   supabaseServiceKey && supabaseServiceKey.length > 20
     ? createClient(supabaseUrl, supabaseServiceKey, {
         auth: {
           persistSession: false,
           autoRefreshToken: false,
+          detectSessionInUrl: false,
+        },
+        global: {
+          headers: {
+            "x-application-name": "network-admin-portal-admin",
+          },
         },
       })
     : supabase;
+
+// ============================================
+// HELPERS
+// ============================================
 
 export const isSupabaseEnabled = !!supabaseUrl && !!supabaseAnonKey;
 export const isServiceRoleEnabled =
   !!supabaseServiceKey && supabaseServiceKey.length > 20;
 
-console.log("🔑 isServiceRoleEnabled:", isServiceRoleEnabled);
+if (isDev) {
+  console.log("🔑 isServiceRoleEnabled:", isServiceRoleEnabled);
+}
 
-// Test connection
+/**
+ * Kiểm tra kết nối Supabase
+ */
 export async function testSupabaseConnection() {
   try {
     const { data, error } = await supabase
-      .from("lectures")
+      .from("users")
       .select("count", { count: "exact", head: true });
+
     if (error) {
       console.error("❌ Supabase connection test failed:", error);
       return false;
     }
+
     console.log("✅ Supabase connection test passed!");
     return true;
   } catch (error) {
     console.error("❌ Supabase connection test error:", error);
     return false;
   }
+}
+
+/**
+ * Lấy client phù hợp dựa trên operation
+ */
+export function getSupabaseClient(useAdmin: boolean = false) {
+  return useAdmin && isServiceRoleEnabled ? supabaseAdmin : supabase;
+}
+
+/**
+ * Kiểm tra xem có đang dùng service role không
+ */
+export function isUsingServiceRole(): boolean {
+  return isServiceRoleEnabled;
 }

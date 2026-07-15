@@ -1,9 +1,13 @@
 // src/hooks/use-assignments.ts
-// Vai trò: Hook quản lý assignments - THÊM attachment_urls
+// HOÀN CHỈNH - FIX LOOP REQUEST
 
 "use client";
 
-import { supabase } from "@/lib/db/supabase-client";
+import {
+  isServiceRoleEnabled,
+  supabase,
+  supabaseAdmin,
+} from "@/lib/db/supabase-client";
 import { logger } from "@/lib/logger";
 import { useSession } from "next-auth/react";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -14,14 +18,14 @@ export interface Assignment {
   title: string;
   description: string;
   subject: string;
-  type: string;
+  type: "homework" | "project" | "quiz" | "exam";
   due_date: string;
   status: "pending" | "submitted" | "graded";
   submissions: number;
   total_students: number;
   points: number;
   attachments: number;
-  attachment_urls?: string[]; // ✅ Thêm field này
+  attachment_urls: string[];
   user_id: string;
   created_by?: string;
   created_at: string;
@@ -52,14 +56,18 @@ export function useAssignments() {
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
 
-  const fetchedRef = useRef(false);
-  const fetchingRef = useRef(false);
+  // ✅ SỬA: Dùng ref để track fetch state
+  const hasFetched = useRef(false);
+  const isFetching = useRef(false);
 
-  // Lấy danh sách bài tập
+  // ✅ Lấy danh sách bài tập - CHỈ CHẠY 1 LẦN
   const fetchAssignments = useCallback(async () => {
-    if (fetchingRef.current || fetchedRef.current) {
-      logger.log("⏭️ Skip fetchAssignments - already fetched");
+    // ✅ Nếu đã fetch hoặc đang fetch thì bỏ qua
+    if (hasFetched.current || isFetching.current) {
+      logger.log("⏭️ Skip fetchAssignments - already fetched or fetching");
       return;
     }
 
@@ -69,7 +77,7 @@ export function useAssignments() {
     }
 
     try {
-      fetchingRef.current = true;
+      isFetching.current = true;
       setLoading(true);
       setError(null);
 
@@ -81,22 +89,34 @@ export function useAssignments() {
       if (fetchError) throw fetchError;
 
       setAssignments(data || []);
-      fetchedRef.current = true;
+      hasFetched.current = true;
     } catch (error: any) {
       logger.error("Error fetching assignments:", error);
       setError(error.message || "Có lỗi xảy ra");
       toast.error("Không thể tải bài tập");
     } finally {
-      fetchingRef.current = false;
+      isFetching.current = false;
       setLoading(false);
     }
   }, [session?.user?.id, toast]);
 
+  // ✅ Effect chỉ chạy 1 lần khi mount
   useEffect(() => {
-    fetchedRef.current = false;
-    fetchingRef.current = false;
+    // Reset state khi session thay đổi
+    if (session?.user?.id) {
+      hasFetched.current = false;
+      isFetching.current = false;
+      fetchAssignments();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session?.user?.id]); // ✅ Chỉ phụ thuộc vào user id
+
+  // ✅ Refresh - reset và fetch lại
+  const refresh = useCallback(() => {
+    hasFetched.current = false;
+    isFetching.current = false;
     fetchAssignments();
-  }, [session?.user?.id]);
+  }, [fetchAssignments]);
 
   // Lấy chi tiết bài tập
   const getAssignmentDetail = useCallback(
@@ -168,7 +188,7 @@ export function useAssignments() {
     [toast],
   );
 
-  // Tạo bài tập - ✅ THÊM attachment_urls
+  // Tạo bài tập
   const createAssignment = useCallback(
     async (data: Partial<Assignment>) => {
       if (!session?.user) {
@@ -177,35 +197,145 @@ export function useAssignments() {
       }
 
       try {
-        const insertData = {
-          ...data,
-          status: "pending" as const,
+        if (session.user.role !== "TEACHER" && session.user.role !== "ADMIN") {
+          toast.error("Chỉ giảng viên và quản trị viên mới có thể tạo bài tập");
+          return null;
+        }
+
+        const insertData: any = {
+          title: data.title,
+          description: data.description || "",
+          subject: data.subject,
+          type: data.type || "homework",
+          due_date: data.due_date,
+          status: "pending",
+          submissions: 0,
+          total_students: data.total_students || 0,
+          points: data.points || 0,
+          attachments: 0,
           user_id: session.user.id,
-          created_by: session.user.id,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
-          // ✅ Đảm bảo attachment_urls được lưu
-          attachment_urls: data.attachment_urls || [],
         };
 
-        const { data: newAssignment, error } = await supabase
+        if (data.attachment_urls && data.attachment_urls.length > 0) {
+          insertData.attachment_urls = data.attachment_urls;
+        }
+
+        const client = isServiceRoleEnabled ? supabaseAdmin : supabase;
+
+        const { data: newAssignment, error } = await client
           .from("assignments")
           .insert(insertData)
           .select()
           .single();
 
-        if (error) throw error;
+        if (error) {
+          logger.error("Insert error:", error);
+          throw error;
+        }
 
         setAssignments((prev) => [newAssignment, ...prev]);
         toast.success("Tạo bài tập thành công");
+
+        // ✅ Refresh để cập nhật danh sách
+        refresh();
+
         return newAssignment;
       } catch (error: any) {
         logger.error("Error creating assignment:", error);
-        toast.error(error.message || "Có lỗi xảy ra");
+        toast.error(error.message || "Có lỗi xảy ra khi tạo bài tập");
         return null;
       }
     },
-    [session?.user, toast],
+    [session?.user, toast, refresh],
+  );
+
+  // Upload file
+  const uploadFile = useCallback(
+    async (file: File, path: string): Promise<string | null> => {
+      try {
+        const client = isServiceRoleEnabled ? supabaseAdmin : supabase;
+
+        console.log("📤 Uploading to:", path);
+
+        const { data, error: uploadError } = await client.storage
+          .from("assignments")
+          .upload(path, file, {
+            cacheControl: "3600",
+            upsert: true,
+          });
+
+        if (uploadError) {
+          console.error("❌ Upload error:", uploadError);
+
+          // Thử lại với supabaseAdmin nếu đang dùng supabase thường
+          if (client !== supabaseAdmin) {
+            console.log("🔄 Retry with supabaseAdmin...");
+            const { data: retryData, error: retryError } =
+              await supabaseAdmin.storage
+                .from("assignments")
+                .upload(path, file, {
+                  cacheControl: "3600",
+                  upsert: true,
+                });
+
+            if (retryError) {
+              throw new Error(
+                `Không thể upload file: ${file.name} - ${retryError.message}`,
+              );
+            }
+
+            const { data: urlData } = supabaseAdmin.storage
+              .from("assignments")
+              .getPublicUrl(path);
+
+            return urlData.publicUrl;
+          }
+
+          throw new Error(
+            `Không thể upload file: ${file.name} - ${uploadError.message}`,
+          );
+        }
+
+        const { data: urlData } = client.storage
+          .from("assignments")
+          .getPublicUrl(path);
+
+        return urlData.publicUrl;
+      } catch (error: any) {
+        console.error("❌ Upload error:", error);
+        throw error;
+      }
+    },
+    [],
+  );
+
+  // Upload nhiều file
+  const uploadFiles = useCallback(
+    async (files: File[], assignmentId: string): Promise<string[]> => {
+      const urls: string[] = [];
+      let completed = 0;
+
+      for (const file of files) {
+        try {
+          const path = `assignments/${assignmentId}/attachments/${Date.now()}_${file.name}`;
+          const url = await uploadFile(file, path);
+          if (url) {
+            urls.push(url);
+          }
+          completed++;
+          setUploadProgress((completed / files.length) * 100);
+        } catch (error) {
+          logger.error(`Failed to upload ${file.name}:`, error);
+          toast.error(`Không thể upload file: ${file.name}`);
+        }
+      }
+
+      setUploadProgress(0);
+      return urls;
+    },
+    [uploadFile, toast],
   );
 
   // Nộp bài tập
@@ -216,26 +346,23 @@ export function useAssignments() {
         return false;
       }
 
+      setIsSubmitting(true);
       try {
         const { assignment_id, file, user_id } = data;
 
-        const filePath = `assignments/${assignment_id}/${user_id}/${Date.now()}_${file.name}`;
-        const { error: uploadError } = await supabase.storage
-          .from("assignments")
-          .upload(filePath, file);
+        const filePath = `assignments/${assignment_id}/submissions/${user_id}/${Date.now()}_${file.name}`;
+        const fileUrl = await uploadFile(file, filePath);
 
-        if (uploadError) throw uploadError;
-
-        const { data: urlData } = supabase.storage
-          .from("assignments")
-          .getPublicUrl(filePath);
+        if (!fileUrl) {
+          throw new Error("Không thể upload file");
+        }
 
         const { error: submitError } = await supabase
           .from("submissions")
           .insert({
             assignment_id,
             user_id,
-            file_url: urlData.publicUrl,
+            file_url: fileUrl,
             file_name: file.name,
             file_size: file.size,
             status: "PENDING",
@@ -245,6 +372,24 @@ export function useAssignments() {
 
         if (submitError) throw submitError;
 
+        const { data: current } = await supabase
+          .from("assignments")
+          .select("submissions")
+          .eq("id", assignment_id)
+          .single();
+
+        if (current) {
+          const newCount = (current.submissions || 0) + 1;
+          await supabase
+            .from("assignments")
+            .update({
+              submissions: newCount,
+              status: "submitted",
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", assignment_id);
+        }
+
         setAssignments((prev) =>
           prev.map((a) =>
             a.id === assignment_id
@@ -253,34 +398,37 @@ export function useAssignments() {
           ),
         );
 
-        toast.success("Nộp bài thành công");
+        toast.success("Nộp bài thành công!");
+
+        // ✅ Refresh để cập nhật danh sách
+        refresh();
+
         return true;
       } catch (error: any) {
         logger.error("Error submitting assignment:", error);
-        toast.error(error.message || "Có lỗi xảy ra");
+        toast.error(error.message || "Có lỗi xảy ra khi nộp bài");
         return false;
+      } finally {
+        setIsSubmitting(false);
       }
     },
-    [session?.user, toast],
+    [session?.user, toast, uploadFile, refresh],
   );
-
-  // Refresh
-  const refresh = useCallback(() => {
-    fetchedRef.current = false;
-    fetchingRef.current = false;
-    fetchAssignments();
-  }, [fetchAssignments]);
 
   return {
     assignments,
     loading,
     error,
+    isSubmitting,
+    uploadProgress,
     fetchAssignments,
     getAssignmentDetail,
     getAssignmentSubmissions,
     downloadFile,
     createAssignment,
     submitAssignment,
+    uploadFile,
+    uploadFiles,
     refresh,
   };
 }
