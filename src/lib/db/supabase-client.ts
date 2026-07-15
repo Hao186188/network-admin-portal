@@ -1,5 +1,5 @@
 // src/lib/db/supabase-client.ts
-// SUPABASE CLIENT - HOÀN CHỈNH
+// HOÀN CHỈNH - CÓ FALLBACK CHO PRODUCTION
 
 import { createClient } from "@supabase/supabase-js";
 
@@ -44,11 +44,6 @@ if (!supabaseUrl || !supabaseAnonKey) {
 // SUPABASE CLIENTS
 // ============================================
 
-/**
- * Client cho frontend (dùng anon key)
- * - Dùng cho các query thông thường
- * - Tuân theo RLS policies
- */
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     persistSession: true,
@@ -62,12 +57,7 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   },
 });
 
-/**
- * Client cho admin (dùng service role key)
- * - Bypass RLS policies
- * - Chỉ dùng cho các operation cần quyền admin
- * - KHÔNG bao giờ dùng ở client-side (chỉ server-side)
- */
+// ✅ QUAN TRỌNG: Fallback cho production nếu thiếu service key
 export const supabaseAdmin =
   supabaseServiceKey && supabaseServiceKey.length > 20
     ? createClient(supabaseUrl, supabaseServiceKey, {
@@ -82,11 +72,7 @@ export const supabaseAdmin =
           },
         },
       })
-    : supabase;
-
-// ============================================
-// HELPERS
-// ============================================
+    : supabase; // ✅ Fallback về supabase thường
 
 export const isSupabaseEnabled = !!supabaseUrl && !!supabaseAnonKey;
 export const isServiceRoleEnabled =
@@ -96,9 +82,6 @@ if (isDev) {
   console.log("🔑 isServiceRoleEnabled:", isServiceRoleEnabled);
 }
 
-/**
- * Kiểm tra kết nối Supabase
- */
 export async function testSupabaseConnection() {
   try {
     const { data, error } = await supabase
@@ -118,16 +101,10 @@ export async function testSupabaseConnection() {
   }
 }
 
-/**
- * Lấy client phù hợp dựa trên operation
- */
 export function getSupabaseClient(useAdmin: boolean = false) {
   return useAdmin && isServiceRoleEnabled ? supabaseAdmin : supabase;
 }
 
-/**
- * Kiểm tra xem có đang dùng service role không
- */
 export function isUsingServiceRole(): boolean {
   return isServiceRoleEnabled;
 }

@@ -1,7 +1,11 @@
 // src/app/api/auth/register/route.ts
-// API ĐĂNG KÝ - HOÀN CHỈNH
+// HOÀN CHỈNH - XỬ LÝ LỖI KHI THIẾU SERVICE KEY
 
-import { supabaseAdmin } from "@/lib/db/supabase-client";
+import {
+  isServiceRoleEnabled,
+  supabase,
+  supabaseAdmin,
+} from "@/lib/db/supabase-client";
 import bcrypt from "bcryptjs";
 import { NextResponse } from "next/server";
 
@@ -9,6 +13,7 @@ const ADMIN_PHONE = process.env.ADMIN_PHONE || "0366017767";
 
 export async function POST(request: Request) {
   console.log("🚀 ===== START REGISTER API =====");
+  console.log("🔑 isServiceRoleEnabled:", isServiceRoleEnabled);
 
   try {
     const body = await request.json();
@@ -49,11 +54,17 @@ export async function POST(request: Request) {
       );
     }
 
-    // ✅ DÙNG SUPABASEADMIN ĐỂ BYPASS RLS
-    const adminClient = supabaseAdmin;
+    // ✅ DÙNG CLIENT PHÙ HỢP
+    // Nếu có service role, dùng supabaseAdmin để bypass RLS
+    // Nếu không, dùng supabase thường (sẽ bị RLS chặn nhưng vẫn thử)
+    const client = isServiceRoleEnabled ? supabaseAdmin : supabase;
+    console.log(
+      "🔑 Using client:",
+      isServiceRoleEnabled ? "supabaseAdmin" : "supabase (fallback)",
+    );
 
     // Kiểm tra username
-    const { data: existingUsername } = await adminClient
+    const { data: existingUsername } = await client
       .from("users")
       .select("username")
       .eq("username", username.trim())
@@ -67,7 +78,7 @@ export async function POST(request: Request) {
     }
 
     // Kiểm tra email
-    const { data: existingEmail } = await adminClient
+    const { data: existingEmail } = await client
       .from("users")
       .select("email")
       .eq("email", email.toLowerCase().trim())
@@ -81,7 +92,7 @@ export async function POST(request: Request) {
     }
 
     // Kiểm tra số điện thoại
-    const { data: existingPhone } = await adminClient
+    const { data: existingPhone } = await client
       .from("users")
       .select("phone")
       .eq("phone", phone.trim())
@@ -101,7 +112,7 @@ export async function POST(request: Request) {
     const finalRole = phone.trim() === ADMIN_PHONE ? "ADMIN" : "STUDENT";
     console.log("🔑 Role assigned:", finalRole);
 
-    // ✅ Tạo user với supabaseAdmin
+    // ✅ Tạo user
     const userData = {
       username: username.trim(),
       name: name.trim(),
@@ -117,7 +128,7 @@ export async function POST(request: Request) {
       updated_at: new Date().toISOString(),
     };
 
-    const { data: newUser, error: insertError } = await adminClient
+    const { data: newUser, error: insertError } = await client
       .from("users")
       .insert(userData)
       .select()
@@ -125,6 +136,48 @@ export async function POST(request: Request) {
 
     if (insertError) {
       console.error("❌ Insert error:", insertError);
+
+      // ✅ Nếu lỗi RLS và đang dùng supabase thường, thử lại với supabaseAdmin
+      if (insertError.code === "42501" && !isServiceRoleEnabled) {
+        console.log("🔄 Retry with supabaseAdmin...");
+
+        // Lấy lại dữ liệu đã kiểm tra (không cần kiểm tra lại)
+        const { data: retryUser, error: retryError } = await supabaseAdmin
+          .from("users")
+          .insert(userData)
+          .select()
+          .single();
+
+        if (retryError) {
+          console.error("❌ Retry error:", retryError);
+          return NextResponse.json(
+            {
+              success: false,
+              message: "Lỗi tạo tài khoản. Vui lòng liên hệ admin.",
+              code: retryError.code,
+            },
+            { status: 500 },
+          );
+        }
+
+        console.log("✅ User created with supabaseAdmin:", retryUser.id);
+
+        return NextResponse.json(
+          {
+            success: true,
+            message: "Đăng ký thành công",
+            user: {
+              id: retryUser.id,
+              username: retryUser.username,
+              name: retryUser.name,
+              email: retryUser.email,
+              phone: retryUser.phone,
+              role: retryUser.role,
+            },
+          },
+          { status: 201 },
+        );
+      }
 
       if (insertError.code === "23505") {
         return NextResponse.json(
