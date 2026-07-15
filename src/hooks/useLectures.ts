@@ -1,5 +1,5 @@
 // src/hooks/useLectures.ts
-// HOÀN CHỈNH - FIX LOOP REQUEST
+// HOÀN CHỈNH - XÓA CỘT order
 
 "use client";
 
@@ -81,9 +81,9 @@ export function useLectures() {
       }
     },
     staleTime: 5 * 60 * 1000,
-    refetchOnWindowFocus: false, // ✅ Tắt refetch on focus để tránh loop
+    refetchOnWindowFocus: false,
     retry: 1,
-    enabled: !!session?.user, // ✅ Chỉ fetch khi có session
+    enabled: !!session?.user,
   });
 
   // ============================================
@@ -127,17 +127,20 @@ export function useLectures() {
     queryKey: ["lectures", "pending"],
     queryFn: async (): Promise<Lecture[]> => {
       try {
+        console.log("🔄 Fetching pending lectures...");
+
         const { data, error } = await supabase
           .from("lectures")
           .select("*")
           .eq("status", "pending")
-          .order("created_at", { ascending: true });
+          .order("created_at", { ascending: false });
 
         if (error) {
           console.error("Supabase error:", error);
           throw new Error(error.message || "Lỗi khi tải dữ liệu");
         }
 
+        console.log(`✅ Fetched ${data?.length || 0} pending lectures`);
         return data || [];
       } catch (error) {
         console.error("Error fetching pending lectures:", error);
@@ -147,7 +150,8 @@ export function useLectures() {
     enabled: canModerate && !!session?.user,
     staleTime: 30 * 1000,
     refetchOnWindowFocus: false,
-    refetchInterval: false, // ✅ Tắt refetch interval
+    refetchInterval: false,
+    retry: 2,
   });
 
   // ============================================
@@ -162,6 +166,7 @@ export function useLectures() {
 
       const client = isServiceRoleEnabled ? supabaseAdmin : supabase;
 
+      // ✅ Xóa cột 'order', thay bằng 'sort_order' nếu cần
       const insertData = {
         title: data.title?.trim() || "Bài giảng mới",
         description: data.description?.trim() || "",
@@ -179,7 +184,8 @@ export function useLectures() {
         thumbnail: data.thumbnail || "",
         views: 0,
         likes: 0,
-        order: 0,
+        // ✅ Sử dụng sort_order thay vì order
+        sort_order: 0,
         status: "pending",
         is_approved: false,
         is_published: false,

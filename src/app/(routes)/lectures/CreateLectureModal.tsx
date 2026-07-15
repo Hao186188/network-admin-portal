@@ -1,5 +1,5 @@
 // src/app/(routes)/lectures/CreateLectureModal.tsx
-// MODAL ĐĂNG BÀI - HOÀN CHỈNH
+// CẬP NHẬT - HỖ TRỢ LINK WAYGROUND, GOOGLE DOCS, GOOGLE SHEETS
 
 "use client";
 
@@ -24,7 +24,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { useLectures } from "@/hooks/useLectures";
 import { supabase } from "@/lib/db/supabase-client";
-import { Link, Loader2, Upload, X } from "lucide-react";
+import {
+  ExternalLink,
+  Loader2,
+  Upload,
+  X
+} from "lucide-react";
 import { useSession } from "next-auth/react";
 import { useRef, useState } from "react";
 
@@ -51,6 +56,63 @@ const subjectOptions = [
   "Linux",
 ];
 
+// ✅ Link options
+const linkOptions = [
+  { value: "youtube", label: "YouTube", icon: "🎬" },
+  { value: "wayground", label: "Wayground", icon: "🌐" },
+  { value: "google_docs", label: "Google Docs", icon: "📄" },
+  { value: "google_sheets", label: "Google Sheets", icon: "📊" },
+  { value: "other", label: "Link khác", icon: "🔗" },
+];
+
+// ✅ Hàm kiểm tra loại link
+const detectLinkType = (url: string): string => {
+  if (!url) return "other";
+  const lowerUrl = url.toLowerCase();
+  if (lowerUrl.includes("youtube.com") || lowerUrl.includes("youtu.be"))
+    return "youtube";
+  if (lowerUrl.includes("wayground.com") || lowerUrl.includes("wayground"))
+    return "wayground";
+  if (lowerUrl.includes("docs.google.com")) {
+    if (lowerUrl.includes("spreadsheets") || lowerUrl.includes("sheet"))
+      return "google_sheets";
+    return "google_docs";
+  }
+  return "other";
+};
+
+// ✅ Hàm lấy placeholder theo loại link
+const getLinkPlaceholder = (type: string): string => {
+  switch (type) {
+    case "youtube":
+      return "https://youtube.com/watch?v=...";
+    case "wayground":
+      return "https://wayground.com/...";
+    case "google_docs":
+      return "https://docs.google.com/document/d/...";
+    case "google_sheets":
+      return "https://docs.google.com/spreadsheets/d/...";
+    default:
+      return "https://...";
+  }
+};
+
+// ✅ Hàm lấy icon theo loại link
+const getLinkIcon = (type: string) => {
+  switch (type) {
+    case "youtube":
+      return "🎬";
+    case "wayground":
+      return "🌐";
+    case "google_docs":
+      return "📄";
+    case "google_sheets":
+      return "📊";
+    default:
+      return "🔗";
+  }
+};
+
 export function CreateLectureModal({
   isOpen,
   onClose,
@@ -73,6 +135,7 @@ export function CreateLectureModal({
     teacher: "",
     tags: [] as string[],
     video_url: "",
+    linkType: "youtube" as string,
     thumbnail: "",
     thumbnailFile: null as File | null,
   });
@@ -81,6 +144,14 @@ export function CreateLectureModal({
 
   const handleChange = (field: string, value: any) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleLinkTypeChange = (value: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      linkType: value,
+      video_url: "", // Reset URL khi đổi loại link
+    }));
   };
 
   const handleAddTag = () => {
@@ -150,10 +221,16 @@ export function CreateLectureModal({
         thumbnailUrl = urlData.publicUrl;
       }
 
-      // ✅ Fix: Chuyển đổi type sang đúng kiểu
+      // ✅ Tạo description với thông tin link
+      let fullDescription = formData.description;
+      if (formData.video_url) {
+        const linkIcon = getLinkIcon(formData.linkType);
+        fullDescription += `\n\n${linkIcon} Link bài giảng: ${formData.video_url}`;
+      }
+
       await createLecture({
         title: formData.title,
-        description: formData.description,
+        description: fullDescription,
         content: formData.content,
         type: formData.type as "video" | "slide" | "lab" | "document",
         subject: formData.subject,
@@ -187,6 +264,7 @@ export function CreateLectureModal({
       teacher: "",
       tags: [],
       video_url: "",
+      linkType: "youtube",
       thumbnail: "",
       thumbnailFile: null,
     });
@@ -219,7 +297,7 @@ export function CreateLectureModal({
             />
           </div>
 
-          {/* Loại bài giảng */}
+          {/* Loại bài giảng & Môn học */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <Label className="text-sm font-medium">Loại bài giảng *</Label>
@@ -308,6 +386,64 @@ export function CreateLectureModal({
             />
           </div>
 
+          {/* ✅ Link video - NÂNG CẤP với nhiều loại link */}
+          <div>
+            <Label className="text-sm font-medium">Link bài giảng</Label>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-1">
+              {/* Chọn loại link */}
+              <div>
+                <Select
+                  value={formData.linkType}
+                  onValueChange={handleLinkTypeChange}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Chọn loại link" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {linkOptions.map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>
+                        {opt.icon} {opt.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Input link */}
+              <div className="sm:col-span-2">
+                <div className="flex gap-2">
+                  <div className="relative flex-1">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2">
+                      {getLinkIcon(formData.linkType)}
+                    </span>
+                    <Input
+                      value={formData.video_url}
+                      onChange={(e) =>
+                        handleChange("video_url", e.target.value)
+                      }
+                      placeholder={getLinkPlaceholder(formData.linkType)}
+                      className="pl-8"
+                    />
+                  </div>
+                  {formData.video_url && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      className="flex-shrink-0"
+                      onClick={() => window.open(formData.video_url, "_blank")}
+                    >
+                      <ExternalLink className="w-4 h-4" />
+                    </Button>
+                  )}
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Hỗ trợ: YouTube, Wayground, Google Docs, Google Sheets
+                </p>
+              </div>
+            </div>
+          </div>
+
           {/* Thẻ tags */}
           <div>
             <Label className="text-sm font-medium">Thẻ tags</Label>
@@ -333,23 +469,6 @@ export function CreateLectureModal({
                   />
                 </Badge>
               ))}
-            </div>
-          </div>
-
-          {/* Link video */}
-          <div>
-            <Label className="text-sm font-medium">Link video</Label>
-            <div className="flex gap-2 mt-1">
-              <Input
-                value={formData.video_url}
-                onChange={(e) => handleChange("video_url", e.target.value)}
-                placeholder="https://youtube.com/..."
-                className="flex-1"
-              />
-              <Button type="button" variant="outline" className="gap-2">
-                <Link className="w-4 h-4" />
-                Kiểm tra
-              </Button>
             </div>
           </div>
 
