@@ -80,7 +80,7 @@ export function HeroSection({ nameRef, blurElementsRef }: HeroSectionProps) {
                 Khám phá ngay
               </Button>
             </a>
-            <a href="mailto:vonhathaoqtm3k14@gmail.com">
+            <a href="/documents">
               <Button
                 variant="outline"
                 className="px-6 py-3 bg-white/10 hover:bg-white/20 border border-white/20 font-medium rounded-xl active:scale-95 transition-all backdrop-blur-sm text-white"

@@ -91,9 +91,37 @@ network-admin-portal/
 │ │ │
 │ │ ├── (routes)/ # Public routes
 │ │ │ ├── about/
-│ │ │ │ └── page.tsx
+│ │ │ │ ├── page.tsx
+│ │ │ │ ├── components/
+│ │ │ │ │ ├── AboutHero.tsx
+│ │ │ │ │ ├── AboutStats.tsx
+│ │ │ │ │ ├── AboutTabs.tsx
+│ │ │ │ │ ├── AboutOverview.tsx
+│ │ │ │ │ ├── AboutTeachers.tsx
+│ │ │ │ │ ├── AboutAchievements.tsx
+│ │ │ │ │ ├── AboutCTA.tsx
+│ │ │ │ │ ├── LoadingScreen.tsx
+│ │ │ │ │ └── AboutSkeleton.tsx
+│ │ │ │ ├── hooks/
+│ │ │ │ │ └── useAboutData.ts
+│ │ │ │ └── types/
+│ │ │ │ └── index.ts
+│ │ │ │
 │ │ │ ├── admin/
-│ │ │ │ └── page.tsx
+│ │ │ │ ├── page.tsx
+│ │ │ │ ├── components/
+│ │ │ │ │ ├── AdminHeader.tsx
+│ │ │ │ │ ├── AdminStats.tsx
+│ │ │ │ │ ├── UserTable.tsx
+│ │ │ │ │ ├── UserRow.tsx
+│ │ │ │ │ ├── StatsCard.tsx
+│ │ │ │ │ ├── EditUserModal.tsx
+│ │ │ │ │ └── DeleteUserModal.tsx
+│ │ │ │ ├── hooks/
+│ │ │ │ │ └── useAdminUsers.ts
+│ │ │ │ └── types/
+│ │ │ │ └── index.ts
+│ │ │ │
 │ │ │ ├── announcements/ # Thông báo - ĐÃ HOÀN CHỈNH
 │ │ │ │ ├── page.tsx
 │ │ │ │ ├── [id]/
@@ -106,6 +134,7 @@ network-admin-portal/
 │ │ │ │ ├── AnnouncementStats.tsx
 │ │ │ │ ├── AnnouncementTicker.tsx
 │ │ │ │ └── CreateAnnouncementModal.tsx
+│ │ │ │
 │ │ │ ├── assignments/ # Bài tập - ĐÃ HOÀN CHỈNH
 │ │ │ │ ├── page.tsx
 │ │ │ │ ├── [id]/
@@ -119,39 +148,48 @@ network-admin-portal/
 │ │ │ │ ├── CreateAssignmentModal.tsx
 │ │ │ │ ├── StatusBadge.tsx
 │ │ │ │ └── SubmitAssignmentModal.tsx
+│ │ │ │
 │ │ │ ├── chat/
 │ │ │ │ └── page.tsx
+│ │ │ │
 │ │ │ ├── cisco-lab/
 │ │ │ │ └── page.tsx
+│ │ │ │
 │ │ │ ├── contact/
 │ │ │ │ └── page.tsx
+│ │ │ │
 │ │ │ ├── courses/
 │ │ │ │ └── page.tsx
+│ │ │ │
 │ │ │ ├── docker/
 │ │ │ │ └── page.tsx
+│ │ │ │
 │ │ │ ├── documents/ # Tài liệu - ĐÃ HOÀN CHỈNH
 │ │ │ │ ├── page.tsx
 │ │ │ │ ├── [id]/
 │ │ │ │ │ └── page.tsx
-│ │ │ │ ├── components/
-│ │ │ │ │ ├── DocumentsCard.tsx
-│ │ │ │ │ ├── DocumentsFilters.tsx
-│ │ │ │ │ ├── DocumentsGrid.tsx
-│ │ │ │ │ ├── DocumentsHero.tsx
-│ │ │ │ │ ├── DocumentsPagination.tsx
-│ │ │ │ │ ├── DocumentsSearch.tsx
-│ │ │ │ │ ├── DocumentsStats.tsx
-│ │ │ │ │ ├── EditDocumentModal.tsx
-│ │ │ │ │ └── UploadDocumentModal.tsx
+│ │ │ │ └── components/
+│ │ │ │ ├── DocumentsCard.tsx
+│ │ │ │ ├── DocumentsFilters.tsx
+│ │ │ │ ├── DocumentsGrid.tsx
+│ │ │ │ ├── DocumentsHero.tsx
+│ │ │ │ ├── DocumentsPagination.tsx
+│ │ │ │ ├── DocumentsSearch.tsx
+│ │ │ │ ├── DocumentsStats.tsx
+│ │ │ │ ├── EditDocumentModal.tsx
+│ │ │ │ └── UploadDocumentModal.tsx
 │ │ │ │ ├── hooks/
 │ │ │ │ │ ├── useDocumentInteractions.ts
 │ │ │ │ │ └── useDocuments.ts
 │ │ │ │ └── types/
 │ │ │ │ └── index.ts
+│ │ │ │
 │ │ │ ├── exams/
 │ │ │ │ └── page.tsx
+│ │ │ │
 │ │ │ ├── faq/
 │ │ │ │ └── page.tsx
+│ │ │ │
 │ │ │ ├── forum/ # Diễn đàn - ĐÃ HOÀN CHỈNH
 │ │ │ │ ├── page.tsx
 │ │ │ │ ├── [id]/
@@ -165,32 +203,61 @@ network-admin-portal/
 │ │ │ │ ├── ForumPostMenu.tsx
 │ │ │ │ ├── ForumPostSkeleton.tsx
 │ │ │ │ └── UserProfileModal.tsx
+│ │ │ │
 │ │ │ ├── iso/
 │ │ │ │ └── page.tsx
-│ │ │ ├── lectures/
-│ │ │ │ └── page.tsx
+│ │ │ │
+│ │ │ ├── lectures/ # Bài giảng - ĐÃ HOÀN CHỈNH
+│ │ │ │ ├── page.tsx
+│ │ │ │ ├── [id]/
+│ │ │ │ │ └── page.tsx
+│ │ │ │ ├── components/
+│ │ │ │ │ ├── LectureHero.tsx
+│ │ │ │ │ ├── LectureGrid.tsx
+│ │ │ │ │ ├── LectureCard.tsx
+│ │ │ │ │ ├── LectureFilters.tsx
+│ │ │ │ │ ├── LectureStats.tsx
+│ │ │ │ │ ├── LectureSkeleton.tsx
+│ │ │ │ │ ├── LectureEmptyState.tsx
+│ │ │ │ │ └── LectureScrollReveal.tsx
+│ │ │ │ ├── hooks/
+│ │ │ │ │ └── useLectures.ts
+│ │ │ │ └── types/
+│ │ │ │ └── index.ts
+│ │ │ │
 │ │ │ ├── linux/
 │ │ │ │ └── page.tsx
+│ │ │ │
 │ │ │ ├── network-automation/
 │ │ │ │ └── page.tsx
+│ │ │ │
 │ │ │ ├── packet-tracer/
 │ │ │ │ └── page.tsx
+│ │ │ │
 │ │ │ ├── profile/
 │ │ │ │ └── page.tsx
+│ │ │ │
 │ │ │ ├── projects/
 │ │ │ │ └── page.tsx
+│ │ │ │
 │ │ │ ├── python/
 │ │ │ │ └── page.tsx
+│ │ │ │
 │ │ │ ├── schedule/
 │ │ │ │ └── page.tsx
+│ │ │ │
 │ │ │ ├── software/
 │ │ │ │ └── page.tsx
+│ │ │ │
 │ │ │ ├── source-code/
 │ │ │ │ └── page.tsx
+│ │ │ │
 │ │ │ ├── submissions/
 │ │ │ │ └── page.tsx
+│ │ │ │
 │ │ │ ├── terms/
 │ │ │ │ └── page.tsx
+│ │ │ │
 │ │ │ └── vm/
 │ │ │ └── page.tsx
 │ │ │
@@ -231,8 +298,7 @@ network-admin-portal/
 │ │ │ ├── NetworkPulse.tsx
 │ │ │ ├── NetworkTicker.tsx
 │ │ │ ├── ScanLine.tsx
-│ │ │ ├── TerminalTyping.tsx
-│ │ │ └── index.ts
+│ │ │ └── TerminalTyping.tsx
 │ │ ├── cards/
 │ │ │ └── feature-card.tsx
 │ │ ├── chat/
@@ -256,8 +322,7 @@ network-admin-portal/
 │ │ │ ├── RecentAnnouncements.tsx
 │ │ │ ├── StatsCard.tsx
 │ │ │ ├── UpcomingTasks.tsx
-│ │ │ ├── UserActions.tsx
-│ │ │ └── index.ts
+│ │ │ └── UserActions.tsx
 │ │ ├── features/
 │ │ │ └── stats.tsx
 │ │ ├── forms/
@@ -288,7 +353,7 @@ network-admin-portal/
 │ │ └── toast.tsx
 │ │
 │ ├── hooks/ # Custom hooks
-│ │ ├── use-announcements.ts # Quản lý thông báo - ĐÃ HOÀN CHỈNH
+│ │ ├── use-announcements.ts # Quản lý thông báo
 │ │ ├── use-assignments.ts
 │ │ ├── use-chat.ts
 │ │ ├── use-click-away.ts
@@ -301,7 +366,8 @@ network-admin-portal/
 │ │ ├── use-profile.ts
 │ │ ├── use-stats.ts
 │ │ ├── use-storage.ts
-│ │ └── use-toast.ts
+│ │ ├── use-toast.ts
+│ │ └── useLectures.ts
 │ │
 │ ├── lib/ # Utilities & configs
 │ │ ├── db/
@@ -393,102 +459,65 @@ network-admin-portal/
 
 1. Rating không cập nhật ra bên ngoài ⚠️
    Mô tả: Khi đánh giá trong trang chi tiết, rating được cập nhật trong database nhưng không hiển thị ở trang danh sách
-
-Nguyên nhân: Không refresh cache sau khi mutation thành công
-
-Trạng thái: Đang khắc phục
-
-Giải pháp đề xuất: Sử dụng React Query invalidation
+   Nguyên nhân: Không refresh cache sau khi mutation thành công
+   Trạng thái: Đang khắc phục
+   Giải pháp đề xuất: Sử dụng React Query invalidation
 
 2. Like và Comments không cập nhật real-time ⚠️
    Mô tả: Khi like hoặc comment, số lượng không tự động cập nhật
-
-Nguyên nhân: Không có real-time subscription
-
-Trạng thái: Đang khắc phục
-
-Giải pháp đề xuất: Thêm Supabase Realtime subscriptions
+   Nguyên nhân: Không có real-time subscription
+   Trạng thái: Đang khắc phục
+   Giải pháp đề xuất: Thêm Supabase Realtime subscriptions
 
 3. View tăng nhiều lần khi refresh ⚠️
    Mô tả: Mỗi lần refresh trang, view lại tăng thêm 1
+   Nguyên nhân: useEffect gọi incrementView nhiều lần
+   Trạng thái: Đã khắc phục một phần
+   Giải pháp đề xuất: Dùng ref để kiểm soát
 
-Nguyên nhân: useEffect gọi incrementView nhiều lần
-
-Trạng thái: Đã khắc phục một phần
-
-Giải pháp đề xuất: Dùng ref để kiểm soát
-
-4. Dark Mode không hoạt động ⚠️
-   Mô tả: Chuyển dark/light mode không có hiệu ứng
-
-Nguyên nhân: Thiếu next-themes hoặc cấu hình sai
-
-Trạng thái: Đang khắc phục
-
-Giải pháp đề xuất: Cài đặt và cấu hình next-themes
+4. Dark Mode không hoạt động trên production ⚠️
+   Mô tả: Chuyển dark/light mode không có hiệu ứng trên Vercel
+   Nguyên nhân: Thiếu next-themes hoặc cấu hình sai
+   Trạng thái: Đang khắc phục
+   Giải pháp đề xuất: Cài đặt và cấu hình next-themes
 
 5. Skeleton Comments hiển thị mãi không biến mất ⚠️
    Mô tả: Loading skeleton của comments không biến mất sau khi load
-
-Nguyên nhân: State loading không được set false
-
-Trạng thái: Đã khắc phục một phần
-
-Giải pháp đề xuất: Kiểm tra và set loading false đúng cách
+   Nguyên nhân: State loading không được set false
+   Trạng thái: Đã khắc phục một phần
+   Giải pháp đề xuất: Kiểm tra và set loading false đúng cách
 
 6. Lỗi RLS Policy trên Supabase ⚠️
-   Mô tả: new row violates row-level security policy
-
-Nguyên nhân: Policies trên bảng chưa đúng
-
-Trạng thái: Đã khắc phục một phần
-
-Giải pháp đề xuất: Cập nhật RLS policies
+   Mô tả: new row violates row-level security policy for table "users"
+   Nguyên nhân: Policies trên bảng chưa đúng, thiếu service role key
+   Trạng thái: Đã khắc phục một phần
+   Giải pháp: Đã dùng supabaseAdmin để bypass RLS, cần thêm key trên Vercel
 
 7. Upload file lỗi Storage ⚠️
    Mô tả: Không thể upload file lên Supabase Storage
+   Nguyên nhân: Bucket chưa được tạo hoặc policies sai
+   Trạng thái: Đã khắc phục
+   Giải pháp: Tạo bucket và policies đúng
 
-Nguyên nhân: Bucket chưa được tạo hoặc policies sai
+8. API Register 500 trên production ⚠️
+   Mô tả: POST /api/auth/register trả về 500 trên Vercel
+   Nguyên nhân: Thiếu SUPABASE_SERVICE_ROLE_KEY trên Vercel
+   Trạng thái: Đang khắc phục
+   Giải pháp: Thêm biến môi trường vào Vercel
 
-Trạng thái: Đã khắc phục
+9. Hydration Mismatch ⚠️
+   Mô tả: Lỗi hydration khi render component với random values
+   Nguyên nhân: Dùng Math.random() trong SSR
+   Trạng thái: Đã khắc phục một phần
+   Giải pháp: Chỉ render sau khi mounted
 
-Giải pháp đề xuất: Tạo bucket và policies đúng
+10. Loop Request khi fetch dữ liệu ⚠️
+    Mô tả: Gửi request liên tục khi chưa có dữ liệu
+    Nguyên nhân: useEffect không có dependency đúng
+    Trạng thái: Đã khắc phục một phần
+    Giải pháp: Dùng ref để kiểm soát fetch
 
-📊 BẢNG TỔNG HỢP COMPONENT CHÍNH
-✅ Documents (Tài liệu)
-Component File Trạng thái
-DocumentsHero components/DocumentsHero.tsx ✅ Hoàn chỉnh
-DocumentsGrid components/DocumentsGrid.tsx ✅ Hoàn chỉnh
-DocumentsCard components/DocumentsCard.tsx ✅ Hoàn chỉnh
-DocumentsFilters components/DocumentsFilters.tsx ✅ Hoàn chỉnh
-DocumentsStats components/DocumentsStats.tsx ✅ Hoàn chỉnh
-DocumentsSearch components/DocumentsSearch.tsx ✅ Hoàn chỉnh
-DocumentsPagination components/DocumentsPagination.tsx ✅ Hoàn chỉnh
-UploadDocumentModal components/UploadDocumentModal.tsx ✅ Hoàn chỉnh
-EditDocumentModal components/EditDocumentModal.tsx ✅ Hoàn chỉnh
-useDocuments hooks/useDocuments.ts ✅ Hoàn chỉnh
-✅ Announcements (Thông báo)
-Component File Trạng thái
-AnnouncementHero components/AnnouncementHero.tsx ✅ Hoàn chỉnh
-AnnouncementCard components/AnnouncementCard.tsx ✅ Hoàn chỉnh
-AnnouncementFilters components/AnnouncementFilters.tsx ✅ Hoàn chỉnh
-AnnouncementStats components/AnnouncementStats.tsx ✅ Hoàn chỉnh
-AnnouncementTicker components/AnnouncementTicker.tsx ✅ Hoàn chỉnh
-AnnouncementSkeleton components/AnnouncementSkeleton.tsx ✅ Hoàn chỉnh
-CreateAnnouncementModal components/CreateAnnouncementModal.tsx ✅ Hoàn chỉnh
-useAnnouncements hooks/use-announcements.ts ✅ Hoàn chỉnh
-✅ Assignments (Bài tập)
-Component File Trạng thái
-AssignmentHero components/AssignmentHero.tsx ✅ Hoàn chỉnh
-AssignmentCard components/AssignmentCard.tsx ✅ Hoàn chỉnh
-AssignmentFilters components/AssignmentFilters.tsx ✅ Hoàn chỉnh
-AssignmentStats components/AssignmentStats.tsx ✅ Hoàn chỉnh
-AssignmentSkeleton components/AssignmentSkeleton.tsx ✅ Hoàn chỉnh
-StatusBadge components/StatusBadge.tsx ✅ Hoàn chỉnh
-CreateAssignmentModal components/CreateAssignmentModal.tsx ✅ Hoàn chỉnh
-SubmitAssignmentModal components/SubmitAssignmentModal.tsx ✅ Hoàn chỉnh
-useAssignments hooks/use-assignments.ts ✅ Hoàn chỉnh
-🛠️ HƯỚNG DẪN CÀI ĐẶT
+🔧 HƯỚNG DẪN CÀI ĐẶT
 Yêu cầu hệ thống
 Node.js 18+
 
@@ -555,7 +584,7 @@ vercel login
 
 # Deploy
 
-vercel --prod
+vercel --prod --force
 📖 HƯỚNG DẪN SỬ DỤNG
 Cho sinh viên
 Đăng ký tài khoản: Điền đầy đủ thông tin
@@ -593,13 +622,15 @@ GitHub https://github.com/Hao186188
 Website https://qtm3k14.vercel.app
 🔜 KẾ HOẠCH PHÁT TRIỂN TIẾP THEO
 Ưu tiên cao
-✅ Fix Rating không cập nhật
+Fix Rating không cập nhật
 
-✅ Fix Dark Mode
+Fix Dark Mode trên production
 
-✅ Fix Skeleton Comments
+Fix Skeleton Comments
 
-✅ Hoàn thiện RLS Policies
+Hoàn thiện RLS Policies
+
+Thêm biến môi trường trên Vercel
 
 Ưu tiên trung bình
 Thêm real-time subscription cho likes/comments
@@ -608,6 +639,8 @@ Tối ưu performance với React Query
 
 Thêm unit tests
 
+Fix Hydration Mismatch
+
 Ưu tiên thấp
 Thêm PWA support
 
@@ -615,4 +648,38 @@ Tối ưu SEO
 
 Thêm analytics
 
+📊 BẢNG TỔNG HỢP COMPONENT CHÍNH
+✅ Documents (Tài liệu)
+Component File Trạng thái
+DocumentsHero components/DocumentsHero.tsx ✅ Hoàn chỉnh
+DocumentsGrid components/DocumentsGrid.tsx ✅ Hoàn chỉnh
+DocumentsCard components/DocumentsCard.tsx ✅ Hoàn chỉnh
+DocumentsFilters components/DocumentsFilters.tsx ✅ Hoàn chỉnh
+DocumentsStats components/DocumentsStats.tsx ✅ Hoàn chỉnh
+DocumentsSearch components/DocumentsSearch.tsx ✅ Hoàn chỉnh
+DocumentsPagination components/DocumentsPagination.tsx ✅ Hoàn chỉnh
+UploadDocumentModal components/UploadDocumentModal.tsx ✅ Hoàn chỉnh
+EditDocumentModal components/EditDocumentModal.tsx ✅ Hoàn chỉnh
+useDocuments hooks/useDocuments.ts ✅ Hoàn chỉnh
+✅ Announcements (Thông báo)
+Component File Trạng thái
+AnnouncementHero components/AnnouncementHero.tsx ✅ Hoàn chỉnh
+AnnouncementCard components/AnnouncementCard.tsx ✅ Hoàn chỉnh
+AnnouncementFilters components/AnnouncementFilters.tsx ✅ Hoàn chỉnh
+AnnouncementStats components/AnnouncementStats.tsx ✅ Hoàn chỉnh
+AnnouncementTicker components/AnnouncementTicker.tsx ✅ Hoàn chỉnh
+AnnouncementSkeleton components/AnnouncementSkeleton.tsx ✅ Hoàn chỉnh
+CreateAnnouncementModal components/CreateAnnouncementModal.tsx ✅ Hoàn chỉnh
+useAnnouncements hooks/use-announcements.ts ✅ Hoàn chỉnh
+✅ Assignments (Bài tập)
+Component File Trạng thái
+AssignmentHero components/AssignmentHero.tsx ✅ Hoàn chỉnh
+AssignmentCard components/AssignmentCard.tsx ✅ Hoàn chỉnh
+AssignmentFilters components/AssignmentFilters.tsx ✅ Hoàn chỉnh
+AssignmentStats components/AssignmentStats.tsx ✅ Hoàn chỉnh
+AssignmentSkeleton components/AssignmentSkeleton.tsx ✅ Hoàn chỉnh
+StatusBadge components/StatusBadge.tsx ✅ Hoàn chỉnh
+CreateAssignmentModal components/CreateAssignmentModal.tsx ✅ Hoàn chỉnh
+SubmitAssignmentModal components/SubmitAssignmentModal.tsx ✅ Hoàn chỉnh
+useAssignments hooks/use-assignments.ts ✅ Hoàn chỉnh
 "Kết nối tri thức - Làm chủ hệ thống mạng" 🚀

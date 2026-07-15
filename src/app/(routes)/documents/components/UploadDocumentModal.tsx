@@ -1,5 +1,5 @@
 // src/app/(routes)/documents/components/UploadDocumentModal.tsx
-// UPLOAD DOCUMENT MODAL - HOÀN CHỈNH
+// FIXED: Xử lý file .rar
 
 "use client";
 
@@ -28,6 +28,7 @@ const CATEGORIES = [
   "Ôn tập",
   "Đề thi",
 ];
+
 const SUBJECTS = [
   "Quản trị Mạng 3",
   "Bảo mật Mạng",
@@ -35,6 +36,71 @@ const SUBJECTS = [
   "Mạng máy tính",
   "Python",
   "Docker",
+];
+
+// ✅ Danh sách extension được hỗ trợ - ĐẦY ĐỦ
+const SUPPORTED_EXTENSIONS = [
+  "pdf",
+  "doc",
+  "docx",
+  "xls",
+  "xlsx",
+  "ppt",
+  "pptx",
+  "txt",
+  "rtf",
+  "odt",
+  "zip",
+  "rar",
+  "7z",
+  "tar",
+  "gz",
+  "bz2",
+  "xz",
+  "jpg",
+  "jpeg",
+  "png",
+  "gif",
+  "svg",
+  "webp",
+  "bmp",
+  "ico",
+  "mp4",
+  "avi",
+  "mov",
+  "wmv",
+  "flv",
+  "mkv",
+  "webm",
+  "mp3",
+  "wav",
+  "aac",
+  "flac",
+  "ogg",
+  "js",
+  "ts",
+  "jsx",
+  "tsx",
+  "html",
+  "css",
+  "json",
+  "xml",
+  "yaml",
+  "yml",
+  "md",
+  "py",
+  "java",
+  "c",
+  "cpp",
+  "go",
+  "rs",
+  "sh",
+  "bat",
+  "pkt",
+  "pka",
+  "cfg",
+  "conf",
+  "log",
 ];
 
 export function UploadDocumentModal({
@@ -52,31 +118,59 @@ export function UploadDocumentModal({
   const [tags, setTags] = useState("");
   const [isUploading, setIsUploading] = useState(false);
   const [dragActive, setDragActive] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const isAuthenticated = !!session?.user;
 
+  const validateFile = (file: File): string | null => {
+    const ext = file.name.split(".").pop()?.toLowerCase() || "";
+
+    // Kiểm tra extension
+    if (!SUPPORTED_EXTENSIONS.includes(ext)) {
+      return `File .${ext} không được hỗ trợ. Các định dạng hỗ trợ: ${SUPPORTED_EXTENSIONS.join(", ")}`;
+    }
+
+    // Kiểm tra kích thước (50MB)
+    if (file.size > 50 * 1024 * 1024) {
+      return "File quá lớn, tối đa 50MB";
+    }
+
+    return null;
+  };
+
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setDragActive(false);
+    setError(null);
+
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
       const file = e.dataTransfer.files[0];
-      if (file.size > 50 * 1024 * 1024) {
-        toast.error("File quá lớn, tối đa 50MB");
+      const validationError = validateFile(file);
+
+      if (validationError) {
+        setError(validationError);
+        toast.error(validationError);
         return;
       }
+
       setFile(file);
       if (!title) setTitle(file.name.split(".")[0]);
     }
   };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setError(null);
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
-      if (file.size > 50 * 1024 * 1024) {
-        toast.error("File quá lớn, tối đa 50MB");
+      const validationError = validateFile(file);
+
+      if (validationError) {
+        setError(validationError);
+        toast.error(validationError);
         return;
       }
+
       setFile(file);
       if (!title) setTitle(file.name.split(".")[0]);
     }
@@ -84,6 +178,7 @@ export function UploadDocumentModal({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError(null);
 
     if (!isAuthenticated) {
       toast.error("Vui lòng đăng nhập để tải lên tài liệu");
@@ -106,6 +201,7 @@ export function UploadDocumentModal({
         .split(",")
         .map((t) => t.trim())
         .filter(Boolean);
+
       await onUpload(file, {
         title: title.trim(),
         description: description.trim(),
@@ -113,11 +209,16 @@ export function UploadDocumentModal({
         subject,
         tags: tagsArray,
       });
+
+      toast.success("Đã tải lên tài liệu thành công!");
       onSuccess();
       onClose();
       resetForm();
     } catch (error: any) {
-      toast.error(error?.message || "Có lỗi xảy ra khi tải lên");
+      console.error("Upload error:", error);
+      const errorMsg = error.message || "Có lỗi xảy ra khi tải lên";
+      setError(errorMsg);
+      toast.error(errorMsg);
     } finally {
       setIsUploading(false);
     }
@@ -130,6 +231,7 @@ export function UploadDocumentModal({
     setCategory("Tài liệu");
     setSubject("Quản trị Mạng 3");
     setTags("");
+    setError(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
@@ -170,6 +272,7 @@ export function UploadDocumentModal({
                   ? "border-cyan-500 bg-cyan-500/5 scale-[1.02] shadow-lg shadow-cyan-500/20"
                   : "border-white/10 hover:border-cyan-500/50",
                 isUploading && "opacity-50 cursor-not-allowed",
+                error && "border-red-500/50",
               )}
               onDragEnter={() => !isUploading && setDragActive(true)}
               onDragLeave={() => !isUploading && setDragActive(false)}
@@ -183,6 +286,7 @@ export function UploadDocumentModal({
                 onChange={handleFileSelect}
                 className="hidden"
                 disabled={isUploading}
+                accept={SUPPORTED_EXTENSIONS.map((ext) => `.${ext}`).join(",")}
               />
               {file ? (
                 <div className="flex items-center justify-center gap-3">
@@ -203,6 +307,7 @@ export function UploadDocumentModal({
                     onClick={(e) => {
                       e.stopPropagation();
                       setFile(null);
+                      setError(null);
                       if (fileInputRef.current) fileInputRef.current.value = "";
                     }}
                   >
@@ -216,11 +321,13 @@ export function UploadDocumentModal({
                     Kéo thả file vào đây hoặc click để chọn
                   </p>
                   <p className="text-xs text-white/30 mt-1">
-                    Hỗ trợ: PDF, DOC, DOCX, ZIP, RAR (tối đa 50MB)
+                    Hỗ trợ: PDF, DOC, DOCX, XLS, XLSX, PPT, PPTX, ZIP, RAR, 7Z,
+                    JPG, PNG, MP4, MP3 (tối đa 50MB)
                   </p>
                 </>
               )}
             </div>
+            {error && <p className="text-sm text-red-400 mt-2">{error}</p>}
           </div>
 
           {/* Title */}

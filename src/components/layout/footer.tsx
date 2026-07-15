@@ -7,12 +7,7 @@ import { motion } from "framer-motion";
 import { ArrowUp, Heart, Mail, MapPin, Phone, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import {
-  FaFacebook,
-  FaGithub,
-  FaTiktok,
-  FaYoutube
-} from "react-icons/fa";
+import { FaFacebook, FaGithub, FaTiktok, FaYoutube } from "react-icons/fa";
 
 const quickLinks = [
   { name: "Trang chủ", href: "/" },
@@ -179,16 +174,19 @@ export function Footer() {
                 <span className="leading-relaxed">
                   Trường Cao đẳng Nghề Kiên Giang
                 </span>
+                {/* <span className="leading-relaxed">
+                  1022 Nguyễn Trung Trực, phường Rạch Giá, tỉnh An Giang
+                </span> */}
               </div>
               <div className="flex items-center gap-3 text-sm text-muted-foreground group">
                 <div className="p-1.5 rounded-lg bg-primary/10 text-primary group-hover:bg-primary/20 transition-colors flex-shrink-0">
                   <Mail className="w-4 h-4" />
                 </div>
                 <a
-                  href="mailto:thanh.nn@cdngk.edu.vn"
+                  href="mailto:nnthanh@caodangnghekg.edu.vn"
                   className="hover:text-primary transition-colors"
                 >
-                  thanh.nn@cdngk.edu.vn
+                  nnthanh@caodangnghekg.edu.vn
                 </a>
               </div>
               <div className="flex items-center gap-3 text-sm text-muted-foreground group">
@@ -196,10 +194,10 @@ export function Footer() {
                   <Phone className="w-4 h-4" />
                 </div>
                 <a
-                  href="tel:+84123456789"
+                  href="tel:0834757692"
                   className="hover:text-primary transition-colors"
                 >
-                  +84 123 456 789
+                  0834 757 692
                 </a>
               </div>
 

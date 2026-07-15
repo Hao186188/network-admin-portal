@@ -27,6 +27,26 @@ export interface Document {
   is_favorite?: boolean;
   semester?: string;
   academic_year?: string;
+
+  // ✨ MỚI: Hỗ trợ folder
+  parent_id?: string | null;
+  path?: string[];
+  is_folder?: boolean;
+}
+
+export interface FolderNode {
+  id: string;
+  title: string;
+  type: "folder" | "file";
+  fileType?: string;
+  children?: FolderNode[];
+  isOpen?: boolean;
+}
+
+export interface BreadcrumbItem {
+  id: string | null;
+  title: string;
+  path: string[];
 }
 
 export interface DocumentLike {

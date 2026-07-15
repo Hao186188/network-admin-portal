@@ -1,5 +1,5 @@
 // src/app/(routes)/documents/hooks/useDocuments.ts
-// HOÀN CHỈNH
+// FIXED: Chỉ đếm file, không đếm folder
 
 import {
   isServiceRoleEnabled,
@@ -35,18 +35,22 @@ export function useDocuments() {
     setError(null);
 
     try {
+      // ✅ Chỉ đếm FILE, không đếm FOLDER
       const { count: total, error: countError } = await supabase
         .from("documents")
-        .select("*", { count: "exact", head: true });
+        .select("*", { count: "exact", head: true })
+        .eq("is_folder", false); // ✅ QUAN TRỌNG: Chỉ lấy file
 
       if (countError) throw countError;
 
       const from = (page - 1) * limit;
       const to = from + limit - 1;
 
+      // ✅ Chỉ lấy FILE, không lấy FOLDER
       const { data: docs, error: docsError } = await supabase
         .from("documents")
         .select("*")
+        .eq("is_folder", false) // ✅ QUAN TRỌNG: Chỉ lấy file
         .order("created_at", { ascending: false })
         .range(from, to);
 
@@ -76,11 +80,13 @@ export function useDocuments() {
       };
 
       if (page === 1) {
+        // ✅ Chỉ lấy FILE để tính stats
         const { data: statsData, error: statsError } = await supabase
           .from("documents")
           .select(
             "downloads, views, category, subject, tags, file_size, created_at",
-          );
+          )
+          .eq("is_folder", false); // ✅ QUAN TRỌNG: Chỉ lấy file
 
         if (!statsError && statsData) {
           const totalDownloads =
@@ -91,6 +97,7 @@ export function useDocuments() {
           const categories = [
             ...new Set(statsData?.map((d) => d.category).filter(Boolean) || []),
           ];
+
           const subjects = [
             ...new Set(statsData?.map((d) => d.subject).filter(Boolean) || []),
           ];
@@ -161,7 +168,9 @@ export function useDocuments() {
 
     try {
       const fileExt = file.name.split(".").pop() || "unknown";
-      const fileName = `${Date.now()}-${Math.random().toString(36).substring(2, 8)}.${fileExt}`;
+      const fileName = `${Date.now()}-${Math.random()
+        .toString(36)
+        .substring(2, 8)}.${fileExt}`;
       const filePath = `${session.user.id}/${fileName}`;
 
       const { data: uploadData, error: uploadError } =
@@ -188,6 +197,7 @@ export function useDocuments() {
         uploaded_by: session.user.id,
         uploaded_by_name: session.user.name || "Unknown",
         is_published: true,
+        is_folder: false, // ✅ Luôn là file
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       };

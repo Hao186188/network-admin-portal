@@ -183,10 +183,7 @@ export function DocumentsHero({ onUploadClick, stats }: DocumentsHeroProps) {
   };
 
   const handleIntro = () => {
-    window.open(
-      "https://www.youtube.com/results?search_query=quan+tri+mang+3",
-      "_blank",
-    );
+    window.open("/about", "_blank");
   };
 
   return (

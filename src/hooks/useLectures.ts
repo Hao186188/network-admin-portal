@@ -1,5 +1,5 @@
 // src/hooks/useLectures.ts
-// HOÀN CHỈNH - FIX ALL ERRORS
+// HOÀN CHỈNH - FIX LOOP REQUEST
 
 "use client";
 
@@ -13,10 +13,42 @@ import { Lecture, LectureFilter, LectureStats } from "@/types";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSession } from "next-auth/react";
 
+// ============================================
+// TYPE DEFINITIONS
+// ============================================
+
+interface CreateLectureData {
+  title: string;
+  description: string;
+  content?: string;
+  type: "video" | "slide" | "lab" | "document";
+  subject?: string;
+  duration: string;
+  duration_minutes: number;
+  teacher: string;
+  tags: string[];
+  video_url?: string;
+  thumbnail?: string;
+}
+
+interface ApproveLectureParams {
+  id: string;
+  status: "approved" | "rejected";
+  reason?: string;
+}
+
+// ============================================
+// MAIN HOOK
+// ============================================
+
 export function useLectures() {
   const { data: session } = useSession();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  const isAdmin = session?.user?.role === "ADMIN";
+  const isTeacher = session?.user?.role === "TEACHER";
+  const canModerate = isAdmin || isTeacher;
 
   // ============================================
   // QUERY: Fetch all lectures
@@ -31,7 +63,7 @@ export function useLectures() {
           .select("*")
           .order("created_at", { ascending: false });
 
-        if (session?.user?.role !== "admin") {
+        if (!canModerate) {
           query = query.eq("status", "approved");
         }
 
@@ -49,8 +81,9 @@ export function useLectures() {
       }
     },
     staleTime: 5 * 60 * 1000,
-    refetchOnWindowFocus: true,
-    retry: 2,
+    refetchOnWindowFocus: false, // ✅ Tắt refetch on focus để tránh loop
+    retry: 1,
+    enabled: !!session?.user, // ✅ Chỉ fetch khi có session
   });
 
   // ============================================
@@ -62,11 +95,13 @@ export function useLectures() {
       queryKey: ["lecture", id],
       queryFn: async (): Promise<Lecture> => {
         try {
-          const { data, error } = await supabase
-            .from("lectures")
-            .select("*")
-            .eq("id", id)
-            .single();
+          let query = supabase.from("lectures").select("*").eq("id", id);
+
+          if (!canModerate) {
+            query = query.eq("status", "approved");
+          }
+
+          const { data, error } = await query.single();
 
           if (error) {
             console.error("Supabase error:", error);
@@ -78,14 +113,14 @@ export function useLectures() {
           throw error;
         }
       },
-      enabled: !!id,
+      enabled: !!id && !!session?.user,
       staleTime: 5 * 60 * 1000,
       retry: 1,
     });
   };
 
   // ============================================
-  // QUERY: Fetch pending lectures
+  // QUERY: Fetch pending lectures (chỉ admin/teacher)
   // ============================================
 
   const pendingLecturesQuery = useQuery({
@@ -109,44 +144,23 @@ export function useLectures() {
         throw error;
       }
     },
-    enabled: session?.user?.role === "admin",
+    enabled: canModerate && !!session?.user,
     staleTime: 30 * 1000,
-    refetchOnWindowFocus: true,
+    refetchOnWindowFocus: false,
+    refetchInterval: false, // ✅ Tắt refetch interval
   });
 
   // ============================================
   // MUTATION: Create lecture
   // ============================================
 
-  const createLecture = useMutation({
-    mutationFn: async (data: Partial<Lecture>) => {
+  const createLectureMutation = useMutation({
+    mutationFn: async (data: CreateLectureData) => {
       if (!session?.user) {
         throw new Error("Vui lòng đăng nhập để đăng bài");
       }
 
       const client = isServiceRoleEnabled ? supabaseAdmin : supabase;
-
-      // Kiểm tra user có tồn tại không
-      const { data: userData, error: userError } = await client
-        .from("users")
-        .select("id, role")
-        .eq("id", session.user.id)
-        .single();
-
-      if (userError) {
-        const { error: insertUserError } = await client.from("users").insert({
-          id: session.user.id,
-          email: session.user.email,
-          username: session.user.username || session.user.email?.split("@")[0],
-          name: session.user.name || "User",
-          role: session.user.role?.toLowerCase() || "student",
-        });
-
-        if (insertUserError) {
-          console.error("Failed to create user:", insertUserError);
-          throw new Error("Không thể tạo tài khoản. Vui lòng liên hệ admin.");
-        }
-      }
 
       const insertData = {
         title: data.title?.trim() || "Bài giảng mới",
@@ -181,15 +195,12 @@ export function useLectures() {
 
       if (insertError) {
         console.error("Insert error:", insertError);
-        if (insertError.code === "42501") {
-          throw new Error("Lỗi bảo mật. Vui lòng đăng xuất và đăng nhập lại.");
-        }
         throw new Error(insertError.message || "Không thể tạo bài giảng");
       }
 
       return newLecture;
     },
-    onSuccess: (data) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["lectures"] });
       queryClient.invalidateQueries({ queryKey: ["lectures", "pending"] });
       toast.success("Đăng bài thành công! Bài giảng đang chờ kiểm duyệt.");
@@ -204,7 +215,7 @@ export function useLectures() {
   // MUTATION: Increment view
   // ============================================
 
-  const incrementView = useMutation({
+  const incrementViewMutation = useMutation({
     mutationFn: async (id: string) => {
       const viewKey = `viewed_lecture_${id}`;
       if (sessionStorage.getItem(viewKey)) {
@@ -248,7 +259,7 @@ export function useLectures() {
   // MUTATION: Toggle like
   // ============================================
 
-  const toggleLike = useMutation({
+  const toggleLikeMutation = useMutation({
     mutationFn: async (id: string) => {
       try {
         const { data: current, error: fetchError } = await supabase
@@ -286,19 +297,10 @@ export function useLectures() {
   // MUTATION: Approve lecture
   // ============================================
 
-  const approveLecture = useMutation({
-    mutationFn: async ({
-      id,
-      status,
-      reason,
-    }: {
-      id: string;
-      status: "approved" | "rejected";
-      reason?: string;
-    }) => {
+  const approveLectureMutation = useMutation({
+    mutationFn: async ({ id, status, reason }: ApproveLectureParams) => {
       if (!session?.user) throw new Error("Vui lòng đăng nhập");
-      if (session.user.role !== "admin")
-        throw new Error("Chỉ admin mới có quyền duyệt");
+      if (!canModerate) throw new Error("Bạn không có quyền duyệt bài");
 
       const client = isServiceRoleEnabled ? supabaseAdmin : supabase;
 
@@ -337,24 +339,14 @@ export function useLectures() {
   // MUTATION: Delete lecture
   // ============================================
 
-  const deleteLecture = useMutation({
+  const deleteLectureMutation = useMutation({
     mutationFn: async (id: string) => {
       if (!session?.user) throw new Error("Vui lòng đăng nhập");
-      if (session.user.role !== "admin")
-        throw new Error("Chỉ admin mới có quyền xóa");
+      if (!isAdmin) throw new Error("Chỉ admin mới có quyền xóa");
 
       const client = isServiceRoleEnabled ? supabaseAdmin : supabase;
 
-      const { error } = await client
-        .from("lectures")
-        .update({
-          deleted_by: session.user.id,
-          deleted_at: new Date().toISOString(),
-          is_published: false,
-          is_approved: false,
-          status: "rejected",
-        })
-        .eq("id", id);
+      const { error } = await client.from("lectures").delete().eq("id", id);
 
       if (error) throw error;
       return id;
@@ -374,15 +366,16 @@ export function useLectures() {
   // MUTATION: Update lecture
   // ============================================
 
-  const updateLecture = useMutation({
+  const updateLectureMutation = useMutation({
     mutationFn: async ({
       id,
       data,
     }: {
       id: string;
-      data: Partial<Lecture>;
+      data: Partial<CreateLectureData>;
     }) => {
       if (!session?.user) throw new Error("Vui lòng đăng nhập");
+      if (!canModerate) throw new Error("Bạn không có quyền sửa bài");
 
       const client = isServiceRoleEnabled ? supabaseAdmin : supabase;
 
@@ -511,12 +504,13 @@ export function useLectures() {
     return filtered;
   };
 
+  const getPendingCount = (): number => {
+    return pendingLecturesQuery.data?.length || 0;
+  };
+
   // ============================================
   // RETURN
   // ============================================
-
-  // src/hooks/useLectures.ts
-  // PHẦN RETURN - ĐẢM BẢO EXPORT ĐÚNG
 
   return {
     // Data
@@ -526,22 +520,28 @@ export function useLectures() {
     isPendingLoading: pendingLecturesQuery.isLoading,
     isFetching: lecturesQuery.isFetching,
     error: lecturesQuery.error,
-    refresh: lecturesQuery.refetch,
+    refresh: () => {
+      lecturesQuery.refetch();
+      if (canModerate) {
+        pendingLecturesQuery.refetch();
+      }
+    },
 
     // Single lecture
     useLecture,
 
-    // Mutations - ✅ ĐẢM BẢO LÀ FUNCTIONS
-    createLecture: createLecture.mutate,
-    incrementView: incrementView.mutate,
-    toggleLike: toggleLike.mutate,
-    approveLecture: approveLecture.mutate, // ✅ Phải là function
-    deleteLecture: deleteLecture.mutate, // ✅ Phải là function
-    updateLecture: updateLecture.mutate,
+    // Mutations
+    createLecture: createLectureMutation.mutate,
+    incrementView: incrementViewMutation.mutate,
+    toggleLike: toggleLikeMutation.mutate,
+    approveLecture: approveLectureMutation.mutate,
+    deleteLecture: deleteLectureMutation.mutate,
+    updateLecture: updateLectureMutation.mutate,
 
     // Utilities
     getStats,
     getUniqueTags,
     filterLectures,
+    getPendingCount,
   };
 }
