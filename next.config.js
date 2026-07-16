@@ -1,5 +1,5 @@
 // next.config.js
-// HOÀN CHỈNH - TỐI ƯU BUILD
+// HOÀN CHỈNH - TƯƠNG THÍCH NEXT.JS 16 + TURBOPACK
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
@@ -34,7 +34,7 @@ const nextConfig = {
     formats: ["image/avif", "image/webp"],
   },
 
-  // ✅ Experimental
+  // ✅ Experimental - ĐÃ CÓ sẵn
   experimental: {
     serverActions: {
       allowedOrigins: ["localhost:3000", "qtm3k14.vercel.app"],
@@ -43,13 +43,17 @@ const nextConfig = {
     scrollRestoration: true,
   },
 
-  // ✅ Performance
+  // ✅ Turbopack config (thay thế cho webpack)
+  turbopack: {
+    resolveExtensions: [".tsx", ".ts", ".jsx", ".js", ".json"],
+  },
+
+  // ✅ Performance - BỎ swcMinify (không còn dùng)
   compress: true,
   poweredByHeader: false,
   reactStrictMode: true,
-  swcMinify: true,
 
-  // ✅ Build optimization
+  // ✅ Build optimization - KHÔNG dùng swcMinify nữa
   compiler: {
     removeConsole: process.env.NODE_ENV === "production",
   },
@@ -108,19 +112,6 @@ const nextConfig = {
         permanent: true,
       },
     ];
-  },
-
-  // ✅ Webpack optimization
-  webpack: (config, { isServer }) => {
-    if (!isServer) {
-      config.resolve.fallback = {
-        ...config.resolve.fallback,
-        fs: false,
-        net: false,
-        tls: false,
-      };
-    }
-    return config;
   },
 };
 
