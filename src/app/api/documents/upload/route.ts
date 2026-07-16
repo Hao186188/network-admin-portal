@@ -155,14 +155,18 @@ export async function POST(req: NextRequest) {
       "🔍 [API] Upload - isServiceRoleEnabled:",
       isServiceRoleEnabled,
     );
+    console.log(
+      "🔍 [API] Upload - Using supabaseAdmin:",
+      supabaseAdmin !== null,
+    );
 
-    // ✅ 7. SỬ DỤNG supabaseAdmin TRỰC TIẾP (bypass RLS)
+    // ✅ 7. Tạo tên file
     const fileExt = file.name.split(".").pop() || "unknown";
     const fileName = `${Date.now()}-${Math.random().toString(36).substring(2, 8)}.${fileExt}`;
     const filePath = `${session.user.id}/${fileName}`;
 
-    // ✅ Upload file lên Storage bằng supabaseAdmin
-    const { error: uploadError } = await supabaseAdmin.storage
+    // ✅ 8. Upload file lên Storage - DÙNG ADMIN CLIENT
+    const { data: uploadData, error: uploadError } = await supabaseAdmin.storage
       .from("documents")
       .upload(filePath, file, {
         cacheControl: "3600",
@@ -177,13 +181,14 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // ✅ 9. Lấy public URL
     const { data: urlData } = supabaseAdmin.storage
       .from("documents")
       .getPublicUrl(filePath);
 
     console.log("✅ [API] Upload success:", urlData.publicUrl);
 
-    // ✅ 8. Lưu metadata vào database bằng supabaseAdmin
+    // ✅ 10. Lưu metadata vào database - DÙNG ADMIN CLIENT
     const insertData = {
       title: title || file.name,
       description: description,
@@ -202,6 +207,8 @@ export async function POST(req: NextRequest) {
       updated_at: new Date().toISOString(),
     };
 
+    console.log("🔍 [API] Insert data:", JSON.stringify(insertData, null, 2));
+
     const { data: dbData, error: dbError } = await supabaseAdmin
       .from("documents")
       .insert(insertData)
@@ -210,8 +217,29 @@ export async function POST(req: NextRequest) {
 
     if (dbError) {
       console.error("❌ [API] Database error:", dbError);
-      // ✅ Rollback: Xóa file đã upload
+      console.error(
+        "❌ [API] Database error details:",
+        JSON.stringify(dbError, null, 2),
+      );
+
+      // ✅ Rollback: Xóa file đã upload nếu insert thất bại
       await supabaseAdmin.storage.from("documents").remove([filePath]);
+
+      // ✅ Kiểm tra lỗi RLS
+      if (
+        dbError.code === "42501" ||
+        dbError.message?.includes("row-level security")
+      ) {
+        return NextResponse.json(
+          {
+            error: "Lỗi bảo mật RLS. Vui lòng kiểm tra cấu hình database.",
+            details: dbError.message,
+            code: dbError.code,
+          },
+          { status: 403 },
+        );
+      }
+
       return NextResponse.json(
         { error: dbError.message || "Failed to save document" },
         { status: 500 },

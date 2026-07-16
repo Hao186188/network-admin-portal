@@ -2,7 +2,7 @@
 // API ROUTE CHO DOCUMENTS - TẠO FOLDER & XÓA
 
 import { authOptions } from "@/lib/auth";
-import { getSupabaseClient } from "@/lib/db/supabase-client";
+import { isServiceRoleEnabled, supabaseAdmin } from "@/lib/db/supabase-client";
 import { getServerSession } from "next-auth";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -26,9 +26,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Title is required" }, { status: 400 });
     }
 
-    // ✅ 3. Sử dụng ADMIN client (bypass RLS)
-    const supabaseAdmin = getSupabaseClient(true);
+    // ✅ 3. LOG debug
+    console.log("🔍 [API] Create folder - Session user:", session.user.id);
+    console.log(
+      "🔍 [API] Create folder - isServiceRoleEnabled:",
+      isServiceRoleEnabled,
+    );
 
+    // ✅ 4. Sử dụng ADMIN client (bypass RLS)
     const insertData = {
       title: title.trim(),
       is_folder: is_folder ?? true,
@@ -94,9 +99,9 @@ export async function DELETE(req: NextRequest) {
       );
     }
 
-    const supabaseAdmin = getSupabaseClient(true);
+    console.log("🗑️ [API] Deleting document:", id);
 
-    // ✅ Kiểm tra xem có phải folder không để xóa cả file bên trong
+    // ✅ Kiểm tra xem có phải folder không
     const { data: doc, error: fetchError } = await supabaseAdmin
       .from("documents")
       .select("is_folder, file_url")
@@ -113,14 +118,12 @@ export async function DELETE(req: NextRequest) {
 
     // ✅ Nếu là folder, xóa tất cả file bên trong
     if (doc.is_folder) {
-      // Lấy tất cả file trong folder
       const { data: files, error: filesError } = await supabaseAdmin
         .from("documents")
         .select("file_url")
         .eq("parent_id", id);
 
       if (!filesError && files && files.length > 0) {
-        // Xóa file trên storage
         for (const file of files) {
           if (file.file_url) {
             const filePath = file.file_url.split("/").pop();
@@ -131,7 +134,6 @@ export async function DELETE(req: NextRequest) {
         }
       }
 
-      // Xóa tất cả file trong folder
       await supabaseAdmin.from("documents").delete().eq("parent_id", id);
     }
 
@@ -149,6 +151,7 @@ export async function DELETE(req: NextRequest) {
       );
     }
 
+    console.log("✅ [API] Document deleted");
     return NextResponse.json({ success: true });
   } catch (error: any) {
     console.error("❌ [API] Error:", error);

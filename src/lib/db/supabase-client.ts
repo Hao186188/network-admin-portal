@@ -1,5 +1,5 @@
 // src/lib/db/supabase-client.ts
-// HOÀN CHỈNH - GIỮ NGUYÊN CODE CŨ, BỔ SUNG EXPORT
+// HOÀN CHỈNH - FIX 401 TRÊN PRODUCTION
 
 import { createClient } from "@supabase/supabase-js";
 
@@ -17,8 +17,6 @@ const supabaseServiceKey =
 // ============================================
 // DEBUG LOGS
 // ============================================
-
-const isDev = process.env.NODE_ENV === "development";
 
 console.log(
   "🔌 [Supabase] URL:",
