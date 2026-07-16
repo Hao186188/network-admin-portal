@@ -1,5 +1,5 @@
 // src/lib/db/supabase-client.ts
-// HOÀN CHỈNH - FIX 401 VÀ HỖ TRỢ ADMIN CLIENT
+// HOÀN CHỈNH - FIX 401 TRÊN PRODUCTION
 
 import { createClient } from "@supabase/supabase-js";
 
@@ -20,25 +20,20 @@ const supabaseServiceKey =
 
 const isDev = process.env.NODE_ENV === "development";
 
-if (isDev) {
-  console.log(
-    "🔌 [Supabase] URL:",
-    supabaseUrl ? "✅ Đã cấu hình" : "❌ Chưa cấu hình",
-  );
-  console.log(
-    "🔑 [Supabase] Anon Key:",
-    supabaseAnonKey ? "✅ Có" : "❌ Không",
-  );
-  console.log(
-    "🔑 [Supabase] Service Key:",
-    supabaseServiceKey && supabaseServiceKey.length > 20 ? "✅ Có" : "❌ Không",
-  );
-  console.log(
-    "📏 [Supabase] Service Key length:",
-    supabaseServiceKey?.length || 0,
-  );
-  console.log("🌍 [Supabase] Environment:", process.env.NODE_ENV);
-}
+console.log(
+  "🔌 [Supabase] URL:",
+  supabaseUrl ? "✅ Đã cấu hình" : "❌ Chưa cấu hình",
+);
+console.log("🔑 [Supabase] Anon Key:", supabaseAnonKey ? "✅ Có" : "❌ Không");
+console.log(
+  "🔑 [Supabase] Service Key:",
+  supabaseServiceKey && supabaseServiceKey.length > 20 ? "✅ Có" : "❌ Không",
+);
+console.log(
+  "📏 [Supabase] Service Key length:",
+  supabaseServiceKey?.length || 0,
+);
+console.log("🌍 [Supabase] Environment:", process.env.NODE_ENV);
 
 // ============================================
 // VALIDATION
@@ -50,6 +45,14 @@ if (!supabaseUrl) {
 
 if (!supabaseAnonKey) {
   console.error("❌ NEXT_PUBLIC_SUPABASE_ANON_KEY is missing!");
+}
+
+if (!supabaseServiceKey || supabaseServiceKey.length < 20) {
+  console.warn("⚠️ SUPABASE_SERVICE_ROLE_KEY is missing or invalid!");
+  console.warn("   → INSERT/UPDATE/DELETE operations will fail on production!");
+  console.warn(
+    "   → Please add SUPABASE_SERVICE_ROLE_KEY to Vercel environment variables",
+  );
 }
 
 // ============================================
@@ -78,8 +81,8 @@ console.log("✅ [Supabase] Regular client created");
 
 let adminClient: any = null;
 
-try {
-  if (supabaseServiceKey && supabaseServiceKey.length > 20) {
+if (supabaseServiceKey && supabaseServiceKey.length > 20) {
+  try {
     console.log("🔧 [Supabase] Creating admin client...");
 
     adminClient = createClient(supabaseUrl, supabaseServiceKey, {
@@ -98,33 +101,13 @@ try {
     });
 
     console.log("✅ [Supabase] Admin client created successfully!");
-
-    // ✅ Test admin connection ngay khi khởi tạo
-    if (isDev) {
-      adminClient
-        .from("users")
-        .select("count", { count: "exact", head: true })
-        .then(({ error }: any) => {
-          if (error) {
-            console.warn("⚠️ [Supabase] Admin connection test failed:", error);
-          } else {
-            console.log("✅ [Supabase] Admin connection test passed!");
-          }
-        })
-        .catch((err: any) => {
-          console.warn("⚠️ [Supabase] Admin connection test error:", err);
-        });
-    }
-  } else {
-    console.warn("⚠️ [Supabase] Service Role Key not available!");
-    console.warn("   → Admin operations will use regular client (RLS enabled)");
-    console.warn(
-      "   → Please add SUPABASE_SERVICE_ROLE_KEY to your environment variables",
-    );
+  } catch (error: any) {
+    console.error("❌ [Supabase] Failed to create admin client:", error);
+    adminClient = null;
   }
-} catch (error: any) {
-  console.error("❌ [Supabase] Failed to create admin client:", error);
-  adminClient = null;
+} else {
+  console.warn("⚠️ [Supabase] Service Role Key not available!");
+  console.warn("   → Admin operations will use regular client (RLS enabled)");
 }
 
 export const supabaseAdmin = adminClient || supabase;
@@ -147,10 +130,10 @@ console.log("🔑 [Supabase] Using admin client:", adminClient !== null);
 
 export function getSupabaseClient(useAdmin: boolean = false) {
   if (useAdmin && isServiceRoleEnabled && adminClient) {
-    if (isDev) console.log("🔑 [Supabase] Using ADMIN client");
+    console.log("🔑 [Supabase] Using ADMIN client");
     return adminClient;
   }
-  if (isDev) console.log("🔑 [Supabase] Using REGULAR client");
+  console.log("🔑 [Supabase] Using REGULAR client");
   return supabase;
 }
 

@@ -1,13 +1,9 @@
 // src/app/(routes)/documents/components/FileExplorer/index.tsx
-// HOÀN CHỈNH - SỬ DỤNG ADMIN CLIENT CHO INSERT/UPDATE/DELETE
+// HOÀN CHỈNH - SỬ DỤNG API ROUTE CHO INSERT/UPDATE/DELETE
 
 "use client";
 
-import {
-  isServiceRoleEnabled,
-  supabase,
-  supabaseAdmin,
-} from "@/lib/db/supabase-client";
+import { supabase } from "@/lib/db/supabase-client";
 import { Folder } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -194,17 +190,6 @@ export function FileExplorer({
     details: [],
   });
 
-  // ✅ Lấy client phù hợp
-  const getClient = useCallback(() => {
-    // ✅ ƯU TIÊN DÙNG ADMIN CLIENT CHO INSERT/UPDATE/DELETE
-    if (isServiceRoleEnabled) {
-      console.log("🔑 Using Admin Client (bypass RLS)");
-      return supabaseAdmin;
-    }
-    console.log("🔑 Using Regular Client (RLS enabled)");
-    return supabase;
-  }, []);
-
   // 📂 Lấy nội dung thư mục hiện tại - DÙNG supabase THƯỜNG (SELECT)
   const fetchFolderContents = useCallback(async (folderId: string | null) => {
     if (isFetching.current) {
@@ -349,7 +334,7 @@ export function FileExplorer({
     [currentFolderId, fetchFolderContents, fetchBreadcrumbs, onNavigate],
   );
 
-  // ➕ Tạo folder mới - ✅ SỬ DỤNG ADMIN CLIENT
+  // ➕ Tạo folder mới - ✅ GỌI API
   const createFolder = useCallback(
     async (title: string) => {
       if (!session?.user?.id) {
@@ -362,39 +347,25 @@ export function FileExplorer({
         return;
       }
 
-      const client = getClient();
-      console.log(
-        "📁 Using client for createFolder:",
-        client === supabaseAdmin ? "ADMIN" : "REGULAR",
-      );
-
       try {
-        console.log("📁 Creating folder with title:", title);
+        console.log("📁 Creating folder via API:", title);
 
-        const { data, error } = await client
-          .from("documents")
-          .insert({
+        const response = await fetch("/api/documents", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
             title: title.trim(),
-            is_folder: true,
             parent_id: currentFolderId,
-            file_type: "folder",
-            file_size: 0,
-            file_url: null,
-            uploaded_by: session.user.id,
-            uploaded_by_name: session.user.name || "Unknown",
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-            category: "Tài liệu",
-            subject: "Quản trị Mạng 3",
-            tags: [],
-            is_published: true,
-          })
-          .select()
-          .single();
+            is_folder: true,
+          }),
+        });
 
-        if (error) {
-          console.error("❌ Create folder error:", error);
-          throw error;
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.error || "Không thể tạo thư mục");
         }
 
         console.log("✅ Folder created:", data);
@@ -411,10 +382,10 @@ export function FileExplorer({
         });
       }
     },
-    [session, currentFolderId, fetchFolderContents, getClient],
+    [session, currentFolderId, fetchFolderContents],
   );
 
-  // 🗑️ Xóa item - ✅ SỬ DỤNG ADMIN CLIENT
+  // 🗑️ Xóa item - ✅ GỌI API
   const deleteItem = useCallback(
     (id: string) => {
       const item = items.find((i) => i.id === id);
@@ -426,21 +397,16 @@ export function FileExplorer({
         description: `Bạn có chắc chắn muốn xóa "${item.title}"? Hành động này không thể hoàn tác.`,
         variant: "danger",
         onConfirm: async () => {
-          const client = getClient();
           try {
-            console.log(
-              "🗑️ Deleting item with client:",
-              client === supabaseAdmin ? "ADMIN" : "REGULAR",
-            );
+            console.log("🗑️ Deleting item via API:", id);
 
-            const { error } = await client
-              .from("documents")
-              .delete()
-              .eq("id", id);
+            const response = await fetch(`/api/documents?id=${id}`, {
+              method: "DELETE",
+            });
 
-            if (error) {
-              console.error("❌ Delete error:", error);
-              throw error;
+            if (!response.ok) {
+              const data = await response.json();
+              throw new Error(data.error || "Không thể xóa");
             }
 
             toast.success(`Đã xóa "${item.title}"`);
@@ -457,10 +423,10 @@ export function FileExplorer({
         },
       });
     },
-    [items, currentFolderId, fetchFolderContents, getClient],
+    [items, currentFolderId, fetchFolderContents],
   );
 
-  // 📤 Upload file - ✅ SỬ DỤNG ADMIN CLIENT
+  // 📤 Upload file - ✅ GỌI API
   const uploadFiles = useCallback(
     async (files: FileList) => {
       if (!session?.user?.id) {
@@ -469,9 +435,6 @@ export function FileExplorer({
       }
 
       const fileArray = Array.from(files);
-      // src/app/(routes)/documents/components/FileExplorer/index.tsx
-      // THÊM HỖ TRỢ ĐỊNH DẠNG .url
-
       const supportedExtensions = [
         // Documents
         "pdf",
@@ -484,7 +447,6 @@ export function FileExplorer({
         "txt",
         "rtf",
         "odt",
-
         // Archives
         "zip",
         "rar",
@@ -493,7 +455,6 @@ export function FileExplorer({
         "gz",
         "bz2",
         "xz",
-
         // Images
         "jpg",
         "jpeg",
@@ -505,7 +466,6 @@ export function FileExplorer({
         "ico",
         "tiff",
         "tif",
-
         // Videos
         "mp4",
         "avi",
@@ -516,7 +476,6 @@ export function FileExplorer({
         "webm",
         "m4v",
         "3gp",
-
         // Audio
         "mp3",
         "wav",
@@ -525,7 +484,6 @@ export function FileExplorer({
         "ogg",
         "m4a",
         "wma",
-
         // Code
         "js",
         "ts",
@@ -549,15 +507,13 @@ export function FileExplorer({
         "sh",
         "bat",
         "ps1",
-
         // Network
         "pkt",
         "pka",
         "cfg",
         "conf",
         "log",
-
-        // ✅ THÊM HỖ TRỢ ĐỊNH DẠNG .url
+        // ✅ URL
         "url",
       ];
 
@@ -590,49 +546,27 @@ export function FileExplorer({
       }
 
       const toastId = toast.loading(`Đang tải lên ${fileArray.length} file...`);
-      const client = getClient();
 
       try {
         for (const file of fileArray) {
-          const fileExt = file.name.split(".").pop() || "unknown";
-          const timestamp = Date.now();
-          const random = Math.random().toString(36).substring(2, 8);
-          const storagePath = `${session.user.id}/${timestamp}-${random}.${fileExt}`;
+          const formData = new FormData();
+          formData.append("file", file);
+          formData.append("title", file.name);
+          formData.append("parentId", currentFolderId || "");
+          formData.append("description", "");
+          formData.append("category", "Tài liệu");
+          formData.append("subject", "Quản trị Mạng 3");
+          formData.append("tags", JSON.stringify([]));
 
-          // ✅ DÙNG ADMIN CLIENT CHO STORAGE
-          const { error: uploadError } = await supabaseAdmin.storage
-            .from("documents")
-            .upload(storagePath, file, {
-              cacheControl: "3600",
-              upsert: false,
-            });
-
-          if (uploadError) throw uploadError;
-
-          const { data: urlData } = supabaseAdmin.storage
-            .from("documents")
-            .getPublicUrl(storagePath);
-
-          // ✅ DÙNG ADMIN CLIENT CHO DATABASE INSERT
-          const { error: dbError } = await client.from("documents").insert({
-            title: file.name,
-            description: "",
-            file_type: fileExt,
-            file_size: file.size,
-            file_url: urlData.publicUrl,
-            parent_id: currentFolderId,
-            is_folder: false,
-            uploaded_by: session.user.id,
-            uploaded_by_name: session.user.name || "Unknown",
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-            category: "Tài liệu",
-            subject: "Quản trị Mạng 3",
-            tags: [],
-            is_published: true,
+          const response = await fetch("/api/documents/upload", {
+            method: "POST",
+            body: formData,
           });
 
-          if (dbError) throw dbError;
+          if (!response.ok) {
+            const data = await response.json();
+            throw new Error(data.error || "Upload failed");
+          }
         }
 
         toast.success("Tải lên thành công!", { id: toastId });
@@ -646,7 +580,7 @@ export function FileExplorer({
         });
       }
     },
-    [session, currentFolderId, fetchFolderContents, getClient],
+    [session, currentFolderId, fetchFolderContents],
   );
 
   // 🎯 Effect khi component mount

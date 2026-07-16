@@ -1,15 +1,20 @@
 // src/app/api/documents/upload-folder/route.ts
-// FIXED: Sử dụng supabaseAdmin để bypass RLS
+// API UPLOAD FOLDER - NÂNG CẤP
 
 import { authOptions } from "@/lib/auth";
-import { supabaseAdmin } from "@/lib/db/supabase-client";
+import { getSupabaseClient } from "@/lib/db/supabase-client";
 import { getServerSession } from "next-auth";
 import { NextRequest, NextResponse } from "next/server";
+
+// ============================================
+// CONSTANTS
+// ============================================
+
+const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
 
 // Map file extension to MIME type
 const getMimeType = (fileName: string): string => {
   const ext = fileName.split(".").pop()?.toLowerCase() || "";
-
   const mimeTypes: Record<string, string> = {
     pdf: "application/pdf",
     doc: "application/msword",
@@ -54,9 +59,9 @@ const getMimeType = (fileName: string): string => {
     cfg: "text/plain",
     conf: "text/plain",
     log: "text/plain",
+    url: "text/plain",
     "": "application/octet-stream",
   };
-
   return mimeTypes[ext] || "application/octet-stream";
 };
 
@@ -106,12 +111,17 @@ const SUPPORTED_EXTENSIONS = [
   "cfg",
   "conf",
   "log",
+  "url",
 ];
 
 const isSupportedFile = (fileName: string): boolean => {
   const ext = fileName.split(".").pop()?.toLowerCase() || "";
   return SUPPORTED_EXTENSIONS.includes(ext);
 };
+
+// ============================================
+// MAIN API
+// ============================================
 
 export async function POST(req: NextRequest) {
   try {
@@ -138,6 +148,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const supabaseAdmin = getSupabaseClient(true);
+
     // Lọc file hợp lệ
     const validFiles = files.filter((f: any) => {
       const fileName = f.fileName || "";
@@ -149,6 +161,7 @@ export async function POST(req: NextRequest) {
         {
           success: false,
           error: "Không có file nào được hỗ trợ",
+          supportedExtensions: SUPPORTED_EXTENSIONS,
         },
         { status: 400 },
       );
@@ -157,7 +170,7 @@ export async function POST(req: NextRequest) {
     const results = [];
     const folderCache = new Map<string, string>();
 
-    // Helper để tạo folder - SỬ DỤNG supabaseAdmin
+    // Helper để tạo folder
     const getOrCreateFolder = async (
       folderPath: string,
       parentId: string | null = null,
@@ -181,7 +194,6 @@ export async function POST(req: NextRequest) {
           continue;
         }
 
-        // ✅ SỬ DỤNG supabaseAdmin để bypass RLS
         const { data: existing, error: checkError } = await supabaseAdmin
           .from("documents")
           .select("id")
@@ -195,7 +207,6 @@ export async function POST(req: NextRequest) {
         if (existing) {
           folderId = existing.id;
         } else {
-          // ✅ SỬ DỤNG supabaseAdmin để insert
           const { data: newFolder, error: createError } = await supabaseAdmin
             .from("documents")
             .insert({
@@ -231,6 +242,17 @@ export async function POST(req: NextRequest) {
       const { file, fileName, folderPath } = fileData;
 
       try {
+        // Kiểm tra kích thước file
+        const buffer = Buffer.from(file, "base64");
+        if (buffer.length > MAX_FILE_SIZE) {
+          results.push({
+            success: false,
+            file: fileName,
+            error: `File quá lớn. Tối đa ${MAX_FILE_SIZE / (1024 * 1024)}MB`,
+          });
+          continue;
+        }
+
         // Tạo hoặc lấy folder cha
         let finalParentId = parentId;
         if (folderPath && folderPath.trim() !== "") {
@@ -242,10 +264,9 @@ export async function POST(req: NextRequest) {
         const random = Math.random().toString(36).substring(2, 8);
         const storagePath = `${session.user.id}/${timestamp}-${random}.${fileExt}`;
         const mimeType = getMimeType(fileName);
-        const buffer = Buffer.from(file, "base64");
         const fileSize = buffer.length;
 
-        // ✅ Upload lên Storage
+        // Upload lên Storage
         const { error: uploadError } = await supabaseAdmin.storage
           .from("documents")
           .upload(storagePath, buffer, {
@@ -268,7 +289,7 @@ export async function POST(req: NextRequest) {
           .from("documents")
           .getPublicUrl(storagePath);
 
-        // ✅ SỬ DỤNG supabaseAdmin để insert
+        // Lưu vào database
         const { data: docRecord, error: dbError } = await supabaseAdmin
           .from("documents")
           .insert({
