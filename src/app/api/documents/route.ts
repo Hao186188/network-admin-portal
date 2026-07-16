@@ -147,3 +147,66 @@ export async function DELETE(req: NextRequest) {
     );
   }
 }
+
+// ============================================
+// PATCH: CẬP NHẬT DOCUMENT
+// ============================================
+
+export async function PATCH(req: NextRequest) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const url = new URL(req.url);
+    const id = url.searchParams.get("id");
+
+    if (!id) {
+      return NextResponse.json(
+        { error: "Document ID is required" },
+        { status: 400 },
+      );
+    }
+
+    const body = await req.json();
+    const { title, description, category, subject, tags, is_published } = body;
+
+    const updates: any = {
+      updated_at: new Date().toISOString(),
+    };
+
+    if (title !== undefined) updates.title = title;
+    if (description !== undefined) updates.description = description;
+    if (category !== undefined) updates.category = category;
+    if (subject !== undefined) updates.subject = subject;
+    if (tags !== undefined) updates.tags = tags;
+    if (is_published !== undefined) updates.is_published = is_published;
+
+    console.log(`📁 [API] Updating document ${id}:`, updates);
+
+    const { data, error } = await supabaseAdmin
+      .from("documents")
+      .update(updates)
+      .eq("id", id)
+      .select()
+      .single();
+
+    if (error) {
+      console.error("❌ [API] Update error:", error);
+      return NextResponse.json(
+        { error: error.message || "Failed to update document" },
+        { status: 500 },
+      );
+    }
+
+    console.log("✅ [API] Document updated:", data);
+    return NextResponse.json(data);
+  } catch (error: any) {
+    console.error("❌ [API] Error:", error);
+    return NextResponse.json(
+      { error: error.message || "Internal server error" },
+      { status: 500 },
+    );
+  }
+}

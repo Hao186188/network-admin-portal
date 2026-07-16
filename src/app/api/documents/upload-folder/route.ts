@@ -2,7 +2,7 @@
 // API UPLOAD FOLDER - NÂNG CẤP
 
 import { authOptions } from "@/lib/auth";
-import { getSupabaseClient } from "@/lib/db/supabase-client";
+import { supabaseAdmin } from "@/lib/db/supabase-client";
 import { getServerSession } from "next-auth";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -147,8 +147,6 @@ export async function POST(req: NextRequest) {
         { status: 400 },
       );
     }
-
-    const supabaseAdmin = getSupabaseClient(true);
 
     // Lọc file hợp lệ
     const validFiles = files.filter((f: any) => {

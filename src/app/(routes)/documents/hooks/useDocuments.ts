@@ -146,64 +146,31 @@ export function useDocuments() {
     }
   };
 
-  // ✅ SỬA: DÙNG supabaseAdmin CHO UPLOAD
+  // ✅ SỬA: CALL API ROUTE /api/documents/upload ĐỂ UPLOAD BẰNG SERVER-SIDE ADMIN CLIENT
   const uploadDocument = async (file: File, metadata: Partial<Document>) => {
     if (!session?.user?.id) {
       throw new Error("Vui lòng đăng nhập để tải lên tài liệu");
     }
 
     try {
-      const fileExt = file.name.split(".").pop() || "unknown";
-      const fileName = `${Date.now()}-${Math.random()
-        .toString(36)
-        .substring(2, 8)}.${fileExt}`;
-      const filePath = `${session.user.id}/${fileName}`;
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("title", metadata.title || file.name);
+      formData.append("description", metadata.description || "");
+      formData.append("category", metadata.category || "Tài liệu");
+      formData.append("subject", metadata.subject || "Quản trị Mạng 3");
+      formData.append("tags", JSON.stringify(metadata.tags || []));
+      formData.append("parentId", ""); // Mặc định tải lên thư mục gốc
 
-      // ✅ DÙNG supabaseAdmin CHO STORAGE
-      const { data: uploadData, error: uploadError } =
-        await supabaseAdmin.storage.from("documents").upload(filePath, file, {
-          cacheControl: "3600",
-          upsert: false,
-        });
+      const response = await fetch("/api/documents/upload", {
+        method: "POST",
+        body: formData,
+      });
 
-      if (uploadError) {
-        console.error("Storage upload error:", uploadError);
-        throw uploadError;
-      }
+      const result = await response.json();
 
-      const { data: urlData } = supabaseAdmin.storage
-        .from("documents")
-        .getPublicUrl(filePath);
-
-      const docData = {
-        title: metadata.title || file.name,
-        description: metadata.description || "",
-        file_type: fileExt,
-        file_size: file.size,
-        file_url: urlData.publicUrl,
-        category: metadata.category || "Tài liệu",
-        subject: metadata.subject || "Quản trị Mạng 3",
-        tags: metadata.tags || [],
-        uploaded_by: session.user.id,
-        uploaded_by_name: session.user.name || "Unknown",
-        is_published: true,
-        is_folder: false,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      };
-
-      // ✅ DÙNG supabaseAdmin CHO DATABASE INSERT
-      const { data: result, error: dbError } = await supabaseAdmin
-        .from("documents")
-        .insert(docData)
-        .select()
-        .single();
-
-      if (dbError) {
-        console.error("Database error:", dbError);
-        // Rollback: xóa file đã upload
-        await supabaseAdmin.storage.from("documents").remove([filePath]);
-        throw new Error(`Không thể lưu thông tin: ${dbError.message}`);
+      if (!response.ok) {
+        throw new Error(result.error || "Không thể tải lên tài liệu");
       }
 
       await fetchDocuments(store.pagination.page, store.pagination.limit);
@@ -214,64 +181,43 @@ export function useDocuments() {
     }
   };
 
+  // ✅ SỬA: CALL API ROUTE /api/documents ĐỂ CẬP NHẬT BẰNG SERVER-SIDE ADMIN CLIENT
   const updateDocument = async (id: string, updates: Partial<Document>) => {
     try {
-      const client = isServiceRoleEnabled ? supabaseAdmin : supabase;
+      const response = await fetch(`/api/documents?id=${id}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(updates),
+      });
 
-      const { data, error } = await client
-        .from("documents")
-        .update({
-          ...updates,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", id)
-        .select()
-        .maybeSingle();
+      const result = await response.json();
 
-      if (error) {
-        console.error("Update error:", error);
-        throw new Error(`Không thể cập nhật: ${error.message}`);
-      }
-
-      if (!data) {
-        throw new Error("Không tìm thấy tài liệu để cập nhật");
+      if (!response.ok) {
+        throw new Error(result.error || "Không thể cập nhật tài liệu");
       }
 
       await fetchDocuments(store.pagination.page, store.pagination.limit);
-      return data;
+      return result;
     } catch (error: any) {
       console.error("Update error:", error);
       throw new Error(error.message || "Không thể cập nhật tài liệu");
     }
   };
 
+  // ✅ SỬA: CALL API ROUTE /api/documents ĐỂ XÓA BẰNG SERVER-SIDE ADMIN CLIENT
   const deleteDocument = async (id: string) => {
     try {
-      const { data: doc, error: fetchError } = await supabase
-        .from("documents")
-        .select("file_url")
-        .eq("id", id)
-        .maybeSingle();
+      const response = await fetch(`/api/documents?id=${id}`, {
+        method: "DELETE",
+      });
 
-      if (fetchError) throw fetchError;
+      const result = await response.json();
 
-      if (doc?.file_url) {
-        const urlParts = doc.file_url.split("/");
-        const filePath = urlParts
-          .slice(urlParts.indexOf("documents") + 1)
-          .join("/");
-
-        if (filePath) {
-          await supabaseAdmin.storage.from("documents").remove([filePath]);
-        }
+      if (!response.ok) {
+        throw new Error(result.error || "Không thể xóa tài liệu");
       }
-
-      const { error: dbError } = await supabase
-        .from("documents")
-        .delete()
-        .eq("id", id);
-
-      if (dbError) throw dbError;
 
       await fetchDocuments(store.pagination.page, store.pagination.limit);
       return true;
