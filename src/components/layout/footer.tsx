@@ -90,7 +90,7 @@ export function Footer() {
               </div>
               <div>
                 <span className="text-lg font-bold gradient-text">
-                  Thanh Giáo Là
+                  GIÁO LÀNG
                 </span>
                 <span className="text-[10px] text-muted-foreground block -mt-0.5">
                   Quản trị Mạng
@@ -229,7 +229,7 @@ export function Footer() {
         >
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
             <div className="text-xs sm:text-sm text-muted-foreground text-center md:text-left">
-              <span>© {currentYear} Thanh Giáo Là.</span>
+              <span>© {currentYear} GIÁO LÀNG.</span>
               <span className="hidden sm:inline">
                 {" "}
                 Tất cả quyền được bảo lưu.

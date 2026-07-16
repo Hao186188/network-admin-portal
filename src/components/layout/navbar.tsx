@@ -273,9 +273,7 @@ export function Navbar() {
               <Sparkles className="w-5 h-5 text-white" />
             </div>
             <div className="hidden sm:block">
-              <span className="text-lg font-bold gradient-text">
-                Thanh Giáo Là
-              </span>
+              <span className="text-lg font-bold gradient-text">GIÁO LÀNG</span>
               <span className="text-xs text-muted-foreground block -mt-1">
                 Quản trị Mạng
               </span>
@@ -315,14 +313,14 @@ export function Navbar() {
           </motion.div>
           <div className="hidden sm:block">
             <span className="text-sm md:text-base lg:text-lg font-bold gradient-text whitespace-nowrap">
-              Thanh Giáo Là
+              GIÁO LÀNG
             </span>
             <span className="text-[8px] md:text-[10px] lg:text-xs text-muted-foreground block -mt-0.5 whitespace-nowrap">
               Quản trị Mạng
             </span>
           </div>
           <span className="sm:hidden text-sm font-bold gradient-text whitespace-nowrap">
-            Thanh Giáo Là
+            GIÁO LÀNG
           </span>
         </Link>
 

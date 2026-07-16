@@ -1,15 +1,19 @@
 // src/app/(routes)/documents/components/FileExplorer/FileItem.tsx
+// HOÀN CHỈNH - THÊM NÚT TẢI XUỐNG FOLDER
+
 "use client";
 
 import { cn } from "@/lib/utils";
 import {
-    Download,
-    Folder,
-    FolderOpen,
-    Star,
-    Trash2
+  Download,
+  DownloadCloud,
+  Folder,
+  FolderOpen,
+  Star,
+  Trash2
 } from "lucide-react";
 import { useState } from "react";
+import { toast } from "sonner";
 import { FileItemProps } from "./types";
 
 const getFileEmoji = (type: string): string => {
@@ -44,6 +48,7 @@ export function FileItem({
 }: FileItemProps) {
   const [isHovered, setIsHovered] = useState(false);
   const [isFavorite, setIsFavorite] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
   const isFolder = item.is_folder || false;
 
   const handleClick = (e: React.MouseEvent) => {
@@ -64,10 +69,48 @@ export function FileItem({
     }
   };
 
+  // ✅ Tải xuống toàn bộ folder
+  const handleDownloadFolder = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+
+    if (!isFolder) return;
+
+    setIsDownloading(true);
+    const toastId = toast.loading(`Đang nén thư mục "${item.title}"...`);
+
+    try {
+      const response = await fetch(
+        `/api/documents/download-folder?folderId=${item.id}`,
+      );
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Không thể tải thư mục");
+      }
+
+      // ✅ Tải file ZIP
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${item.title}.zip`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+
+      toast.success(`Đã tải xuống thư mục "${item.title}"`, { id: toastId });
+    } catch (error: any) {
+      console.error("Error downloading folder:", error);
+      toast.error(error.message || "Không thể tải thư mục", { id: toastId });
+    } finally {
+      setIsDownloading(false);
+    }
+  };
+
   const handleFavorite = (e: React.MouseEvent) => {
     e.stopPropagation();
     setIsFavorite(!isFavorite);
-    // TODO: Call API to save favorite
   };
 
   return (
@@ -111,11 +154,29 @@ export function FileItem({
             {formatFileSize(item.file_size)}
           </p>
         )}
+        {isFolder && <p className="text-[10px] text-cyan-400/40">📁 Thư mục</p>}
       </div>
 
       {/* Actions - Hiện khi hover */}
       {isHovered && (
         <div className="absolute top-1 right-1 flex gap-0.5">
+          {/* ✅ Nút tải xuống folder */}
+          {isFolder && (
+            <button
+              className={cn(
+                "p-1 rounded-lg bg-black/50 backdrop-blur-sm transition-colors",
+                isDownloading
+                  ? "text-cyan-400 animate-pulse"
+                  : "text-white/40 hover:text-cyan-400",
+              )}
+              onClick={handleDownloadFolder}
+              title="Tải xuống toàn bộ thư mục (ZIP)"
+              disabled={isDownloading}
+            >
+              <DownloadCloud className="w-3.5 h-3.5" />
+            </button>
+          )}
+
           {!isFolder && (
             <button
               className="p-1 rounded-lg bg-black/50 text-white/40 hover:text-cyan-400 transition-colors backdrop-blur-sm"
@@ -125,6 +186,7 @@ export function FileItem({
               <Download className="w-3.5 h-3.5" />
             </button>
           )}
+
           <button
             className={cn(
               "p-1 rounded-lg bg-black/50 backdrop-blur-sm transition-colors",
@@ -139,6 +201,7 @@ export function FileItem({
               className={cn("w-3.5 h-3.5", isFavorite && "fill-yellow-400")}
             />
           </button>
+
           <button
             className="p-1 rounded-lg bg-black/50 text-white/40 hover:text-red-400 transition-colors backdrop-blur-sm"
             onClick={(e) => {
@@ -177,6 +240,16 @@ export function FileItem({
       {isFolder && (
         <div className="absolute bottom-1 right-1 text-[10px] text-white/20">
           📁
+        </div>
+      )}
+
+      {/* Loading overlay khi đang nén */}
+      {isDownloading && (
+        <div className="absolute inset-0 bg-black/50 rounded-xl flex items-center justify-center">
+          <div className="flex flex-col items-center gap-2">
+            <div className="w-8 h-8 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin" />
+            <span className="text-xs text-white/60">Đang nén...</span>
+          </div>
         </div>
       )}
     </div>

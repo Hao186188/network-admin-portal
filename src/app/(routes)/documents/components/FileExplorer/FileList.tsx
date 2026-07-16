@@ -1,10 +1,20 @@
 // src/app/(routes)/documents/components/FileExplorer/FileList.tsx
+// HOÀN CHỈNH - THÊM NÚT TẢI XUỐNG FOLDER
+
 "use client";
 
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
-import { Download, File, Folder, Star, Trash2 } from "lucide-react";
+import {
+  Download,
+  DownloadCloud,
+  File,
+  Folder,
+  Star,
+  Trash2
+} from "lucide-react";
 import { useState } from "react";
+import { toast } from "sonner";
 import { Document } from "../../types";
 import { FileListProps } from "./types";
 
@@ -22,6 +32,9 @@ export function FileList({
   setSelectedItems,
 }: FileListProps) {
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
+  const [downloadingFolders, setDownloadingFolders] = useState<Set<string>>(
+    new Set(),
+  );
 
   const handleSelect = (id: string, ctrlKey: boolean) => {
     if (ctrlKey) {
@@ -42,9 +55,51 @@ export function FileList({
     }
   };
 
+  // ✅ Tải xuống toàn bộ folder
+  const handleDownloadFolder = async (e: React.MouseEvent, item: Document) => {
+    e.stopPropagation();
+
+    if (!item.is_folder) return;
+
+    setDownloadingFolders((prev) => new Set(prev).add(item.id));
+    const toastId = toast.loading(`Đang nén thư mục "${item.title}"...`);
+
+    try {
+      const response = await fetch(
+        `/api/documents/download-folder?folderId=${item.id}`,
+      );
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Không thể tải thư mục");
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${item.title}.zip`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+
+      toast.success(`Đã tải xuống thư mục "${item.title}"`, { id: toastId });
+    } catch (error: any) {
+      console.error("Error downloading folder:", error);
+      toast.error(error.message || "Không thể tải thư mục", { id: toastId });
+    } finally {
+      setDownloadingFolders((prev) => {
+        const newSet = new Set(prev);
+        newSet.delete(item.id);
+        return newSet;
+      });
+    }
+  };
+
   const handleFavorite = (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
-    setFavorites((prev: Set<string>) => {
+    setFavorites((prev) => {
       const newSet = new Set(prev);
       if (newSet.has(id)) {
         newSet.delete(id);
@@ -83,6 +138,7 @@ export function FileList({
             const isFolder = item.is_folder || false;
             const isSelected = selectedItems.includes(item.id);
             const isFavorite = favorites.has(item.id);
+            const isDownloading = downloadingFolders.has(item.id);
 
             return (
               <motion.tr
@@ -119,6 +175,11 @@ export function FileList({
                         📁
                       </span>
                     )}
+                    {isDownloading && (
+                      <span className="text-[10px] text-cyan-400 animate-pulse">
+                        Đang nén...
+                      </span>
+                    )}
                   </div>
                 </td>
                 <td className="py-2.5 px-3 text-sm text-white/40 hidden sm:table-cell">
@@ -129,6 +190,23 @@ export function FileList({
                 </td>
                 <td className="py-2.5 px-3 text-right">
                   <div className="flex items-center justify-end gap-1">
+                    {/* ✅ Nút tải xuống folder */}
+                    {isFolder && (
+                      <button
+                        className={cn(
+                          "p-1.5 rounded-lg transition-colors",
+                          isDownloading
+                            ? "text-cyan-400 animate-pulse"
+                            : "text-white/30 hover:text-cyan-400 hover:bg-cyan-400/10",
+                        )}
+                        onClick={(e) => handleDownloadFolder(e, item)}
+                        title="Tải xuống toàn bộ thư mục (ZIP)"
+                        disabled={isDownloading}
+                      >
+                        <DownloadCloud className="w-4 h-4" />
+                      </button>
+                    )}
+
                     {!isFolder && (
                       <button
                         className="p-1.5 rounded-lg text-white/30 hover:text-cyan-400 hover:bg-cyan-400/10 transition-colors"
@@ -138,6 +216,7 @@ export function FileList({
                         <Download className="w-4 h-4" />
                       </button>
                     )}
+
                     <button
                       className={cn(
                         "p-1.5 rounded-lg transition-colors",
@@ -155,6 +234,7 @@ export function FileList({
                         )}
                       />
                     </button>
+
                     <button
                       className="p-1.5 rounded-lg text-white/30 hover:text-red-400 hover:bg-red-400/10 transition-colors"
                       onClick={(e) => {
