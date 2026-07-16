@@ -1,5 +1,5 @@
 // src/app/api/documents/upload/route.ts
-// FIXED - XỬ LÝ UPLOAD ĐÚNG CÁCH
+// HOÀN CHỈNH - UPLOAD FILE VỚI ADMIN CLIENT
 
 import { authOptions } from "@/lib/auth";
 import { supabaseAdmin } from "@/lib/db/supabase-client";
@@ -82,12 +82,6 @@ const SUPPORTED_EXTENSIONS = [
   "url",
 ];
 
-const isSupportedFile = (fileName: string): boolean => {
-  const ext = fileName.split(".").pop()?.toLowerCase() || "";
-  return SUPPORTED_EXTENSIONS.includes(ext);
-};
-
-// ✅ Lấy MIME type đúng cho file
 const getMimeType = (fileName: string): string => {
   const ext = fileName.split(".").pop()?.toLowerCase() || "";
   const mimeTypes: Record<string, string> = {
@@ -125,6 +119,11 @@ const getMimeType = (fileName: string): string => {
   return mimeTypes[ext] || "application/octet-stream";
 };
 
+const isSupportedFile = (fileName: string): boolean => {
+  const ext = fileName.split(".").pop()?.toLowerCase() || "";
+  return SUPPORTED_EXTENSIONS.includes(ext);
+};
+
 export async function POST(req: NextRequest) {
   try {
     // ✅ 1. Kiểm tra session
@@ -153,6 +152,8 @@ export async function POST(req: NextRequest) {
           error: `File quá lớn. Tối đa ${MAX_FILE_SIZE / (1024 * 1024)}MB.`,
           maxSize: MAX_FILE_SIZE,
           fileSize: file.size,
+          suggestion:
+            "Sử dụng chức năng kéo thả thư mục để upload file lớn hơn.",
         },
         { status: 413 },
       );
@@ -178,9 +179,8 @@ export async function POST(req: NextRequest) {
     const mimeType = getMimeType(file.name);
 
     console.log("🔍 [API] Upload - MIME type:", mimeType);
-    console.log("🔍 [API] Upload - File path:", filePath);
 
-    // ✅ 4. Upload lên Storage - DÙNG supabaseAdmin VỚI CONTENT-TYPE ĐÚNG
+    // ✅ 4. Upload lên Storage - DÙNG ADMIN CLIENT
     const { data: uploadData, error: uploadError } = await supabaseAdmin.storage
       .from("documents")
       .upload(filePath, file, {
@@ -191,10 +191,6 @@ export async function POST(req: NextRequest) {
 
     if (uploadError) {
       console.error("❌ [API] Upload error:", uploadError);
-      console.error(
-        "❌ [API] Upload error details:",
-        JSON.stringify(uploadError, null, 2),
-      );
       return NextResponse.json(
         {
           error: uploadError.message || "Failed to upload file",
@@ -210,7 +206,7 @@ export async function POST(req: NextRequest) {
 
     console.log("✅ [API] Upload success:", urlData.publicUrl);
 
-    // ✅ 5. Lưu metadata vào database - DÙNG supabaseAdmin
+    // ✅ 5. Lưu metadata vào database - DÙNG ADMIN CLIENT
     const insertData = {
       title: title || file.name,
       description: description,
@@ -229,8 +225,6 @@ export async function POST(req: NextRequest) {
       updated_at: new Date().toISOString(),
     };
 
-    console.log("🔍 [API] Insert data:", JSON.stringify(insertData, null, 2));
-
     const { data: dbData, error: dbError } = await supabaseAdmin
       .from("documents")
       .insert(insertData)
@@ -239,16 +233,12 @@ export async function POST(req: NextRequest) {
 
     if (dbError) {
       console.error("❌ [API] Database error:", dbError);
-      console.error("❌ [API] Database error code:", dbError.code);
-      console.error("❌ [API] Database error details:", dbError.details);
 
       // Rollback: xóa file đã upload
       await supabaseAdmin.storage.from("documents").remove([filePath]);
 
-      if (
-        dbError.code === "42501" ||
-        dbError.message?.includes("row-level security")
-      ) {
+      // ✅ Kiểm tra lỗi RLS
+      if (dbError.code === "42501") {
         return NextResponse.json(
           {
             error: "Lỗi bảo mật RLS. Vui lòng kiểm tra cấu hình database.",
@@ -260,7 +250,10 @@ export async function POST(req: NextRequest) {
       }
 
       return NextResponse.json(
-        { error: dbError.message || "Failed to save document" },
+        {
+          error: dbError.message || "Failed to save document",
+          code: dbError.code,
+        },
         { status: 500 },
       );
     }

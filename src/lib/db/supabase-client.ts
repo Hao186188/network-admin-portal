@@ -1,5 +1,5 @@
 // src/lib/db/supabase-client.ts
-// HOÀN CHỈNH - ĐẢM BẢO ADMIN CLIENT HOẠT ĐỘNG
+// HOÀN CHỈNH - ĐẢM BẢO ADMIN CLIENT HOẠT ĐỘNG TRÊN MỌI MÔI TRƯỜNG
 
 import { createClient } from "@supabase/supabase-js";
 
@@ -31,10 +31,9 @@ console.log(
   "📏 [Supabase] Service Key length:",
   supabaseServiceKey?.length || 0,
 );
-console.log("🌍 [Supabase] Environment:", process.env.NODE_ENV);
 
 // ============================================
-// SUPABASE CLIENT THƯỜNG - DÙNG CHO SELECT
+// SUPABASE CLIENT THƯỜNG
 // ============================================
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
@@ -54,7 +53,7 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
 console.log("✅ [Supabase] Regular client created");
 
 // ============================================
-// SUPABASE ADMIN CLIENT - DÙNG CHO INSERT/UPDATE/DELETE
+// SUPABASE ADMIN CLIENT - BYPASS RLS
 // ============================================
 
 let adminClient: any = null;
@@ -79,21 +78,6 @@ if (supabaseServiceKey && supabaseServiceKey.length > 20) {
     });
 
     console.log("✅ [Supabase] Admin client created successfully!");
-
-    // Test admin connection
-    adminClient
-      .from("users")
-      .select("count", { count: "exact", head: true })
-      .then(({ error }: any) => {
-        if (error) {
-          console.error("❌ [Supabase] Admin connection test failed:", error);
-        } else {
-          console.log("✅ [Supabase] Admin connection test passed!");
-        }
-      })
-      .catch((err: any) => {
-        console.error("❌ [Supabase] Admin connection test error:", err);
-      });
   } catch (error: any) {
     console.error("❌ [Supabase] Failed to create admin client:", error);
     adminClient = null;
@@ -101,16 +85,9 @@ if (supabaseServiceKey && supabaseServiceKey.length > 20) {
 } else {
   console.warn("⚠️ [Supabase] Service Role Key not available!");
   console.warn("   → INSERT/UPDATE/DELETE operations will fail on production!");
-  console.warn(
-    "   → Please add SUPABASE_SERVICE_ROLE_KEY to Vercel environment variables",
-  );
 }
 
 export const supabaseAdmin = adminClient || supabase;
-
-// ============================================
-// KIỂM TRA
-// ============================================
 
 export const isServiceRoleEnabled =
   !!supabaseServiceKey &&
@@ -119,50 +96,5 @@ export const isServiceRoleEnabled =
 
 console.log("🔑 [Supabase] isServiceRoleEnabled:", isServiceRoleEnabled);
 console.log("🔑 [Supabase] Using admin client:", adminClient !== null);
-
-// ============================================
-// EXPORT FUNCTIONS
-// ============================================
-
-export function getSupabaseClient(useAdmin: boolean = false) {
-  if (useAdmin && isServiceRoleEnabled && adminClient) {
-    console.log("🔑 [Supabase] Using ADMIN client");
-    return adminClient;
-  }
-  console.log("🔑 [Supabase] Using REGULAR client");
-  return supabase;
-}
-
-export function isAdminClientAvailable(): boolean {
-  return isServiceRoleEnabled && adminClient !== null;
-}
-
-export async function testAdminConnection() {
-  if (!isServiceRoleEnabled || !adminClient) {
-    console.warn("⚠️ [Supabase] Admin client not available");
-    return false;
-  }
-
-  try {
-    const { data, error } = await adminClient
-      .from("users")
-      .select("count", { count: "exact", head: true });
-
-    if (error) {
-      console.error("❌ [Supabase] Admin connection failed:", error);
-      return false;
-    }
-
-    console.log("✅ [Supabase] Admin connection successful!");
-    return true;
-  } catch (error) {
-    console.error("❌ [Supabase] Admin connection error:", error);
-    return false;
-  }
-}
-
-// ============================================
-// EXPORT DEFAULT
-// ============================================
 
 export default supabase;

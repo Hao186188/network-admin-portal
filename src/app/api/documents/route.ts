@@ -1,223 +1,144 @@
-// src/app/api/documents/upload/route.ts
-// FIXED - DÙNG ADMIN CLIENT CHO MỌI THAO TÁC
+// src/app/api/documents/route.ts
+// HOÀN CHỈNH - TẠO FOLDER & XÓA
 
 import { authOptions } from "@/lib/auth";
 import { supabaseAdmin } from "@/lib/db/supabase-client";
 import { getServerSession } from "next-auth";
 import { NextRequest, NextResponse } from "next/server";
 
-const MAX_FILE_SIZE = 4 * 1024 * 1024; // 4MB
-
-const SUPPORTED_EXTENSIONS = [
-  "pdf",
-  "doc",
-  "docx",
-  "xls",
-  "xlsx",
-  "ppt",
-  "pptx",
-  "txt",
-  "rtf",
-  "odt",
-  "zip",
-  "rar",
-  "7z",
-  "tar",
-  "gz",
-  "bz2",
-  "xz",
-  "jpg",
-  "jpeg",
-  "png",
-  "gif",
-  "svg",
-  "webp",
-  "bmp",
-  "ico",
-  "tiff",
-  "tif",
-  "mp4",
-  "avi",
-  "mov",
-  "wmv",
-  "flv",
-  "mkv",
-  "webm",
-  "m4v",
-  "3gp",
-  "mp3",
-  "wav",
-  "aac",
-  "flac",
-  "ogg",
-  "m4a",
-  "wma",
-  "js",
-  "ts",
-  "jsx",
-  "tsx",
-  "html",
-  "css",
-  "json",
-  "xml",
-  "yaml",
-  "yml",
-  "md",
-  "py",
-  "java",
-  "c",
-  "cpp",
-  "h",
-  "hpp",
-  "go",
-  "rs",
-  "sh",
-  "bat",
-  "ps1",
-  "pkt",
-  "pka",
-  "cfg",
-  "conf",
-  "log",
-  "url",
-];
-
-const isSupportedFile = (fileName: string): boolean => {
-  const ext = fileName.split(".").pop()?.toLowerCase() || "";
-  return SUPPORTED_EXTENSIONS.includes(ext);
-};
+// ============================================
+// POST: TẠO FOLDER MỚI
+// ============================================
 
 export async function POST(req: NextRequest) {
   try {
-    // ✅ 1. Kiểm tra session
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // ✅ 2. Lấy dữ liệu từ request
-    const formData = await req.formData();
-    const file = formData.get("file") as File;
-    const title = formData.get("title") as string;
-    const description = (formData.get("description") as string) || "";
-    const category = (formData.get("category") as string) || "Tài liệu";
-    const subject = (formData.get("subject") as string) || "Quản trị Mạng 3";
-    const tags = JSON.parse((formData.get("tags") as string) || "[]");
-    const parentId = (formData.get("parentId") as string) || null;
+    const body = await req.json();
+    const { title, parent_id, is_folder, category, subject, tags } = body;
 
-    if (!file) {
-      return NextResponse.json({ error: "File is required" }, { status: 400 });
+    if (!title || !title.trim()) {
+      return NextResponse.json({ error: "Title is required" }, { status: 400 });
     }
 
-    if (file.size > MAX_FILE_SIZE) {
-      return NextResponse.json(
-        {
-          error: `File quá lớn. Tối đa ${MAX_FILE_SIZE / (1024 * 1024)}MB.`,
-          maxSize: MAX_FILE_SIZE,
-          fileSize: file.size,
-        },
-        { status: 413 },
-      );
-    }
-
-    if (!isSupportedFile(file.name)) {
-      return NextResponse.json(
-        {
-          error: `File "${file.name}" không được hỗ trợ`,
-          supportedExtensions: SUPPORTED_EXTENSIONS,
-        },
-        { status: 400 },
-      );
-    }
-
-    console.log("🔍 [API] Upload - Session user:", session.user.id);
-    console.log("🔍 [API] Upload - File:", file.name, file.size);
-
-    // ✅ 3. Tạo tên file
-    const fileExt = file.name.split(".").pop() || "unknown";
-    const fileName = `${Date.now()}-${Math.random().toString(36).substring(2, 8)}.${fileExt}`;
-    const filePath = `${session.user.id}/${fileName}`;
-
-    // ✅ 4. Upload lên Storage - DÙNG supabaseAdmin
-    const { data: uploadData, error: uploadError } = await supabaseAdmin.storage
-      .from("documents")
-      .upload(filePath, file, {
-        cacheControl: "3600",
-        upsert: false,
-      });
-
-    if (uploadError) {
-      console.error("❌ [API] Upload error:", uploadError);
-      return NextResponse.json(
-        { error: uploadError.message || "Failed to upload file" },
-        { status: 500 },
-      );
-    }
-
-    const { data: urlData } = supabaseAdmin.storage
-      .from("documents")
-      .getPublicUrl(filePath);
-
-    console.log("✅ [API] Upload success:", urlData.publicUrl);
-
-    // ✅ 5. Lưu metadata vào database - DÙNG supabaseAdmin
     const insertData = {
-      title: title || file.name,
-      description: description,
-      file_type: fileExt,
-      file_size: file.size,
-      file_url: urlData.publicUrl,
-      category: category,
-      subject: subject,
-      tags: tags,
-      parent_id: parentId,
-      is_folder: false,
-      is_published: true,
+      title: title.trim(),
+      is_folder: is_folder ?? true,
+      parent_id: parent_id || null,
+      file_type: "folder",
+      file_size: 0,
+      file_url: null,
       uploaded_by: session.user.id,
       uploaded_by_name: session.user.name || "Unknown",
+      category: category || "Tài liệu",
+      subject: subject || "Quản trị Mạng 3",
+      tags: tags || [],
+      is_published: true,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
 
-    console.log("🔍 [API] Insert data:", JSON.stringify(insertData, null, 2));
+    console.log("📁 [API] Creating folder:", insertData);
 
-    const { data: dbData, error: dbError } = await supabaseAdmin
+    const { data, error } = await supabaseAdmin
       .from("documents")
       .insert(insertData)
       .select()
       .single();
 
-    if (dbError) {
-      console.error("❌ [API] Database error:", dbError);
-      console.error("❌ [API] Database error code:", dbError.code);
-      console.error("❌ [API] Database error details:", dbError.details);
-
-      // Rollback: xóa file đã upload
-      await supabaseAdmin.storage.from("documents").remove([filePath]);
-
-      // ✅ Kiểm tra lỗi RLS
-      if (
-        dbError.code === "42501" ||
-        dbError.message?.includes("row-level security")
-      ) {
-        return NextResponse.json(
-          {
-            error: "Lỗi bảo mật RLS. Vui lòng kiểm tra cấu hình database.",
-            details: dbError.message,
-            code: dbError.code,
-          },
-          { status: 403 },
-        );
-      }
-
+    if (error) {
+      console.error("❌ [API] Create folder error:", error);
       return NextResponse.json(
-        { error: dbError.message || "Failed to save document" },
+        { error: error.message || "Failed to create folder" },
         { status: 500 },
       );
     }
 
-    console.log("✅ [API] File saved:", dbData);
-    return NextResponse.json(dbData);
+    console.log("✅ [API] Folder created:", data);
+    return NextResponse.json(data);
+  } catch (error: any) {
+    console.error("❌ [API] Error:", error);
+    return NextResponse.json(
+      { error: error.message || "Internal server error" },
+      { status: 500 },
+    );
+  }
+}
+
+// ============================================
+// DELETE: XÓA DOCUMENT
+// ============================================
+
+export async function DELETE(req: NextRequest) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const url = new URL(req.url);
+    const id = url.searchParams.get("id");
+
+    if (!id) {
+      return NextResponse.json(
+        { error: "Document ID is required" },
+        { status: 400 },
+      );
+    }
+
+    // Kiểm tra xem có phải folder không
+    const { data: doc, error: fetchError } = await supabaseAdmin
+      .from("documents")
+      .select("is_folder, file_url")
+      .eq("id", id)
+      .single();
+
+    if (fetchError) {
+      return NextResponse.json(
+        { error: "Document not found" },
+        { status: 404 },
+      );
+    }
+
+    // Nếu là folder, xóa tất cả file bên trong
+    if (doc.is_folder) {
+      const { data: files } = await supabaseAdmin
+        .from("documents")
+        .select("file_url")
+        .eq("parent_id", id);
+
+      if (files && files.length > 0) {
+        for (const file of files) {
+          if (file.file_url) {
+            const filePath = file.file_url.split("/").pop();
+            if (filePath) {
+              await supabaseAdmin.storage.from("documents").remove([filePath]);
+            }
+          }
+        }
+      }
+
+      await supabaseAdmin.from("documents").delete().eq("parent_id", id);
+    }
+
+    // Xóa document
+    const { error } = await supabaseAdmin
+      .from("documents")
+      .delete()
+      .eq("id", id);
+
+    if (error) {
+      console.error("❌ [API] Delete error:", error);
+      return NextResponse.json(
+        { error: error.message || "Failed to delete document" },
+        { status: 500 },
+      );
+    }
+
+    return NextResponse.json({ success: true });
   } catch (error: any) {
     console.error("❌ [API] Error:", error);
     return NextResponse.json(
