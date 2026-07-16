@@ -1,5 +1,5 @@
 // src/lib/db/supabase-client.ts
-// HOÀN CHỈNH - FIX 401 TRÊN PRODUCTION
+// HOÀN CHỈNH - ĐẢM BẢO ADMIN CLIENT HOẠT ĐỘNG
 
 import { createClient } from "@supabase/supabase-js";
 
@@ -32,26 +32,6 @@ console.log(
   supabaseServiceKey?.length || 0,
 );
 console.log("🌍 [Supabase] Environment:", process.env.NODE_ENV);
-
-// ============================================
-// VALIDATION
-// ============================================
-
-if (!supabaseUrl) {
-  console.error("❌ NEXT_PUBLIC_SUPABASE_URL is missing!");
-}
-
-if (!supabaseAnonKey) {
-  console.error("❌ NEXT_PUBLIC_SUPABASE_ANON_KEY is missing!");
-}
-
-if (!supabaseServiceKey || supabaseServiceKey.length < 20) {
-  console.warn("⚠️ SUPABASE_SERVICE_ROLE_KEY is missing or invalid!");
-  console.warn("   → INSERT/UPDATE/DELETE operations will fail on production!");
-  console.warn(
-    "   → Please add SUPABASE_SERVICE_ROLE_KEY to Vercel environment variables",
-  );
-}
 
 // ============================================
 // SUPABASE CLIENT THƯỜNG - DÙNG CHO SELECT
@@ -99,16 +79,33 @@ if (supabaseServiceKey && supabaseServiceKey.length > 20) {
     });
 
     console.log("✅ [Supabase] Admin client created successfully!");
+
+    // Test admin connection
+    adminClient
+      .from("users")
+      .select("count", { count: "exact", head: true })
+      .then(({ error }: any) => {
+        if (error) {
+          console.error("❌ [Supabase] Admin connection test failed:", error);
+        } else {
+          console.log("✅ [Supabase] Admin connection test passed!");
+        }
+      })
+      .catch((err: any) => {
+        console.error("❌ [Supabase] Admin connection test error:", err);
+      });
   } catch (error: any) {
     console.error("❌ [Supabase] Failed to create admin client:", error);
     adminClient = null;
   }
 } else {
   console.warn("⚠️ [Supabase] Service Role Key not available!");
-  console.warn("   → Admin operations will use regular client (RLS enabled)");
+  console.warn("   → INSERT/UPDATE/DELETE operations will fail on production!");
+  console.warn(
+    "   → Please add SUPABASE_SERVICE_ROLE_KEY to Vercel environment variables",
+  );
 }
 
-// ✅ EXPORT supabaseAdmin
 export const supabaseAdmin = adminClient || supabase;
 
 // ============================================
