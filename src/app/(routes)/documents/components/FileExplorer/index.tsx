@@ -1,5 +1,5 @@
 // src/app/(routes)/documents/components/FileExplorer/index.tsx
-// HOÀN CHỈNH - NÂNG CẤP UPLOAD & ERROR HANDLING
+// HOÀN CHỈNH - TỐI ƯU HIỆU SUẤT & TRẢI NGHIỆM
 
 "use client";
 
@@ -21,7 +21,9 @@ import { BreadcrumbItem, FileExplorerProps } from "./types";
 // ============================================
 
 const MAX_FILE_SIZE = 4 * 1024 * 1024; // 4MB (giới hạn Vercel)
+
 const SUPPORTED_EXTENSIONS = [
+  // Documents
   "pdf",
   "doc",
   "docx",
@@ -32,6 +34,7 @@ const SUPPORTED_EXTENSIONS = [
   "txt",
   "rtf",
   "odt",
+  // Archives
   "zip",
   "rar",
   "7z",
@@ -39,6 +42,7 @@ const SUPPORTED_EXTENSIONS = [
   "gz",
   "bz2",
   "xz",
+  // Images
   "jpg",
   "jpeg",
   "png",
@@ -49,6 +53,7 @@ const SUPPORTED_EXTENSIONS = [
   "ico",
   "tiff",
   "tif",
+  // Videos
   "mp4",
   "avi",
   "mov",
@@ -58,6 +63,7 @@ const SUPPORTED_EXTENSIONS = [
   "webm",
   "m4v",
   "3gp",
+  // Audio
   "mp3",
   "wav",
   "aac",
@@ -65,6 +71,7 @@ const SUPPORTED_EXTENSIONS = [
   "ogg",
   "m4a",
   "wma",
+  // Code
   "js",
   "ts",
   "jsx",
@@ -87,11 +94,13 @@ const SUPPORTED_EXTENSIONS = [
   "sh",
   "bat",
   "ps1",
+  // Network
   "pkt",
   "pka",
   "cfg",
   "conf",
   "log",
+  // URL
   "url",
 ];
 
