@@ -1,9 +1,13 @@
 // src/app/(routes)/documents/components/FileExplorer/index.tsx
-// HOÀN CHỈNH - FIX TẤT CẢ LỖI TYPESCRIPT
+// HOÀN CHỈNH - SỬ DỤNG ADMIN CLIENT CHO INSERT/UPDATE/DELETE
 
 "use client";
 
-import { supabase, supabaseAdmin } from "@/lib/db/supabase-client";
+import {
+  isServiceRoleEnabled,
+  supabase,
+  supabaseAdmin
+} from "@/lib/db/supabase-client";
 import { Folder } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -190,7 +194,18 @@ export function FileExplorer({
     details: [],
   });
 
-  // 📂 Lấy nội dung thư mục hiện tại
+  // ✅ Lấy client phù hợp
+  const getClient = useCallback(() => {
+    // ✅ ƯU TIÊN DÙNG ADMIN CLIENT CHO INSERT/UPDATE/DELETE
+    if (isServiceRoleEnabled) {
+      console.log("🔑 Using Admin Client (bypass RLS)");
+      return supabaseAdmin;
+    }
+    console.log("🔑 Using Regular Client (RLS enabled)");
+    return supabase;
+  }, []);
+
+  // 📂 Lấy nội dung thư mục hiện tại - DÙNG supabase THƯỜNG (SELECT)
   const fetchFolderContents = useCallback(async (folderId: string | null) => {
     if (isFetching.current) {
       console.log("⏭️ Already fetching, skipping...");
@@ -233,7 +248,6 @@ export function FileExplorer({
       if (error) throw error;
 
       if (isMounted.current) {
-        // ✅ FIX: Type assertion cho data
         const documentData = (data || []) as Document[];
         console.log(`📂 Fetched ${documentData.length} items`);
         setItems(documentData);
@@ -285,7 +299,6 @@ export function FileExplorer({
 
         if (error) break;
 
-        // ✅ FIX: Type assertion cho data
         const item = data as {
           id: string;
           title: string;
@@ -336,7 +349,7 @@ export function FileExplorer({
     [currentFolderId, fetchFolderContents, fetchBreadcrumbs, onNavigate],
   );
 
-  // ➕ Tạo folder mới - ✅ SỬ DỤNG supabaseAdmin
+  // ➕ Tạo folder mới - ✅ SỬ DỤNG ADMIN CLIENT
   const createFolder = useCallback(
     async (title: string) => {
       if (!session?.user?.id) {
@@ -349,10 +362,16 @@ export function FileExplorer({
         return;
       }
 
-      try {
-        console.log("📁 Creating folder with supabaseAdmin:", title);
+      const client = getClient();
+      console.log(
+        "📁 Using client for createFolder:",
+        client === supabaseAdmin ? "ADMIN" : "REGULAR",
+      );
 
-        const { data, error } = await supabaseAdmin
+      try {
+        console.log("📁 Creating folder with title:", title);
+
+        const { data, error } = await client
           .from("documents")
           .insert({
             title: title.trim(),
@@ -378,7 +397,7 @@ export function FileExplorer({
           throw error;
         }
 
-        console.log("✅ Folder created");
+        console.log("✅ Folder created:", data);
         toast.success(`Đã tạo thư mục "${title}"`);
 
         await fetchFolderContents(currentFolderId);
@@ -392,10 +411,10 @@ export function FileExplorer({
         });
       }
     },
-    [session, currentFolderId, fetchFolderContents],
+    [session, currentFolderId, fetchFolderContents, getClient],
   );
 
-  // 🗑️ Xóa item - ✅ SỬ DỤNG supabaseAdmin
+  // 🗑️ Xóa item - ✅ SỬ DỤNG ADMIN CLIENT
   const deleteItem = useCallback(
     (id: string) => {
       const item = items.find((i) => i.id === id);
@@ -407,10 +426,14 @@ export function FileExplorer({
         description: `Bạn có chắc chắn muốn xóa "${item.title}"? Hành động này không thể hoàn tác.`,
         variant: "danger",
         onConfirm: async () => {
+          const client = getClient();
           try {
-            console.log("🗑️ Deleting item with supabaseAdmin:", id);
+            console.log(
+              "🗑️ Deleting item with client:",
+              client === supabaseAdmin ? "ADMIN" : "REGULAR",
+            );
 
-            const { error } = await supabaseAdmin
+            const { error } = await client
               .from("documents")
               .delete()
               .eq("id", id);
@@ -434,10 +457,10 @@ export function FileExplorer({
         },
       });
     },
-    [items, currentFolderId, fetchFolderContents],
+    [items, currentFolderId, fetchFolderContents, getClient],
   );
 
-  // 📤 Upload file - ✅ SỬ DỤNG supabaseAdmin
+  // 📤 Upload file - ✅ SỬ DỤNG ADMIN CLIENT
   const uploadFiles = useCallback(
     async (files: FileList) => {
       if (!session?.user?.id) {
@@ -524,6 +547,7 @@ export function FileExplorer({
       }
 
       const toastId = toast.loading(`Đang tải lên ${fileArray.length} file...`);
+      const client = getClient();
 
       try {
         for (const file of fileArray) {
@@ -532,6 +556,7 @@ export function FileExplorer({
           const random = Math.random().toString(36).substring(2, 8);
           const storagePath = `${session.user.id}/${timestamp}-${random}.${fileExt}`;
 
+          // ✅ DÙNG ADMIN CLIENT CHO STORAGE
           const { error: uploadError } = await supabaseAdmin.storage
             .from("documents")
             .upload(storagePath, file, {
@@ -545,25 +570,24 @@ export function FileExplorer({
             .from("documents")
             .getPublicUrl(storagePath);
 
-          const { error: dbError } = await supabaseAdmin
-            .from("documents")
-            .insert({
-              title: file.name,
-              description: "",
-              file_type: fileExt,
-              file_size: file.size,
-              file_url: urlData.publicUrl,
-              parent_id: currentFolderId,
-              is_folder: false,
-              uploaded_by: session.user.id,
-              uploaded_by_name: session.user.name || "Unknown",
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString(),
-              category: "Tài liệu",
-              subject: "Quản trị Mạng 3",
-              tags: [],
-              is_published: true,
-            });
+          // ✅ DÙNG ADMIN CLIENT CHO DATABASE INSERT
+          const { error: dbError } = await client.from("documents").insert({
+            title: file.name,
+            description: "",
+            file_type: fileExt,
+            file_size: file.size,
+            file_url: urlData.publicUrl,
+            parent_id: currentFolderId,
+            is_folder: false,
+            uploaded_by: session.user.id,
+            uploaded_by_name: session.user.name || "Unknown",
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+            category: "Tài liệu",
+            subject: "Quản trị Mạng 3",
+            tags: [],
+            is_published: true,
+          });
 
           if (dbError) throw dbError;
         }
@@ -579,7 +603,7 @@ export function FileExplorer({
         });
       }
     },
-    [session, currentFolderId, fetchFolderContents],
+    [session, currentFolderId, fetchFolderContents, getClient],
   );
 
   // 🎯 Effect khi component mount

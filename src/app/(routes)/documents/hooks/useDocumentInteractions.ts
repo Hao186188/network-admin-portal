@@ -1,10 +1,12 @@
 // src/app/(routes)/documents/hooks/useDocumentInteractions.ts
-// FIXED: Không trigger refresh từ đây nữa
+// FIXED - THÊM TYPE CHO PARAMETERS
+
+"use client";
 
 import {
   isServiceRoleEnabled,
   supabase,
-  supabaseAdmin,
+  supabaseAdmin
 } from "@/lib/db/supabase-client";
 import { useSession } from "next-auth/react";
 import { useEffect, useRef, useState } from "react";
@@ -29,7 +31,7 @@ export function useDocumentInteractions(documentId: string) {
     return isServiceRoleEnabled ? supabaseAdmin : supabase;
   };
 
-  // ✅ Fetch interactions - FIXED: luôn set loading false
+  // ✅ Fetch interactions
   const fetchInteractions = async (forceRefresh = false) => {
     if (!documentId) {
       setLoading(false);
@@ -47,14 +49,6 @@ export function useDocumentInteractions(documentId: string) {
         .maybeSingle();
 
       if (!docError && docData && isMounted.current) {
-        console.log("📄 Document data from DB:", {
-          id: docData.id,
-          views: docData.views,
-          downloads: docData.downloads,
-          rating_avg: docData.rating_avg,
-          likes_count: docData.likes_count,
-          comments_count: docData.comments_count,
-        });
         setDocument(docData);
       }
 
@@ -138,8 +132,9 @@ export function useDocumentInteractions(documentId: string) {
           .eq("document_id", documentId);
 
         if (!ratingError && ratingData && ratingData.length > 0) {
+          // ✅ FIX: Thêm type cho parameters
           const avg =
-            ratingData.reduce((sum, r) => sum + r.rating, 0) /
+            ratingData.reduce((sum: number, r: any) => sum + r.rating, 0) /
             ratingData.length;
           setRatingAvg(Math.round(avg * 10) / 10);
         } else {
@@ -284,7 +279,7 @@ export function useDocumentInteractions(documentId: string) {
     }
   };
 
-  // ✅ Rate document - FIXED: KHÔNG trigger refresh từ đây
+  // ✅ Rate document
   const rateDocument = async (rating: number) => {
     if (!session?.user?.id) {
       throw new Error("Vui lòng đăng nhập để đánh giá");
@@ -324,7 +319,6 @@ export function useDocumentInteractions(documentId: string) {
           console.error("Update rating error:", error);
           throw error;
         }
-        console.log("Updated rating:", data);
       } else {
         const { data, error } = await client
           .from("document_ratings")
@@ -340,7 +334,6 @@ export function useDocumentInteractions(documentId: string) {
           console.error("Insert rating error:", error);
           throw error;
         }
-        console.log("Inserted rating:", data);
       }
 
       const { data: docData, error: docError } = await supabase
@@ -350,11 +343,6 @@ export function useDocumentInteractions(documentId: string) {
         .maybeSingle();
 
       if (!docError && docData) {
-        console.log("Updated document with new rating_avg:", {
-          rating_avg: docData.rating_avg,
-          views: docData.views,
-          downloads: docData.downloads,
-        });
         setDocument(docData);
         setRatingAvg(docData.rating_avg || 0);
       }
@@ -365,18 +353,16 @@ export function useDocumentInteractions(documentId: string) {
         .eq("document_id", documentId);
 
       if (!ratingError && ratingData && ratingData.length > 0) {
+        // ✅ FIX: Thêm type cho parameters
         const avg =
-          ratingData.reduce((sum, r) => sum + r.rating, 0) / ratingData.length;
+          ratingData.reduce((sum: number, r: any) => sum + r.rating, 0) /
+          ratingData.length;
         const newAvg = Math.round(avg * 10) / 10;
         setRatingAvg(newAvg);
-        console.log("Calculated rating average:", newAvg);
       }
 
       setUserRating(rating);
       await fetchInteractions(true);
-
-      // ✅ KHÔNG trigger refresh từ đây nữa
-      console.log("⭐ Rating updated, but NOT triggering refresh from here");
 
       return rating;
     } catch (error: any) {
@@ -388,7 +374,6 @@ export function useDocumentInteractions(documentId: string) {
   // ✅ Increment view count
   const incrementView = async () => {
     if (hasIncrementedView.current) {
-      console.log("⏭️ View already incremented, skipping...");
       return;
     }
 
@@ -419,13 +404,6 @@ export function useDocumentInteractions(documentId: string) {
 
       hasIncrementedView.current = true;
       setDocument((prev: any) => ({ ...prev, views: newViews }));
-
-      console.log(
-        "👁️ View count incremented from",
-        currentViews,
-        "to",
-        newViews,
-      );
 
       await fetchInteractions(true);
     } catch (error) {
@@ -461,13 +439,6 @@ export function useDocumentInteractions(documentId: string) {
       }
 
       setDocument((prev: any) => ({ ...prev, downloads: newDownloads }));
-
-      console.log(
-        "⬇️ Download count incremented from",
-        currentDownloads,
-        "to",
-        newDownloads,
-      );
 
       await fetchInteractions(true);
     } catch (error) {
