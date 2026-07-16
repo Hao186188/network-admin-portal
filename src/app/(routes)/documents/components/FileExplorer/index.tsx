@@ -1,5 +1,5 @@
 // src/app/(routes)/documents/components/FileExplorer/index.tsx
-// HOÀN CHỈNH - SỬ DỤNG API ROUTE CHO INSERT/UPDATE/DELETE
+// HOÀN CHỈNH - NÂNG CẤP UPLOAD & ERROR HANDLING
 
 "use client";
 
@@ -15,6 +15,85 @@ import { FileList } from "./FileList";
 import { NewFolderModal } from "./NewFolderModal";
 import { Toolbar } from "./Toolbar";
 import { BreadcrumbItem, FileExplorerProps } from "./types";
+
+// ============================================
+// CONSTANTS
+// ============================================
+
+const MAX_FILE_SIZE = 4 * 1024 * 1024; // 4MB (giới hạn Vercel)
+const SUPPORTED_EXTENSIONS = [
+  "pdf",
+  "doc",
+  "docx",
+  "xls",
+  "xlsx",
+  "ppt",
+  "pptx",
+  "txt",
+  "rtf",
+  "odt",
+  "zip",
+  "rar",
+  "7z",
+  "tar",
+  "gz",
+  "bz2",
+  "xz",
+  "jpg",
+  "jpeg",
+  "png",
+  "gif",
+  "svg",
+  "webp",
+  "bmp",
+  "ico",
+  "tiff",
+  "tif",
+  "mp4",
+  "avi",
+  "mov",
+  "wmv",
+  "flv",
+  "mkv",
+  "webm",
+  "m4v",
+  "3gp",
+  "mp3",
+  "wav",
+  "aac",
+  "flac",
+  "ogg",
+  "m4a",
+  "wma",
+  "js",
+  "ts",
+  "jsx",
+  "tsx",
+  "html",
+  "css",
+  "json",
+  "xml",
+  "yaml",
+  "yml",
+  "md",
+  "py",
+  "java",
+  "c",
+  "cpp",
+  "h",
+  "hpp",
+  "go",
+  "rs",
+  "sh",
+  "bat",
+  "ps1",
+  "pkt",
+  "pka",
+  "cfg",
+  "conf",
+  "log",
+  "url",
+];
 
 // ============================================
 // CONFIRM DIALOG COMPONENT
@@ -190,7 +269,7 @@ export function FileExplorer({
     details: [],
   });
 
-  // 📂 Lấy nội dung thư mục hiện tại - DÙNG supabase THƯỜNG (SELECT)
+  // 📂 Lấy nội dung thư mục hiện tại
   const fetchFolderContents = useCallback(async (folderId: string | null) => {
     if (isFetching.current) {
       console.log("⏭️ Already fetching, skipping...");
@@ -334,7 +413,7 @@ export function FileExplorer({
     [currentFolderId, fetchFolderContents, fetchBreadcrumbs, onNavigate],
   );
 
-  // ➕ Tạo folder mới - ✅ GỌI API
+  // ➕ Tạo folder mới
   const createFolder = useCallback(
     async (title: string) => {
       if (!session?.user?.id) {
@@ -385,7 +464,7 @@ export function FileExplorer({
     [session, currentFolderId, fetchFolderContents],
   );
 
-  // 🗑️ Xóa item - ✅ GỌI API
+  // 🗑️ Xóa item
   const deleteItem = useCallback(
     (id: string) => {
       const item = items.find((i) => i.id === id);
@@ -426,7 +505,7 @@ export function FileExplorer({
     [items, currentFolderId, fetchFolderContents],
   );
 
-  // 📤 Upload file - ✅ GỌI API
+  // 📤 Upload file - NÂNG CẤP
   const uploadFiles = useCallback(
     async (files: FileList) => {
       if (!session?.user?.id) {
@@ -435,91 +514,28 @@ export function FileExplorer({
       }
 
       const fileArray = Array.from(files);
-      const supportedExtensions = [
-        // Documents
-        "pdf",
-        "doc",
-        "docx",
-        "xls",
-        "xlsx",
-        "ppt",
-        "pptx",
-        "txt",
-        "rtf",
-        "odt",
-        // Archives
-        "zip",
-        "rar",
-        "7z",
-        "tar",
-        "gz",
-        "bz2",
-        "xz",
-        // Images
-        "jpg",
-        "jpeg",
-        "png",
-        "gif",
-        "svg",
-        "webp",
-        "bmp",
-        "ico",
-        "tiff",
-        "tif",
-        // Videos
-        "mp4",
-        "avi",
-        "mov",
-        "wmv",
-        "flv",
-        "mkv",
-        "webm",
-        "m4v",
-        "3gp",
-        // Audio
-        "mp3",
-        "wav",
-        "aac",
-        "flac",
-        "ogg",
-        "m4a",
-        "wma",
-        // Code
-        "js",
-        "ts",
-        "jsx",
-        "tsx",
-        "html",
-        "css",
-        "json",
-        "xml",
-        "yaml",
-        "yml",
-        "md",
-        "py",
-        "java",
-        "c",
-        "cpp",
-        "h",
-        "hpp",
-        "go",
-        "rs",
-        "sh",
-        "bat",
-        "ps1",
-        // Network
-        "pkt",
-        "pka",
-        "cfg",
-        "conf",
-        "log",
-        // ✅ URL
-        "url",
-      ];
 
+      // ✅ 1. Kiểm tra file quá lớn (4MB)
+      const largeFiles = fileArray.filter((file) => file.size > MAX_FILE_SIZE);
+      if (largeFiles.length > 0) {
+        const names = largeFiles.map((f) => f.name).join(", ");
+        setErrorDialog({
+          isOpen: true,
+          title: "📁 File quá lớn",
+          message: `Các file sau vượt quá giới hạn 4MB: ${names}`,
+          details: [
+            "💡 Sử dụng chức năng kéo thả thư mục để upload file lớn hơn",
+            "📦 File tối đa 4MB cho upload đơn",
+            "🔄 Hoặc chia nhỏ file thành nhiều phần",
+          ],
+        });
+        return;
+      }
+
+      // ✅ 2. Kiểm tra định dạng file
       const invalidFiles = fileArray.filter(
         (file) =>
-          !supportedExtensions.includes(
+          !SUPPORTED_EXTENSIONS.includes(
             file.name.split(".").pop()?.toLowerCase() || "",
           ),
       );
@@ -528,9 +544,9 @@ export function FileExplorer({
         const invalidNames = invalidFiles.map((f) => f.name).join(", ");
         setErrorDialog({
           isOpen: true,
-          title: "Định dạng file không được hỗ trợ",
+          title: "⚠️ Định dạng file không được hỗ trợ",
           message: `Có ${invalidFiles.length} file không được hỗ trợ: ${invalidNames}`,
-          details: supportedExtensions,
+          details: SUPPORTED_EXTENSIONS,
         });
         return;
       }
@@ -538,14 +554,20 @@ export function FileExplorer({
       if (fileArray.length === 0) {
         setErrorDialog({
           isOpen: true,
-          title: "Không có file hợp lệ",
+          title: "❌ Không có file hợp lệ",
           message: "Vui lòng chọn file có định dạng được hỗ trợ",
-          details: supportedExtensions,
+          details: SUPPORTED_EXTENSIONS,
         });
         return;
       }
 
-      const toastId = toast.loading(`Đang tải lên ${fileArray.length} file...`);
+      // ✅ 3. Upload từng file
+      const toastId = toast.loading(
+        `📤 Đang tải lên ${fileArray.length} file...`,
+      );
+
+      let successCount = 0;
+      let failCount = 0;
 
       try {
         for (const file of fileArray) {
@@ -565,18 +587,36 @@ export function FileExplorer({
 
           if (!response.ok) {
             const data = await response.json();
-            throw new Error(data.error || "Upload failed");
+            console.error(`❌ Upload failed: ${file.name}`, data);
+            failCount++;
+          } else {
+            successCount++;
           }
         }
 
-        toast.success("Tải lên thành công!", { id: toastId });
+        if (failCount === 0) {
+          toast.success(`✅ Tải lên thành công ${successCount} file!`, {
+            id: toastId,
+          });
+        } else if (successCount > 0) {
+          toast.warning(
+            `⚠️ Tải lên: ${successCount} thành công, ${failCount} thất bại`,
+            { id: toastId },
+          );
+        } else {
+          toast.error(`❌ Tải lên thất bại: ${failCount} file`, {
+            id: toastId,
+          });
+        }
+
         await fetchFolderContents(currentFolderId);
       } catch (error: any) {
         console.error("Upload error:", error);
         setErrorDialog({
           isOpen: true,
-          title: "Lỗi tải lên",
+          title: "❌ Lỗi tải lên",
           message: error.message || "Có lỗi xảy ra khi tải lên file",
+          details: ["Kiểm tra kết nối mạng", "Thử lại sau"],
         });
       }
     },
@@ -651,7 +691,7 @@ export function FileExplorer({
                 <Folder className="w-10 h-10 text-white/20" />
               </div>
               <h3 className="text-xl font-semibold text-white/80 mb-2">
-                Thư mục trống
+                📁 Thư mục trống
               </h3>
               <p className="text-white/40">
                 Tạo thư mục mới hoặc tải file lên để bắt đầu

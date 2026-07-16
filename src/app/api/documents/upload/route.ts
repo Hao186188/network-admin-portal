@@ -1,14 +1,19 @@
 // src/app/api/documents/upload/route.ts
-// FIXED - ĐẢM BẢO DÙNG ADMIN CLIENT
+// API UPLOAD FILE ĐƠN - HOÀN CHỈNH
 
 import { authOptions } from "@/lib/auth";
 import { supabaseAdmin } from "@/lib/db/supabase-client";
 import { getServerSession } from "next-auth";
 import { NextRequest, NextResponse } from "next/server";
 
-const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
+// ============================================
+// CONSTANTS
+// ============================================
+
+const MAX_FILE_SIZE = 4 * 1024 * 1024; // 4MB (giới hạn Vercel)
 
 const SUPPORTED_EXTENSIONS = [
+  // Documents
   "pdf",
   "doc",
   "docx",
@@ -19,6 +24,7 @@ const SUPPORTED_EXTENSIONS = [
   "txt",
   "rtf",
   "odt",
+  // Archives
   "zip",
   "rar",
   "7z",
@@ -26,6 +32,7 @@ const SUPPORTED_EXTENSIONS = [
   "gz",
   "bz2",
   "xz",
+  // Images
   "jpg",
   "jpeg",
   "png",
@@ -36,6 +43,7 @@ const SUPPORTED_EXTENSIONS = [
   "ico",
   "tiff",
   "tif",
+  // Videos
   "mp4",
   "avi",
   "mov",
@@ -45,6 +53,7 @@ const SUPPORTED_EXTENSIONS = [
   "webm",
   "m4v",
   "3gp",
+  // Audio
   "mp3",
   "wav",
   "aac",
@@ -52,6 +61,7 @@ const SUPPORTED_EXTENSIONS = [
   "ogg",
   "m4a",
   "wma",
+  // Code
   "js",
   "ts",
   "jsx",
@@ -74,11 +84,13 @@ const SUPPORTED_EXTENSIONS = [
   "sh",
   "bat",
   "ps1",
+  // Network
   "pkt",
   "pka",
   "cfg",
   "conf",
   "log",
+  // URL
   "url",
 ];
 
@@ -86,6 +98,10 @@ const isSupportedFile = (fileName: string): boolean => {
   const ext = fileName.split(".").pop()?.toLowerCase() || "";
   return SUPPORTED_EXTENSIONS.includes(ext);
 };
+
+// ============================================
+// MAIN API
+// ============================================
 
 export async function POST(req: NextRequest) {
   try {
@@ -105,20 +121,26 @@ export async function POST(req: NextRequest) {
     const tags = JSON.parse((formData.get("tags") as string) || "[]");
     const parentId = (formData.get("parentId") as string) || null;
 
+    // ✅ 3. Validate file
     if (!file) {
       return NextResponse.json({ error: "File is required" }, { status: 400 });
     }
 
+    // ✅ 4. Kiểm tra kích thước
     if (file.size > MAX_FILE_SIZE) {
       return NextResponse.json(
         {
-          error: `File quá lớn. Tối đa ${MAX_FILE_SIZE / (1024 * 1024)}MB`,
+          error: `File quá lớn. Tối đa ${MAX_FILE_SIZE / (1024 * 1024)}MB.`,
           maxSize: MAX_FILE_SIZE,
+          fileSize: file.size,
+          suggestion:
+            "Vui lòng sử dụng chức năng kéo thả thư mục để upload file lớn hơn.",
         },
-        { status: 400 },
+        { status: 413 },
       );
     }
 
+    // ✅ 5. Kiểm tra định dạng
     if (!isSupportedFile(file.name)) {
       return NextResponse.json(
         {
@@ -129,17 +151,15 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // ✅ 3. LOG để debug
     console.log("🔍 [API] Upload - Session user:", session.user.id);
     console.log("🔍 [API] Upload - File:", file.name, file.size);
-    console.log("🔍 [API] Upload - Parent ID:", parentId);
 
-    // ✅ 4. Tạo tên file
+    // ✅ 6. Tạo tên file
     const fileExt = file.name.split(".").pop() || "unknown";
     const fileName = `${Date.now()}-${Math.random().toString(36).substring(2, 8)}.${fileExt}`;
     const filePath = `${session.user.id}/${fileName}`;
 
-    // ✅ 5. Upload lên Storage - DÙNG ADMIN CLIENT
+    // ✅ 7. Upload lên Storage
     const { data: uploadData, error: uploadError } = await supabaseAdmin.storage
       .from("documents")
       .upload(filePath, file, {
@@ -161,7 +181,7 @@ export async function POST(req: NextRequest) {
 
     console.log("✅ [API] Upload success:", urlData.publicUrl);
 
-    // ✅ 6. Lưu metadata vào database - DÙNG ADMIN CLIENT
+    // ✅ 8. Lưu metadata vào database
     const insertData = {
       title: title || file.name,
       description: description,
@@ -180,9 +200,6 @@ export async function POST(req: NextRequest) {
       updated_at: new Date().toISOString(),
     };
 
-    console.log("🔍 [API] Insert data:", JSON.stringify(insertData, null, 2));
-
-    // ✅ KIỂM TRA: Gọi trực tiếp supabaseAdmin để insert
     const { data: dbData, error: dbError } = await supabaseAdmin
       .from("documents")
       .insert(insertData)
@@ -191,24 +208,13 @@ export async function POST(req: NextRequest) {
 
     if (dbError) {
       console.error("❌ [API] Database error:", dbError);
-
-      // Rollback: Xóa file đã upload
       await supabaseAdmin.storage.from("documents").remove([filePath]);
 
-      // Kiểm tra lỗi RLS
-      if (dbError.code === "42501") {
-        return NextResponse.json(
-          {
-            error: "Lỗi bảo mật RLS. Vui lòng kiểm tra cấu hình database.",
-            details: dbError.message,
-            code: dbError.code,
-          },
-          { status: 403 },
-        );
-      }
-
       return NextResponse.json(
-        { error: dbError.message || "Failed to save document" },
+        {
+          error: dbError.message || "Failed to save document",
+          code: dbError.code,
+        },
         { status: 500 },
       );
     }

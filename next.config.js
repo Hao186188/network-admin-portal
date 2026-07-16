@@ -1,5 +1,5 @@
 // next.config.js
-// HOÀN CHỈNH - TƯƠNG THÍCH NEXT.JS 16 + TURBOPACK
+// HOÀN CHỈNH - TĂNG GIỚI HẠN UPLOAD
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
@@ -34,26 +34,27 @@ const nextConfig = {
     formats: ["image/avif", "image/webp"],
   },
 
-  // ✅ Experimental - ĐÃ CÓ sẵn
+  // ✅ Experimental - TĂNG GIỚI HẠN
   experimental: {
     serverActions: {
       allowedOrigins: ["localhost:3000", "qtm3k14.vercel.app"],
+      bodySizeLimit: "10mb",
     },
     optimizeCss: true,
     scrollRestoration: true,
   },
 
-  // ✅ Turbopack config (thay thế cho webpack)
+  // ✅ Turbopack config
   turbopack: {
     resolveExtensions: [".tsx", ".ts", ".jsx", ".js", ".json"],
   },
 
-  // ✅ Performance - BỎ swcMinify (không còn dùng)
+  // ✅ Performance
   compress: true,
   poweredByHeader: false,
   reactStrictMode: true,
 
-  // ✅ Build optimization - KHÔNG dùng swcMinify nữa
+  // ✅ Build optimization
   compiler: {
     removeConsole: process.env.NODE_ENV === "production",
   },
