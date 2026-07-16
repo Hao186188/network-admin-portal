@@ -1,5 +1,5 @@
 // src/lib/db/supabase-client.ts
-// FIXED - ĐẢM BẢO HEADERS CHO ADMIN CLIENT
+// HOÀN CHỈNH - FIX 401 VÀ HỖ TRỢ ADMIN CLIENT
 
 import { createClient } from "@supabase/supabase-js";
 
@@ -18,20 +18,39 @@ const supabaseServiceKey =
 // DEBUG LOGS
 // ============================================
 
-console.log(
-  "🔌 [Supabase] URL:",
-  supabaseUrl ? "✅ Đã cấu hình" : "❌ Chưa cấu hình",
-);
-console.log("🔑 [Supabase] Anon Key:", supabaseAnonKey ? "✅ Có" : "❌ Không");
-console.log(
-  "🔑 [Supabase] Service Key:",
-  supabaseServiceKey && supabaseServiceKey.length > 20 ? "✅ Có" : "❌ Không",
-);
-console.log(
-  "📏 [Supabase] Service Key length:",
-  supabaseServiceKey?.length || 0,
-);
-console.log("🌍 [Supabase] Environment:", process.env.NODE_ENV);
+const isDev = process.env.NODE_ENV === "development";
+
+if (isDev) {
+  console.log(
+    "🔌 [Supabase] URL:",
+    supabaseUrl ? "✅ Đã cấu hình" : "❌ Chưa cấu hình",
+  );
+  console.log(
+    "🔑 [Supabase] Anon Key:",
+    supabaseAnonKey ? "✅ Có" : "❌ Không",
+  );
+  console.log(
+    "🔑 [Supabase] Service Key:",
+    supabaseServiceKey && supabaseServiceKey.length > 20 ? "✅ Có" : "❌ Không",
+  );
+  console.log(
+    "📏 [Supabase] Service Key length:",
+    supabaseServiceKey?.length || 0,
+  );
+  console.log("🌍 [Supabase] Environment:", process.env.NODE_ENV);
+}
+
+// ============================================
+// VALIDATION
+// ============================================
+
+if (!supabaseUrl) {
+  console.error("❌ NEXT_PUBLIC_SUPABASE_URL is missing!");
+}
+
+if (!supabaseAnonKey) {
+  console.error("❌ NEXT_PUBLIC_SUPABASE_ANON_KEY is missing!");
+}
 
 // ============================================
 // SUPABASE CLIENT THƯỜNG - DÙNG CHO SELECT
@@ -79,9 +98,29 @@ try {
     });
 
     console.log("✅ [Supabase] Admin client created successfully!");
+
+    // ✅ Test admin connection ngay khi khởi tạo
+    if (isDev) {
+      adminClient
+        .from("users")
+        .select("count", { count: "exact", head: true })
+        .then(({ error }: any) => {
+          if (error) {
+            console.warn("⚠️ [Supabase] Admin connection test failed:", error);
+          } else {
+            console.log("✅ [Supabase] Admin connection test passed!");
+          }
+        })
+        .catch((err: any) => {
+          console.warn("⚠️ [Supabase] Admin connection test error:", err);
+        });
+    }
   } else {
     console.warn("⚠️ [Supabase] Service Role Key not available!");
     console.warn("   → Admin operations will use regular client (RLS enabled)");
+    console.warn(
+      "   → Please add SUPABASE_SERVICE_ROLE_KEY to your environment variables",
+    );
   }
 } catch (error: any) {
   console.error("❌ [Supabase] Failed to create admin client:", error);
@@ -108,10 +147,10 @@ console.log("🔑 [Supabase] Using admin client:", adminClient !== null);
 
 export function getSupabaseClient(useAdmin: boolean = false) {
   if (useAdmin && isServiceRoleEnabled && adminClient) {
-    console.log("🔑 [Supabase] Using ADMIN client");
+    if (isDev) console.log("🔑 [Supabase] Using ADMIN client");
     return adminClient;
   }
-  console.log("🔑 [Supabase] Using REGULAR client");
+  if (isDev) console.log("🔑 [Supabase] Using REGULAR client");
   return supabase;
 }
 

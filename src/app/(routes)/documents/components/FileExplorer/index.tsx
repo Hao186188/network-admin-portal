@@ -6,7 +6,7 @@
 import {
   isServiceRoleEnabled,
   supabase,
-  supabaseAdmin
+  supabaseAdmin,
 } from "@/lib/db/supabase-client";
 import { Folder } from "lucide-react";
 import { useSession } from "next-auth/react";
@@ -469,7 +469,11 @@ export function FileExplorer({
       }
 
       const fileArray = Array.from(files);
+      // src/app/(routes)/documents/components/FileExplorer/index.tsx
+      // THÊM HỖ TRỢ ĐỊNH DẠNG .url
+
       const supportedExtensions = [
+        // Documents
         "pdf",
         "doc",
         "docx",
@@ -477,45 +481,84 @@ export function FileExplorer({
         "xlsx",
         "ppt",
         "pptx",
+        "txt",
+        "rtf",
+        "odt",
+
+        // Archives
         "zip",
         "rar",
         "7z",
         "tar",
         "gz",
+        "bz2",
+        "xz",
+
+        // Images
         "jpg",
         "jpeg",
         "png",
         "gif",
         "svg",
         "webp",
+        "bmp",
+        "ico",
+        "tiff",
+        "tif",
+
+        // Videos
         "mp4",
+        "avi",
+        "mov",
+        "wmv",
+        "flv",
+        "mkv",
+        "webm",
+        "m4v",
+        "3gp",
+
+        // Audio
         "mp3",
         "wav",
-        "txt",
-        "md",
-        "json",
-        "xml",
-        "yaml",
-        "yml",
+        "aac",
+        "flac",
+        "ogg",
+        "m4a",
+        "wma",
+
+        // Code
         "js",
         "ts",
         "jsx",
         "tsx",
         "html",
         "css",
+        "json",
+        "xml",
+        "yaml",
+        "yml",
+        "md",
         "py",
         "java",
         "c",
         "cpp",
+        "h",
+        "hpp",
         "go",
         "rs",
         "sh",
         "bat",
+        "ps1",
+
+        // Network
         "pkt",
         "pka",
         "cfg",
         "conf",
         "log",
+
+        // ✅ THÊM HỖ TRỢ ĐỊNH DẠNG .url
+        "url",
       ];
 
       const invalidFiles = fileArray.filter(
