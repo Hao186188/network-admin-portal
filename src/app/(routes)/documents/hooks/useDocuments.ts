@@ -1,5 +1,5 @@
 // src/app/(routes)/documents/hooks/useDocuments.ts
-// FIXED: Chỉ đếm file, không đếm folder
+// FIXED: DÙNG supabaseAdmin CHO UPLOAD
 
 import {
   isServiceRoleEnabled,
@@ -7,22 +7,9 @@ import {
   supabaseAdmin,
 } from "@/lib/db/supabase-client";
 import { useDocumentsStore } from "@/store/documents-store";
-import { createClient } from "@supabase/supabase-js";
 import { useSession } from "next-auth/react";
 import { useEffect, useState } from "react";
 import { Document } from "../types";
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseServiceKey =
-  process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY ||
-  process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-const storageClient =
-  supabaseServiceKey && supabaseServiceKey.length > 20
-    ? createClient(supabaseUrl, supabaseServiceKey, {
-        auth: { persistSession: false, autoRefreshToken: false },
-      })
-    : supabase;
 
 const DEFAULT_LIMIT = 12;
 
@@ -39,18 +26,17 @@ export function useDocuments() {
       const { count: total, error: countError } = await supabase
         .from("documents")
         .select("*", { count: "exact", head: true })
-        .eq("is_folder", false); // ✅ QUAN TRỌNG: Chỉ lấy file
+        .eq("is_folder", false);
 
       if (countError) throw countError;
 
       const from = (page - 1) * limit;
       const to = from + limit - 1;
 
-      // ✅ Chỉ lấy FILE, không lấy FOLDER
       const { data: docs, error: docsError } = await supabase
         .from("documents")
         .select("*")
-        .eq("is_folder", false) // ✅ QUAN TRỌNG: Chỉ lấy file
+        .eq("is_folder", false)
         .order("created_at", { ascending: false })
         .range(from, to);
 
@@ -80,13 +66,12 @@ export function useDocuments() {
       };
 
       if (page === 1) {
-        // ✅ Chỉ lấy FILE để tính stats
         const { data: statsData, error: statsError } = await supabase
           .from("documents")
           .select(
             "downloads, views, category, subject, tags, file_size, created_at",
           )
-          .eq("is_folder", false); // ✅ QUAN TRỌNG: Chỉ lấy file
+          .eq("is_folder", false);
 
         if (!statsError && statsData) {
           const totalDownloads =
@@ -161,6 +146,7 @@ export function useDocuments() {
     }
   };
 
+  // ✅ SỬA: DÙNG supabaseAdmin CHO UPLOAD
   const uploadDocument = async (file: File, metadata: Partial<Document>) => {
     if (!session?.user?.id) {
       throw new Error("Vui lòng đăng nhập để tải lên tài liệu");
@@ -173,15 +159,19 @@ export function useDocuments() {
         .substring(2, 8)}.${fileExt}`;
       const filePath = `${session.user.id}/${fileName}`;
 
+      // ✅ DÙNG supabaseAdmin CHO STORAGE
       const { data: uploadData, error: uploadError } =
-        await storageClient.storage.from("documents").upload(filePath, file, {
+        await supabaseAdmin.storage.from("documents").upload(filePath, file, {
           cacheControl: "3600",
           upsert: false,
         });
 
-      if (uploadError) throw uploadError;
+      if (uploadError) {
+        console.error("Storage upload error:", uploadError);
+        throw uploadError;
+      }
 
-      const { data: urlData } = storageClient.storage
+      const { data: urlData } = supabaseAdmin.storage
         .from("documents")
         .getPublicUrl(filePath);
 
@@ -197,14 +187,13 @@ export function useDocuments() {
         uploaded_by: session.user.id,
         uploaded_by_name: session.user.name || "Unknown",
         is_published: true,
-        is_folder: false, // ✅ Luôn là file
+        is_folder: false,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       };
 
-      const client = isServiceRoleEnabled ? supabaseAdmin : supabase;
-
-      const { data: result, error: dbError } = await client
+      // ✅ DÙNG supabaseAdmin CHO DATABASE INSERT
+      const { data: result, error: dbError } = await supabaseAdmin
         .from("documents")
         .insert(docData)
         .select()
@@ -212,6 +201,8 @@ export function useDocuments() {
 
       if (dbError) {
         console.error("Database error:", dbError);
+        // Rollback: xóa file đã upload
+        await supabaseAdmin.storage.from("documents").remove([filePath]);
         throw new Error(`Không thể lưu thông tin: ${dbError.message}`);
       }
 
@@ -271,7 +262,7 @@ export function useDocuments() {
           .join("/");
 
         if (filePath) {
-          await storageClient.storage.from("documents").remove([filePath]);
+          await supabaseAdmin.storage.from("documents").remove([filePath]);
         }
       }
 

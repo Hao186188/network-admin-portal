@@ -1,5 +1,5 @@
 // src/app/(routes)/documents/components/UploadDocumentModal.tsx
-// FIXED: Xử lý file .rar
+// FIXED: THÊM KHUYẾN CÁO FILE LỚN
 
 "use client";
 
@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
-import { File, Upload, X } from "lucide-react";
+import { AlertCircle, File, Upload, X } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
@@ -38,7 +38,6 @@ const SUBJECTS = [
   "Docker",
 ];
 
-// ✅ Danh sách extension được hỗ trợ - ĐẦY ĐỦ
 const SUPPORTED_EXTENSIONS = [
   "pdf",
   "doc",
@@ -103,6 +102,8 @@ const SUPPORTED_EXTENSIONS = [
   "log",
 ];
 
+const MAX_FILE_SIZE = 4 * 1024 * 1024; // 4MB (Vercel limit)
+
 export function UploadDocumentModal({
   isOpen,
   onClose,
@@ -119,6 +120,7 @@ export function UploadDocumentModal({
   const [isUploading, setIsUploading] = useState(false);
   const [dragActive, setDragActive] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [fileTooLarge, setFileTooLarge] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const isAuthenticated = !!session?.user;
@@ -128,14 +130,16 @@ export function UploadDocumentModal({
 
     // Kiểm tra extension
     if (!SUPPORTED_EXTENSIONS.includes(ext)) {
-      return `File .${ext} không được hỗ trợ. Các định dạng hỗ trợ: ${SUPPORTED_EXTENSIONS.join(", ")}`;
+      return `File .${ext} không được hỗ trợ.`;
     }
 
-    // Kiểm tra kích thước (50MB)
-    if (file.size > 50 * 1024 * 1024) {
-      return "File quá lớn, tối đa 50MB";
+    // Kiểm tra kích thước (4MB)
+    if (file.size > MAX_FILE_SIZE) {
+      setFileTooLarge(true);
+      return `File quá lớn (${(file.size / 1024 / 1024).toFixed(1)}MB). Tối đa 4MB. Vui lòng sử dụng chức năng kéo thả thư mục để upload file lớn hơn.`;
     }
 
+    setFileTooLarge(false);
     return null;
   };
 
@@ -143,6 +147,7 @@ export function UploadDocumentModal({
     e.preventDefault();
     setDragActive(false);
     setError(null);
+    setFileTooLarge(false);
 
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
       const file = e.dataTransfer.files[0];
@@ -161,6 +166,7 @@ export function UploadDocumentModal({
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     setError(null);
+    setFileTooLarge(false);
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
       const validationError = validateFile(file);
@@ -232,6 +238,7 @@ export function UploadDocumentModal({
     setSubject("Quản trị Mạng 3");
     setTags("");
     setError(null);
+    setFileTooLarge(false);
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
@@ -273,6 +280,7 @@ export function UploadDocumentModal({
                   : "border-white/10 hover:border-cyan-500/50",
                 isUploading && "opacity-50 cursor-not-allowed",
                 error && "border-red-500/50",
+                fileTooLarge && "border-yellow-500/50 bg-yellow-500/5",
               )}
               onDragEnter={() => !isUploading && setDragActive(true)}
               onDragLeave={() => !isUploading && setDragActive(false)}
@@ -308,6 +316,7 @@ export function UploadDocumentModal({
                       e.stopPropagation();
                       setFile(null);
                       setError(null);
+                      setFileTooLarge(false);
                       if (fileInputRef.current) fileInputRef.current.value = "";
                     }}
                   >
@@ -322,12 +331,25 @@ export function UploadDocumentModal({
                   </p>
                   <p className="text-xs text-white/30 mt-1">
                     Hỗ trợ: PDF, DOC, DOCX, XLS, XLSX, PPT, PPTX, ZIP, RAR, 7Z,
-                    JPG, PNG, MP4, MP3 (tối đa 50MB)
+                    JPG, PNG, MP4, MP3 (tối đa 4MB)
                   </p>
+                  <div className="mt-2 flex items-center justify-center gap-2 text-[10px] text-yellow-400/60">
+                    <AlertCircle className="w-3 h-3" />
+                    <span>
+                      File &gt; 4MB hãy sử dụng chức năng kéo thả thư mục
+                    </span>
+                  </div>
                 </>
               )}
             </div>
             {error && <p className="text-sm text-red-400 mt-2">{error}</p>}
+            {fileTooLarge && (
+              <p className="text-sm text-yellow-400 mt-2 flex items-center gap-1">
+                <AlertCircle className="w-4 h-4" />
+                File quá lớn. Vui lòng sử dụng chức năng kéo thả thư mục để
+                upload.
+              </p>
+            )}
           </div>
 
           {/* Title */}
@@ -425,7 +447,9 @@ export function UploadDocumentModal({
             <Button
               type="submit"
               className="flex-1 gap-2 bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600"
-              disabled={isUploading || !file || !isAuthenticated}
+              disabled={
+                isUploading || !file || !isAuthenticated || fileTooLarge
+              }
             >
               {isUploading ? (
                 <>
