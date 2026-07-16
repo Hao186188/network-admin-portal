@@ -1,5 +1,5 @@
 // src/app/(routes)/documents/components/FileExplorer/index.tsx
-// FIXED: TypeScript error - thêm type annotation cho data
+// HOÀN CHỈNH - FIX TẤT CẢ LỖI TYPESCRIPT
 
 "use client";
 
@@ -107,11 +107,11 @@ function ErrorDialog({
           <h3 className="text-lg font-bold text-white">{title}</h3>
         </div>
         <p className="text-sm text-white/70 mb-4">{message}</p>
-        {details.length > 0 && (
+        {details && details.length > 0 && (
           <div className="mb-4 p-3 rounded-lg bg-white/5 border border-white/5">
             <p className="text-xs text-white/40 font-mono">Định dạng hỗ trợ:</p>
             <div className="flex flex-wrap gap-1.5 mt-1">
-              {details.map((ext) => (
+              {details.map((ext: string) => (
                 <span
                   key={ext}
                   className="px-2 py-0.5 text-[10px] bg-white/5 rounded text-white/40 font-mono"
@@ -154,13 +154,13 @@ export function FileExplorer({
   const [isNewFolderModalOpen, setIsNewFolderModalOpen] = useState(false);
   const [selectedItems, setSelectedItems] = useState<string[]>([]);
 
-  // ✅ Refs để kiểm soát - QUAN TRỌNG: Dùng để chống Strict Mode
+  // ✅ Refs để kiểm soát
   const isNavigating = useRef(false);
   const isInitialized = useRef(false);
   const isFetching = useRef(false);
   const initialFetchDone = useRef(false);
   const abortControllerRef = useRef<AbortController | null>(null);
-  const mountCount = useRef(0);
+  const isMounted = useRef(true);
 
   // Confirm Dialog State
   const [confirmDialog, setConfirmDialog] = useState<{
@@ -192,24 +192,21 @@ export function FileExplorer({
 
   // 📂 Lấy nội dung thư mục hiện tại
   const fetchFolderContents = useCallback(async (folderId: string | null) => {
-    // ✅ Nếu đã fetch thành công thì không fetch lại
-    if (initialFetchDone.current) {
-      console.log("⏭️ Already fetched successfully, skipping...");
-      return;
-    }
-
-    // ✅ Nếu đang fetch thì không fetch nữa
     if (isFetching.current) {
       console.log("⏭️ Already fetching, skipping...");
       return;
     }
 
-    // ✅ Tạo controller mới (KHÔNG abort cũ)
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+
     abortControllerRef.current = new AbortController();
     isFetching.current = true;
 
-    // ✅ Set loading true
-    setLoading(true);
+    if (isMounted.current) {
+      setLoading(true);
+    }
 
     try {
       console.log(`🔄 Fetching folder contents for: ${folderId}`);
@@ -228,19 +225,29 @@ export function FileExplorer({
 
       const { data, error } = await query;
 
+      if (abortControllerRef.current?.signal.aborted) {
+        console.log("⏭️ Request aborted");
+        return;
+      }
+
       if (error) throw error;
 
-      // ✅ Cập nhật dữ liệu
-      const documentData = (data as Document[]) || [];
-      console.log(`📂 Fetched ${documentData.length} items`);
-
-      setItems(documentData);
-      initialFetchDone.current = true;
-      isInitialized.current = true;
-      isFetching.current = false;
+      if (isMounted.current) {
+        // ✅ FIX: Type assertion cho data
+        const documentData = (data || []) as Document[];
+        console.log(`📂 Fetched ${documentData.length} items`);
+        setItems(documentData);
+        initialFetchDone.current = true;
+        isInitialized.current = true;
+      }
     } catch (error: any) {
+      if (error.name === "AbortError" || error.code === "ABORT_ERR") {
+        console.log("⏭️ Fetch aborted");
+        return;
+      }
+
       console.error("Error fetching folder contents:", error);
-      if (error.name !== "AbortError" && error.code !== "ABORT_ERR") {
+      if (isMounted.current) {
         setErrorDialog({
           isOpen: true,
           title: "Lỗi tải dữ liệu",
@@ -248,17 +255,20 @@ export function FileExplorer({
         });
       }
     } finally {
-      // ✅ Luôn set loading false khi hoàn thành
-      console.log("✅ Setting loading to false");
-      setLoading(false);
+      if (isMounted.current) {
+        console.log("✅ Setting loading to false");
+        setLoading(false);
+      }
       isFetching.current = false;
     }
   }, []);
 
-  // 🧭 Lấy đường dẫn breadcrumb - ✅ FIXED: Thêm type annotation
+  // 🧭 Lấy đường dẫn breadcrumb
   const fetchBreadcrumbs = useCallback(async (folderId: string | null) => {
     if (!folderId) {
-      setBreadcrumbs([{ id: null, title: "📁 Thư viện" }]);
+      if (isMounted.current) {
+        setBreadcrumbs([{ id: null, title: "📁 Thư viện" }]);
+      }
       return;
     }
 
@@ -267,8 +277,7 @@ export function FileExplorer({
       let currentId: string | null = folderId;
 
       while (currentId) {
-        // ✅ FIXED: Thêm type annotation cho data
-        const { data, error }: { data: any; error: any } = await supabase
+        const { data, error } = await supabase
           .from("documents")
           .select("id, title, parent_id")
           .eq("id", currentId)
@@ -276,11 +285,19 @@ export function FileExplorer({
 
         if (error) break;
 
-        crumbs.splice(1, 0, { id: data.id, title: data.title });
-        currentId = data.parent_id;
+        // ✅ FIX: Type assertion cho data
+        const item = data as {
+          id: string;
+          title: string;
+          parent_id: string | null;
+        };
+        crumbs.splice(1, 0, { id: item.id, title: item.title });
+        currentId = item.parent_id;
       }
 
-      setBreadcrumbs(crumbs);
+      if (isMounted.current) {
+        setBreadcrumbs(crumbs);
+      }
     } catch (error) {
       console.error("Error fetching breadcrumbs:", error);
     }
@@ -289,13 +306,11 @@ export function FileExplorer({
   // 📍 Điều hướng đến folder
   const navigateToFolder = useCallback(
     async (folderId: string | null) => {
-      // ✅ Kiểm tra đang navigate
       if (isNavigating.current) {
         console.log("⏭️ Skipping navigation - already navigating");
         return;
       }
 
-      // ✅ Nếu đã initialized và đang ở folder này thì skip
       if (isInitialized.current && folderId === currentFolderId) {
         console.log("⏭️ Skipping navigation - already at this folder");
         return;
@@ -306,14 +321,9 @@ export function FileExplorer({
       isNavigating.current = true;
 
       try {
-        // ✅ Update state
         setCurrentFolderId(folderId);
-
-        // ✅ Fetch dữ liệu
         await fetchFolderContents(folderId);
         await fetchBreadcrumbs(folderId);
-
-        // ✅ Callback
         if (onNavigate) {
           onNavigate(folderId);
         }
@@ -326,7 +336,7 @@ export function FileExplorer({
     [currentFolderId, fetchFolderContents, fetchBreadcrumbs, onNavigate],
   );
 
-  // ➕ Tạo folder mới
+  // ➕ Tạo folder mới - ✅ SỬ DỤNG supabaseAdmin
   const createFolder = useCallback(
     async (title: string) => {
       if (!session?.user?.id) {
@@ -340,6 +350,8 @@ export function FileExplorer({
       }
 
       try {
+        console.log("📁 Creating folder with supabaseAdmin:", title);
+
         const { data, error } = await supabaseAdmin
           .from("documents")
           .insert({
@@ -361,13 +373,14 @@ export function FileExplorer({
           .select()
           .single();
 
-        if (error) throw error;
+        if (error) {
+          console.error("❌ Create folder error:", error);
+          throw error;
+        }
 
+        console.log("✅ Folder created");
         toast.success(`Đã tạo thư mục "${title}"`);
 
-        // ✅ Reset và reload content sau khi tạo
-        initialFetchDone.current = false;
-        isInitialized.current = false;
         await fetchFolderContents(currentFolderId);
         setIsNewFolderModalOpen(false);
       } catch (error: any) {
@@ -382,7 +395,7 @@ export function FileExplorer({
     [session, currentFolderId, fetchFolderContents],
   );
 
-  // 🗑️ Xóa item
+  // 🗑️ Xóa item - ✅ SỬ DỤNG supabaseAdmin
   const deleteItem = useCallback(
     (id: string) => {
       const item = items.find((i) => i.id === id);
@@ -395,15 +408,19 @@ export function FileExplorer({
         variant: "danger",
         onConfirm: async () => {
           try {
+            console.log("🗑️ Deleting item with supabaseAdmin:", id);
+
             const { error } = await supabaseAdmin
               .from("documents")
               .delete()
               .eq("id", id);
 
-            if (error) throw error;
+            if (error) {
+              console.error("❌ Delete error:", error);
+              throw error;
+            }
 
             toast.success(`Đã xóa "${item.title}"`);
-            initialFetchDone.current = false;
             await fetchFolderContents(currentFolderId);
             setSelectedItems([]);
           } catch (error: any) {
@@ -420,7 +437,7 @@ export function FileExplorer({
     [items, currentFolderId, fetchFolderContents],
   );
 
-  // 📤 Upload file
+  // 📤 Upload file - ✅ SỬ DỤNG supabaseAdmin
   const uploadFiles = useCallback(
     async (files: FileList) => {
       if (!session?.user?.id) {
@@ -552,7 +569,6 @@ export function FileExplorer({
         }
 
         toast.success("Tải lên thành công!", { id: toastId });
-        initialFetchDone.current = false;
         await fetchFolderContents(currentFolderId);
       } catch (error: any) {
         console.error("Upload error:", error);
@@ -566,24 +582,26 @@ export function FileExplorer({
     [session, currentFolderId, fetchFolderContents],
   );
 
-  // 🎯 Effect khi component mount - CHỈ CHẠY 1 LẦN
+  // 🎯 Effect khi component mount
   useEffect(() => {
-    mountCount.current += 1;
-    console.log(`🚀 Component mounted (${mountCount.current})`);
+    isMounted.current = true;
 
-    // ✅ Chỉ fetch lần đầu
-    if (!initialFetchDone.current) {
-      console.log("🚀 Initializing File Explorer...");
-      navigateToFolder(initialFolderId || null);
-    }
+    console.log("🚀 Component mounted, initializing...");
 
-    // ✅ Cleanup - KHÔNG abort để tránh lỗi Strict Mode
-    return () => {
-      console.log("🧹 Component unmounting");
+    const init = async () => {
+      await navigateToFolder(initialFolderId || null);
     };
-  }, []); // ✅ Empty dependency
+    init();
 
-  // ✅ Effect debug - Log khi items thay đổi
+    return () => {
+      isMounted.current = false;
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
+  }, []);
+
+  // ✅ Effect debug
   useEffect(() => {
     console.log(`📊 State - items: ${items.length}, loading: ${loading}`);
   }, [items, loading]);
@@ -599,7 +617,6 @@ export function FileExplorer({
           onUpload={uploadFiles}
           onRefresh={() => {
             console.log("🔄 Manual refresh triggered");
-            initialFetchDone.current = false;
             isFetching.current = false;
             fetchFolderContents(currentFolderId);
           }}
