@@ -29,6 +29,7 @@ interface CreateLectureData {
   tags: string[];
   video_url?: string;
   thumbnail?: string;
+  thumbnailFile?: File;
 }
 
 interface ApproveLectureParams {
@@ -58,22 +59,11 @@ export function useLectures() {
     queryKey: ["lectures"],
     queryFn: async (): Promise<Lecture[]> => {
       try {
-        let query = supabase
-          .from("lectures")
-          .select("*")
-          .order("created_at", { ascending: false });
-
-        if (!canModerate) {
-          query = query.eq("status", "approved");
+        const response = await fetch("/api/lectures");
+        const data = await response.json();
+        if (!response.ok) {
+          throw new Error(data.error || "Lỗi khi tải dữ liệu");
         }
-
-        const { data, error } = await query;
-
-        if (error) {
-          console.error("Supabase error:", error);
-          throw new Error(error.message || "Lỗi khi tải dữ liệu");
-        }
-
         return data || [];
       } catch (error) {
         console.error("Error fetching lectures:", error);
@@ -95,17 +85,10 @@ export function useLectures() {
       queryKey: ["lecture", id],
       queryFn: async (): Promise<Lecture> => {
         try {
-          let query = supabase.from("lectures").select("*").eq("id", id);
-
-          if (!canModerate) {
-            query = query.eq("status", "approved");
-          }
-
-          const { data, error } = await query.single();
-
-          if (error) {
-            console.error("Supabase error:", error);
-            throw new Error(error.message || "Không tìm thấy bài giảng");
+          const response = await fetch(`/api/lectures?id=${id}`);
+          const data = await response.json();
+          if (!response.ok) {
+            throw new Error(data.error || "Không tìm thấy bài giảng");
           }
           return data;
         } catch (error) {
@@ -128,18 +111,11 @@ export function useLectures() {
     queryFn: async (): Promise<Lecture[]> => {
       try {
         console.log("🔄 Fetching pending lectures...");
-
-        const { data, error } = await supabase
-          .from("lectures")
-          .select("*")
-          .eq("status", "pending")
-          .order("created_at", { ascending: false });
-
-        if (error) {
-          console.error("Supabase error:", error);
-          throw new Error(error.message || "Lỗi khi tải dữ liệu");
+        const response = await fetch("/api/lectures?status=pending");
+        const data = await response.json();
+        if (!response.ok) {
+          throw new Error(data.error || "Lỗi khi tải dữ liệu");
         }
-
         console.log(`✅ Fetched ${data?.length || 0} pending lectures`);
         return data || [];
       } catch (error) {
@@ -164,47 +140,33 @@ export function useLectures() {
         throw new Error("Vui lòng đăng nhập để đăng bài");
       }
 
-      const client = isServiceRoleEnabled ? supabaseAdmin : supabase;
-
-      // ✅ Xóa cột 'order', thay bằng 'sort_order' nếu cần
-      const insertData = {
-        title: data.title?.trim() || "Bài giảng mới",
-        description: data.description?.trim() || "",
-        content: data.content?.trim() || "",
-        type: data.type || "video",
-        subject: data.subject || "",
-        duration: data.duration || "",
-        duration_minutes: data.duration_minutes || 0,
-        date: new Date().toISOString().split("T")[0],
-        teacher: data.teacher || session.user.name || "Giảng viên",
-        teacher_id: session.user.id,
-        author_id: session.user.id,
-        tags: data.tags || [],
-        video_url: data.video_url || "",
-        thumbnail: data.thumbnail || "",
-        views: 0,
-        likes: 0,
-        // ✅ Sử dụng sort_order thay vì order
-        sort_order: 0,
-        status: "pending",
-        is_approved: false,
-        is_published: false,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      };
-
-      const { data: newLecture, error: insertError } = await client
-        .from("lectures")
-        .insert(insertData)
-        .select()
-        .single();
-
-      if (insertError) {
-        console.error("Insert error:", insertError);
-        throw new Error(insertError.message || "Không thể tạo bài giảng");
+      const formData = new FormData();
+      formData.append("title", data.title || "");
+      formData.append("description", data.description || "");
+      formData.append("content", data.content || "");
+      formData.append("type", data.type || "video");
+      formData.append("subject", data.subject || "");
+      formData.append("duration", data.duration || "");
+      formData.append("duration_minutes", (data.duration_minutes || 0).toString());
+      formData.append("teacher", data.teacher || "");
+      formData.append("tags", JSON.stringify(data.tags || []));
+      formData.append("video_url", data.video_url || "");
+      formData.append("thumbnail", data.thumbnail || "");
+      if (data.thumbnailFile) {
+        formData.append("thumbnailFile", data.thumbnailFile);
       }
 
-      return newLecture;
+      const response = await fetch("/api/lectures", {
+        method: "POST",
+        body: formData,
+      });
+
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.error || "Không thể tạo bài giảng");
+      }
+
+      return result;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["lectures"] });
@@ -229,25 +191,17 @@ export function useLectures() {
       }
 
       try {
-        const { data: current, error: fetchError } = await supabase
-          .from("lectures")
-          .select("views")
-          .eq("id", id)
-          .single();
+        const response = await fetch(`/api/lectures?id=${id}&action=view`, {
+          method: "PATCH",
+        });
 
-        if (fetchError) throw fetchError;
-
-        const newViews = (current?.views || 0) + 1;
-
-        const { error: updateError } = await supabase
-          .from("lectures")
-          .update({ views: newViews })
-          .eq("id", id);
-
-        if (updateError) throw updateError;
+        const result = await response.json();
+        if (!response.ok) {
+          throw new Error(result.error || "Không thể tăng lượt xem");
+        }
 
         sessionStorage.setItem(viewKey, "true");
-        return { id, views: newViews };
+        return result;
       } catch (error) {
         console.error("Error incrementing view:", error);
         throw error;
@@ -268,24 +222,16 @@ export function useLectures() {
   const toggleLikeMutation = useMutation({
     mutationFn: async (id: string) => {
       try {
-        const { data: current, error: fetchError } = await supabase
-          .from("lectures")
-          .select("likes")
-          .eq("id", id)
-          .single();
+        const response = await fetch(`/api/lectures?id=${id}&action=like`, {
+          method: "PATCH",
+        });
 
-        if (fetchError) throw fetchError;
+        const result = await response.json();
+        if (!response.ok) {
+          throw new Error(result.error || "Không thể thích bài giảng");
+        }
 
-        const newLikes = (current?.likes || 0) + 1;
-
-        const { error: updateError } = await supabase
-          .from("lectures")
-          .update({ likes: newLikes })
-          .eq("id", id);
-
-        if (updateError) throw updateError;
-
-        return { id, likes: newLikes };
+        return result;
       } catch (error) {
         console.error("Error toggling like:", error);
         throw error;
@@ -308,27 +254,20 @@ export function useLectures() {
       if (!session?.user) throw new Error("Vui lòng đăng nhập");
       if (!canModerate) throw new Error("Bạn không có quyền duyệt bài");
 
-      const client = isServiceRoleEnabled ? supabaseAdmin : supabase;
+      const response = await fetch(`/api/lectures?id=${id}&action=approve`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ status, reason }),
+      });
 
-      const updateData = {
-        status,
-        is_approved: status === "approved",
-        is_published: status === "approved",
-        approved_by: session.user.id,
-        approved_at: new Date().toISOString(),
-        rejection_reason: reason || null,
-        updated_at: new Date().toISOString(),
-      };
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.error || "Không thể duyệt bài giảng");
+      }
 
-      const { data, error } = await client
-        .from("lectures")
-        .update(updateData)
-        .eq("id", id)
-        .select()
-        .single();
-
-      if (error) throw error;
-      return data;
+      return result;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["lectures"] });
@@ -350,11 +289,15 @@ export function useLectures() {
       if (!session?.user) throw new Error("Vui lòng đăng nhập");
       if (!isAdmin) throw new Error("Chỉ admin mới có quyền xóa");
 
-      const client = isServiceRoleEnabled ? supabaseAdmin : supabase;
+      const response = await fetch(`/api/lectures?id=${id}`, {
+        method: "DELETE",
+      });
 
-      const { error } = await client.from("lectures").delete().eq("id", id);
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.error || "Không thể xóa bài giảng");
+      }
 
-      if (error) throw error;
       return id;
     },
     onSuccess: () => {
@@ -383,38 +326,20 @@ export function useLectures() {
       if (!session?.user) throw new Error("Vui lòng đăng nhập");
       if (!canModerate) throw new Error("Bạn không có quyền sửa bài");
 
-      const client = isServiceRoleEnabled ? supabaseAdmin : supabase;
-
-      const updateData: any = {
-        title: data.title?.trim(),
-        description: data.description?.trim(),
-        content: data.content?.trim(),
-        type: data.type,
-        subject: data.subject,
-        duration: data.duration,
-        duration_minutes: data.duration_minutes,
-        teacher: data.teacher,
-        tags: data.tags,
-        video_url: data.video_url,
-        thumbnail: data.thumbnail,
-        updated_at: new Date().toISOString(),
-      };
-
-      Object.keys(updateData).forEach((key) => {
-        if (updateData[key] === undefined) {
-          delete updateData[key];
-        }
+      const response = await fetch(`/api/lectures?id=${id}&action=update`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ data }),
       });
 
-      const { data: updated, error } = await client
-        .from("lectures")
-        .update(updateData)
-        .eq("id", id)
-        .select()
-        .single();
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.error || "Không thể cập nhật bài giảng");
+      }
 
-      if (error) throw error;
-      return updated;
+      return result;
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["lectures"] });

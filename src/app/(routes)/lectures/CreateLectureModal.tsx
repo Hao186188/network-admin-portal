@@ -23,7 +23,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { useLectures } from "@/hooks/useLectures";
-import { supabase } from "@/lib/db/supabase-client";
+
 import {
   ExternalLink,
   Loader2,
@@ -201,26 +201,6 @@ export function CreateLectureModal({
     setIsLoading(true);
 
     try {
-      let thumbnailUrl = formData.thumbnail;
-      if (formData.thumbnailFile) {
-        const fileName = `lectures/${Date.now()}_${formData.thumbnailFile.name}`;
-        const { data: uploadData, error: uploadError } = await supabase.storage
-          .from("lectures")
-          .upload(fileName, formData.thumbnailFile);
-
-        if (uploadError) {
-          console.error("Upload error:", uploadError);
-          toast.error("Không thể tải ảnh lên");
-          setIsLoading(false);
-          return;
-        }
-
-        const { data: urlData } = supabase.storage
-          .from("lectures")
-          .getPublicUrl(fileName);
-        thumbnailUrl = urlData.publicUrl;
-      }
-
       // ✅ Tạo description với thông tin link
       let fullDescription = formData.description;
       if (formData.video_url) {
@@ -239,7 +219,8 @@ export function CreateLectureModal({
         teacher: formData.teacher || session.user.name || "Giảng viên",
         tags: formData.tags,
         video_url: formData.video_url,
-        thumbnail: thumbnailUrl,
+        thumbnail: formData.thumbnail,
+        thumbnailFile: formData.thumbnailFile || undefined,
       });
 
       onSuccess();

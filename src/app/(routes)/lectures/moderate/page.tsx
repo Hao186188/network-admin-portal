@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { supabaseAdmin } from "@/lib/db/supabase-client";
+
 import { cn, formatRelativeTime } from "@/lib/utils";
 import { AnimatePresence, motion } from "framer-motion";
 import {
@@ -113,7 +113,7 @@ export default function ModerateLecturesPage() {
   const canModerate =
     session?.user?.role === "ADMIN" || session?.user?.role === "TEACHER";
 
-  // ✅ Fetch dữ liệu - SỬ DỤNG supabaseAdmin ĐỂ BYPASS RLS
+  // ✅ Fetch dữ liệu - SỬ DỤNG API ROUTE ĐỂ BYPASS RLS
   const fetchLectures = useCallback(
     async (showLoading = true) => {
       if (showLoading) setLoading(true);
@@ -122,24 +122,16 @@ export default function ModerateLecturesPage() {
 
       try {
         console.log(
-          "🔍 [Moderate] Fetching all lectures with supabaseAdmin...",
+          "🔍 [Moderate] Fetching all lectures from API...",
         );
 
-        // ✅ SỬ DỤNG supabaseAdmin để bypass RLS
-        const { data, error, status } = await supabaseAdmin
-          .from("lectures")
-          .select("*")
-          .order("created_at", { ascending: false });
+        const response = await fetch("/api/lectures");
+        const data = await response.json();
 
-        console.log("📊 [Moderate] Response status:", status);
-        console.log("📊 [Moderate] Data:", data);
-        console.log("📊 [Moderate] Data length:", data?.length || 0);
-        console.log("📊 [Moderate] Error:", error);
-
-        if (error) {
-          console.error("❌ [Moderate] Supabase error:", error);
-          setError(`Lỗi database: ${error.message}`);
-          throw error;
+        if (!response.ok) {
+          console.error("❌ [Moderate] API error:", data.error);
+          setError(`Lỗi: ${data.error || "Không thể tải dữ liệu"}`);
+          return;
         }
 
         const lecturesData = (data || []) as LectureModeration[];
@@ -196,21 +188,19 @@ export default function ModerateLecturesPage() {
       try {
         console.log(`✅ [Moderate] Approving lecture: ${lecture.id}`);
 
-        const { error } = await supabaseAdmin
-          .from("lectures")
-          .update({
-            status: "approved",
-            is_approved: true,
-            is_published: true,
-            approved_by: session?.user?.id,
-            approved_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", lecture.id);
+        const response = await fetch(`/api/lectures?id=${lecture.id}&action=approve`, {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ status: "approved" }),
+        });
 
-        if (error) {
-          console.error("❌ [Moderate] Approve error:", error);
-          throw error;
+        const data = await response.json();
+
+        if (!response.ok) {
+          console.error("❌ [Moderate] Approve error:", data.error);
+          throw new Error(data.error || "Không thể duyệt bài giảng");
         }
 
         toast.success(`Đã duyệt bài giảng "${lecture.title}"`);
@@ -222,7 +212,7 @@ export default function ModerateLecturesPage() {
         setProcessing(false);
       }
     },
-    [session?.user?.id, fetchLectures, toast],
+    [fetchLectures, toast],
   );
 
   // ✅ Xử lý từ chối
@@ -232,22 +222,19 @@ export default function ModerateLecturesPage() {
       try {
         console.log(`❌ [Moderate] Rejecting lecture: ${lecture.id}`);
 
-        const { error } = await supabaseAdmin
-          .from("lectures")
-          .update({
-            status: "rejected",
-            is_approved: false,
-            is_published: false,
-            rejection_reason: reason || "Không đáp ứng tiêu chuẩn",
-            approved_by: session?.user?.id,
-            approved_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", lecture.id);
+        const response = await fetch(`/api/lectures?id=${lecture.id}&action=approve`, {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ status: "rejected", reason }),
+        });
 
-        if (error) {
-          console.error("❌ [Moderate] Reject error:", error);
-          throw error;
+        const data = await response.json();
+
+        if (!response.ok) {
+          console.error("❌ [Moderate] Reject error:", data.error);
+          throw new Error(data.error || "Không thể từ chối bài giảng");
         }
 
         toast.success(`Đã từ chối bài giảng "${lecture.title}"`);
@@ -261,7 +248,7 @@ export default function ModerateLecturesPage() {
         setProcessing(false);
       }
     },
-    [session?.user?.id, fetchLectures, toast],
+    [fetchLectures, toast],
   );
 
   // ✅ Xóa bài giảng
@@ -274,14 +261,15 @@ export default function ModerateLecturesPage() {
       try {
         console.log(`🗑️ [Moderate] Deleting lecture: ${lecture.id}`);
 
-        const { error } = await supabaseAdmin
-          .from("lectures")
-          .delete()
-          .eq("id", lecture.id);
+        const response = await fetch(`/api/lectures?id=${lecture.id}`, {
+          method: "DELETE",
+        });
 
-        if (error) {
-          console.error("❌ [Moderate] Delete error:", error);
-          throw error;
+        const data = await response.json();
+
+        if (!response.ok) {
+          console.error("❌ [Moderate] Delete error:", data.error);
+          throw new Error(data.error || "Không thể xóa bài giảng");
         }
 
         toast.success(`Đã xóa bài giảng "${lecture.title}"`);
