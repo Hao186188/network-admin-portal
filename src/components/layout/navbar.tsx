@@ -12,19 +12,16 @@ import { cn } from "@/lib/utils";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   Bell as BellIcon,
-  BookMarked,
   BookOpen,
   ClipboardList,
   Code,
   Crown,
   FileText,
-  HelpCircle,
   Home,
   Info,
   LayoutDashboard,
   LogIn,
   LogOut,
-  Mail,
   Menu,
   MessageCircle,
   ShieldCheck,
@@ -55,24 +52,24 @@ interface NavItemType {
 const desktopNavItems: NavItemType[] = [
   { name: "Trang chủ", href: "/", icon: Home },
   { name: "Diễn đàn", href: "/forum", icon: MessageCircle },
-  { name: "Bài tập", href: "/assignments", icon: ClipboardList },
+  // { name: "Bài tập", href: "/assignments", icon: ClipboardList },
   { name: "Tài liệu", href: "/documents", icon: BookOpen },
-  { name: "Bài giảng", href: "/lectures", icon: FileText },
+  { name: "Hồ sơ", href: "/lectures", icon: FileText },
 ];
 
 const mobileNavItems: NavItemType[] = [
   { name: "Trang chủ", href: "/", icon: Home },
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { name: "Thông báo", href: "/announcements", icon: BellIcon },
-  { name: "Môn học", href: "/courses", icon: BookMarked },
+  // { name: "Môn học", href: "/courses", icon: BookMarked },
   { name: "Bài tập", href: "/assignments", icon: ClipboardList },
   { name: "Tài liệu", href: "/documents", icon: BookOpen },
-  { name: "Bài giảng", href: "/lectures", icon: FileText },
+  { name: "Hồ sơ", href: "/lectures", icon: FileText },
   { name: "Diễn đàn", href: "/forum", icon: MessageCircle },
   { name: "Dự án", href: "/projects", icon: Code },
   { name: "Giới thiệu", href: "/about", icon: Info },
-  { name: "FAQ", href: "/faq", icon: HelpCircle },
-  { name: "Liên hệ", href: "/contact", icon: Mail },
+  // { name: "FAQ", href: "/faq", icon: HelpCircle },
+  // { name: "Liên hệ", href: "/contact", icon: Mail },
 ];
 
 const adminMobileNavItems: NavItemType[] = [
@@ -277,7 +274,7 @@ export function Navbar() {
             </div>
             <div className="hidden sm:block">
               <span className="text-lg font-bold gradient-text">
-                Mạng 3 Hub
+                Thanh Giáo Là
               </span>
               <span className="text-xs text-muted-foreground block -mt-1">
                 Quản trị Mạng

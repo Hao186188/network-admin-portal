@@ -90,7 +90,7 @@ export function Footer() {
               </div>
               <div>
                 <span className="text-lg font-bold gradient-text">
-                  Mạng 3 Hub
+                  Thanh Giáo Là
                 </span>
                 <span className="text-[10px] text-muted-foreground block -mt-0.5">
                   Quản trị Mạng

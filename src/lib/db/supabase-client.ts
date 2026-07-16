@@ -1,5 +1,5 @@
 // src/lib/db/supabase-client.ts
-// HOÀN CHỈNH - CÓ FALLBACK CHO PRODUCTION
+// HOÀN CHỈNH - ĐẢM BẢO supabaseAdmin HOẠT ĐỘNG TRÊN PRODUCTION
 
 import { createClient } from "@supabase/supabase-js";
 
@@ -20,6 +20,23 @@ const supabaseServiceKey =
 
 const isDev = process.env.NODE_ENV === "development";
 
+// ============================================
+// VALIDATION
+// ============================================
+
+if (!supabaseUrl) {
+  console.warn("⚠️ NEXT_PUBLIC_SUPABASE_URL is missing!");
+}
+
+if (!supabaseAnonKey) {
+  console.warn("⚠️ NEXT_PUBLIC_SUPABASE_ANON_KEY is missing!");
+}
+
+if (!supabaseServiceKey || supabaseServiceKey.length < 20) {
+  console.warn("⚠️ SUPABASE_SERVICE_ROLE_KEY is missing or invalid!");
+  console.warn("   - INSERT/UPDATE/DELETE operations may fail due to RLS!");
+}
+
 if (isDev) {
   console.log(
     "🔌 Supabase URL:",
@@ -30,18 +47,16 @@ if (isDev) {
     supabaseAnonKey ? "✅ Đã cấu hình" : "❌ Chưa cấu hình",
   );
   console.log(
-    "🔑 Supabase Service Role Key:",
-    supabaseServiceKey ? "✅ Đã cấu hình" : "❌ Chưa cấu hình",
+    "🔑 Service Role Key:",
+    supabaseServiceKey && supabaseServiceKey.length > 20
+      ? "✅ Đã cấu hình"
+      : "❌ Chưa cấu hình",
   );
-  console.log("🔑 Service Role Key length:", supabaseServiceKey?.length || 0);
-}
-
-if (!supabaseUrl || !supabaseAnonKey) {
-  console.warn("⚠️ Supabase environment variables are missing!");
+  console.log("📏 Service Role Key length:", supabaseServiceKey?.length || 0);
 }
 
 // ============================================
-// SUPABASE CLIENTS
+// SUPABASE CLIENT - DÙNG CHO SELECT (READ)
 // ============================================
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
@@ -57,22 +72,50 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   },
 });
 
-// ✅ QUAN TRỌNG: Fallback cho production nếu thiếu service key
-export const supabaseAdmin =
-  supabaseServiceKey && supabaseServiceKey.length > 20
-    ? createClient(supabaseUrl, supabaseServiceKey, {
-        auth: {
-          persistSession: false,
-          autoRefreshToken: false,
-          detectSessionInUrl: false,
+// ============================================
+// SUPABASE ADMIN CLIENT - DÙNG CHO INSERT/UPDATE/DELETE
+// Bypass RLS - CẦN SERVICE_ROLE_KEY
+// ============================================
+
+// ✅ Tạo supabaseAdmin với Service Role Key
+// Nếu không có service key, vẫn tạo client nhưng sẽ báo lỗi rõ ràng
+const createAdminClient = () => {
+  if (!supabaseServiceKey || supabaseServiceKey.length < 20) {
+    console.warn(
+      "⚠️ Service Role Key not available! Admin client will fallback to regular client.",
+    );
+    console.warn("   → INSERT/UPDATE/DELETE may fail due to RLS.");
+    console.warn(
+      "   → Please add SUPABASE_SERVICE_ROLE_KEY to your environment variables.",
+    );
+    return supabase;
+  }
+
+  try {
+    return createClient(supabaseUrl, supabaseServiceKey, {
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false,
+        detectSessionInUrl: false,
+      },
+      global: {
+        headers: {
+          "x-application-name": "network-admin-portal-admin",
+          apikey: supabaseServiceKey,
         },
-        global: {
-          headers: {
-            "x-application-name": "network-admin-portal-admin",
-          },
-        },
-      })
-    : supabase; // ✅ Fallback về supabase thường
+      },
+    });
+  } catch (error) {
+    console.error("❌ Failed to create admin client:", error);
+    return supabase;
+  }
+};
+
+export const supabaseAdmin = createAdminClient();
+
+// ============================================
+// UTILITY FUNCTIONS
+// ============================================
 
 export const isSupabaseEnabled = !!supabaseUrl && !!supabaseAnonKey;
 export const isServiceRoleEnabled =
@@ -80,8 +123,30 @@ export const isServiceRoleEnabled =
 
 if (isDev) {
   console.log("🔑 isServiceRoleEnabled:", isServiceRoleEnabled);
+  console.log("🔑 Using admin client:", supabaseAdmin !== supabase);
 }
 
+/**
+ * Lấy Supabase client phù hợp
+ * @param useAdmin - true để dùng admin client (bypass RLS), false để dùng regular client
+ */
+export function getSupabaseClient(useAdmin: boolean = false) {
+  if (useAdmin && isServiceRoleEnabled) {
+    return supabaseAdmin;
+  }
+  return supabase;
+}
+
+/**
+ * Kiểm tra xem có đang dùng Service Role không
+ */
+export function isUsingServiceRole(): boolean {
+  return isServiceRoleEnabled;
+}
+
+/**
+ * Test kết nối Supabase
+ */
 export async function testSupabaseConnection() {
   try {
     const { data, error } = await supabase
@@ -101,10 +166,37 @@ export async function testSupabaseConnection() {
   }
 }
 
-export function getSupabaseClient(useAdmin: boolean = false) {
-  return useAdmin && isServiceRoleEnabled ? supabaseAdmin : supabase;
+/**
+ * Test admin connection
+ */
+export async function testAdminConnection() {
+  if (!isServiceRoleEnabled) {
+    console.warn(
+      "⚠️ Cannot test admin connection: Service Role Key not available",
+    );
+    return false;
+  }
+
+  try {
+    const { data, error } = await supabaseAdmin
+      .from("users")
+      .select("count", { count: "exact", head: true });
+
+    if (error) {
+      console.error("❌ Admin connection test failed:", error);
+      return false;
+    }
+
+    console.log("✅ Admin connection test passed!");
+    return true;
+  } catch (error) {
+    console.error("❌ Admin connection test error:", error);
+    return false;
+  }
 }
 
-export function isUsingServiceRole(): boolean {
-  return isServiceRoleEnabled;
-}
+// ============================================
+// EXPORT DEFAULT
+// ============================================
+
+export default supabase;
