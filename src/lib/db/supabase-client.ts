@@ -1,5 +1,5 @@
 // src/lib/db/supabase-client.ts
-// HOÀN CHỈNH - ĐẢM BẢO supabaseAdmin HOẠT ĐỘNG TRÊN PRODUCTION
+// HOÀN CHỈNH - FIX 401 ERROR TRÊN PRODUCTION
 
 import { createClient } from "@supabase/supabase-js";
 
@@ -20,23 +20,6 @@ const supabaseServiceKey =
 
 const isDev = process.env.NODE_ENV === "development";
 
-// ============================================
-// VALIDATION
-// ============================================
-
-if (!supabaseUrl) {
-  console.warn("⚠️ NEXT_PUBLIC_SUPABASE_URL is missing!");
-}
-
-if (!supabaseAnonKey) {
-  console.warn("⚠️ NEXT_PUBLIC_SUPABASE_ANON_KEY is missing!");
-}
-
-if (!supabaseServiceKey || supabaseServiceKey.length < 20) {
-  console.warn("⚠️ SUPABASE_SERVICE_ROLE_KEY is missing or invalid!");
-  console.warn("   - INSERT/UPDATE/DELETE operations may fail due to RLS!");
-}
-
 if (isDev) {
   console.log(
     "🔌 Supabase URL:",
@@ -56,7 +39,19 @@ if (isDev) {
 }
 
 // ============================================
-// SUPABASE CLIENT - DÙNG CHO SELECT (READ)
+// VALIDATION
+// ============================================
+
+if (!supabaseUrl) {
+  console.warn("⚠️ NEXT_PUBLIC_SUPABASE_URL is missing!");
+}
+
+if (!supabaseAnonKey) {
+  console.warn("⚠️ NEXT_PUBLIC_SUPABASE_ANON_KEY is missing!");
+}
+
+// ============================================
+// SUPABASE CLIENT - DÙNG ANON KEY
 // ============================================
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
@@ -68,26 +63,27 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   global: {
     headers: {
       "x-application-name": "network-admin-portal",
+      apikey: supabaseAnonKey, // ✅ Thêm apikey vào header
     },
   },
 });
 
 // ============================================
-// SUPABASE ADMIN CLIENT - DÙNG CHO INSERT/UPDATE/DELETE
-// Bypass RLS - CẦN SERVICE_ROLE_KEY
+// SUPABASE ADMIN CLIENT - DÙNG SERVICE ROLE KEY
+// BYPASS RLS
 // ============================================
 
-// ✅ Tạo supabaseAdmin với Service Role Key
-// Nếu không có service key, vẫn tạo client nhưng sẽ báo lỗi rõ ràng
+// ✅ Tạo admin client với Service Role Key
 const createAdminClient = () => {
+  // Kiểm tra service key
   if (!supabaseServiceKey || supabaseServiceKey.length < 20) {
     console.warn(
-      "⚠️ Service Role Key not available! Admin client will fallback to regular client.",
+      "⚠️ Service Role Key not available! Admin operations may fail.",
     );
-    console.warn("   → INSERT/UPDATE/DELETE may fail due to RLS.");
     console.warn(
       "   → Please add SUPABASE_SERVICE_ROLE_KEY to your environment variables.",
     );
+    // Vẫn trả về supabase để không bị crash
     return supabase;
   }
 
@@ -101,7 +97,8 @@ const createAdminClient = () => {
       global: {
         headers: {
           "x-application-name": "network-admin-portal-admin",
-          apikey: supabaseServiceKey,
+          apikey: supabaseServiceKey, // ✅ QUAN TRỌNG: Thêm apikey vào header
+          Authorization: `Bearer ${supabaseServiceKey}`, // ✅ Thêm Authorization header
         },
       },
     });

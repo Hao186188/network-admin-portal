@@ -229,7 +229,7 @@ export function Footer() {
         >
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
             <div className="text-xs sm:text-sm text-muted-foreground text-center md:text-left">
-              <span>© {currentYear} Mạng 3 Hub.</span>
+              <span>© {currentYear} Thanh Giáo Là.</span>
               <span className="hidden sm:inline">
                 {" "}
                 Tất cả quyền được bảo lưu.

@@ -315,14 +315,14 @@ export function Navbar() {
           </motion.div>
           <div className="hidden sm:block">
             <span className="text-sm md:text-base lg:text-lg font-bold gradient-text whitespace-nowrap">
-              Mạng 3 Hub
+              Thanh Giáo Là
             </span>
             <span className="text-[8px] md:text-[10px] lg:text-xs text-muted-foreground block -mt-0.5 whitespace-nowrap">
               Quản trị Mạng
             </span>
           </div>
           <span className="sm:hidden text-sm font-bold gradient-text whitespace-nowrap">
-            Mạng 3
+            Thanh Giáo Là
           </span>
         </Link>
 
