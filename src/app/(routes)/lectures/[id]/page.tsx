@@ -10,7 +10,16 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useLectures } from "@/hooks/useLectures";
 import { formatRelativeTime } from "@/lib/utils";
-import { ArrowLeft, Calendar, Eye, Heart, Play, User } from "lucide-react";
+import {
+    ArrowLeft,
+    Calendar,
+    Download,
+    Eye,
+    Heart,
+    Link as LinkIcon,
+    Play,
+    User,
+} from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect } from "react";
 
@@ -157,17 +166,26 @@ export default function LectureDetailPage() {
                 </div>
               )}
 
-              {lecture.video_url && (
-                <div className="mt-6">
+              <div className="mt-6 flex flex-wrap gap-3">
+                {lecture.video_url && (
                   <Button
                     className="gap-2"
                     onClick={() => window.open(lecture.video_url, "_blank")}
                   >
-                    <Play className="w-4 h-4" />
-                    Xem video
+                    <LinkIcon className="w-4 h-4" />
+                    {lecture.type === "video" ? "Xem video" : "Mở link"}
                   </Button>
-                </div>
-              )}
+                )}
+                {lecture.file_url && (
+                  <Button
+                    className="gap-2 bg-green-600 hover:bg-green-700"
+                    onClick={() => window.open(lecture.file_url, "_blank")}
+                  >
+                    <Download className="w-4 h-4" />
+                    Tải xuống
+                  </Button>
+                )}
+              </div>
             </CardContent>
           </Card>
         </div>

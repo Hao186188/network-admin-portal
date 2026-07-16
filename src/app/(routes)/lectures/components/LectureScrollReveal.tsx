@@ -4,9 +4,9 @@
 "use client";
 
 import { cn } from "@/lib/utils";
+import { Lecture } from "@/types";
 import { motion, useInView } from "framer-motion";
 import { useRef } from "react";
-import { Lecture } from "../types";
 import { LectureCard } from "./LectureCard";
 
 interface LectureScrollRevealProps {

@@ -8,21 +8,23 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { cn, formatRelativeTime } from "@/lib/utils";
+import { Lecture } from "@/types";
 import { motion } from "framer-motion";
 import {
-  BookOpen,
-  Clock,
-  Eye,
-  FileText,
-  Heart,
-  Monitor,
-  Play,
-  Users,
-  Video,
+    BookOpen,
+    Clock,
+    Download,
+    ExternalLink,
+    Eye,
+    FileText,
+    Heart,
+    Monitor,
+    Play,
+    Users,
+    Video,
 } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
-import { Lecture } from "../types";
 
 interface LectureCardProps {
   lecture: Lecture;
@@ -98,6 +100,22 @@ export function LectureCard({
       }
     } catch (error) {
       // User cancelled
+    }
+  };
+
+  const handleDownload = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (lecture.file_url) {
+      window.open(lecture.file_url, "_blank");
+    }
+  };
+
+  const handleOpenLink = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (lecture.video_url) {
+      window.open(lecture.video_url, "_blank");
     }
   };
 
@@ -218,6 +236,28 @@ export function LectureCard({
               </div>
 
               <div className="flex items-center gap-1">
+                {lecture.file_url && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 rounded-full hover:bg-green-500/10"
+                    onClick={handleDownload}
+                    title="Tải xuống"
+                  >
+                    <Download className="w-3.5 h-3.5 text-green-500" />
+                  </Button>
+                )}
+                {lecture.video_url && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 rounded-full hover:bg-blue-500/10"
+                    onClick={handleOpenLink}
+                    title="Mở link"
+                  >
+                    <ExternalLink className="w-3.5 h-3.5 text-blue-500" />
+                  </Button>
+                )}
                 <Button
                   variant="ghost"
                   size="icon"

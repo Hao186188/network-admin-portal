@@ -1,5 +1,5 @@
 // src/components/layout/navbar.tsx
-// HOÀN CHỈNH - DÙNG POLLING THAY VÌ REALTIME
+// HOÀN CHỈNH - KHÔNG CÓ SHIELDCHECK
 
 "use client";
 
@@ -7,26 +7,28 @@ import { Notifications } from "@/components/common/notifications";
 import { Search } from "@/components/common/search";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
-import { useLectures } from "@/hooks/useLectures";
 import { cn } from "@/lib/utils";
 import { AnimatePresence, motion } from "framer-motion";
 import {
-  Bell as BellIcon,
+  Bell,
+  BookMarked,
   BookOpen,
   ClipboardList,
   Code,
   Crown,
   FileText,
+  HelpCircle,
   Home,
   Info,
   LayoutDashboard,
   LogIn,
   LogOut,
+  Mail,
   Menu,
   MessageCircle,
-  ShieldCheck,
   Sparkles,
   User,
+  X,
 } from "lucide-react";
 import { signOut, useSession } from "next-auth/react";
 import { useTheme } from "next-themes";
@@ -49,32 +51,32 @@ interface NavItemType {
 // CONSTANTS
 // ============================================
 
+// ✅ Desktop Navigation
 const desktopNavItems: NavItemType[] = [
   { name: "Trang chủ", href: "/", icon: Home },
   { name: "Diễn đàn", href: "/forum", icon: MessageCircle },
-  // { name: "Bài tập", href: "/assignments", icon: ClipboardList },
+  { name: "Bài tập", href: "/assignments", icon: ClipboardList },
   { name: "Tài liệu", href: "/documents", icon: BookOpen },
-  { name: "Hồ sơ", href: "/lectures", icon: FileText },
 ];
 
+// ✅ Mobile Navigation
 const mobileNavItems: NavItemType[] = [
   { name: "Trang chủ", href: "/", icon: Home },
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-  { name: "Thông báo", href: "/announcements", icon: BellIcon },
-  // { name: "Môn học", href: "/courses", icon: BookMarked },
+  { name: "Thông báo", href: "/announcements", icon: Bell },
+  { name: "Môn học", href: "/courses", icon: BookMarked },
   { name: "Bài tập", href: "/assignments", icon: ClipboardList },
   { name: "Tài liệu", href: "/documents", icon: BookOpen },
-  { name: "Hồ sơ", href: "/lectures", icon: FileText },
   { name: "Diễn đàn", href: "/forum", icon: MessageCircle },
   { name: "Dự án", href: "/projects", icon: Code },
   { name: "Giới thiệu", href: "/about", icon: Info },
-  // { name: "FAQ", href: "/faq", icon: HelpCircle },
-  // { name: "Liên hệ", href: "/contact", icon: Mail },
+  { name: "FAQ", href: "/faq", icon: HelpCircle },
+  { name: "Liên hệ", href: "/contact", icon: Mail },
 ];
 
+// ✅ Admin items
 const adminMobileNavItems: NavItemType[] = [
   { name: "Quản trị", href: "/admin", icon: Crown },
-  { name: "Kiểm duyệt", href: "/lectures/moderate", icon: ShieldCheck },
 ];
 
 // ============================================
@@ -142,10 +144,6 @@ export function Navbar() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
-  const [pendingCount, setPendingCount] = useState(0);
-
-  // ✅ Sử dụng useLectures để lấy pending count
-  const { pendingLectures, isPendingLoading } = useLectures();
 
   const isAuthenticated = useMemo(
     () => status === "authenticated" && !!session?.user,
@@ -153,9 +151,10 @@ export function Navbar() {
   );
   const isAdmin = useMemo(() => session?.user?.role === "ADMIN", [session]);
   const isTeacher = useMemo(() => session?.user?.role === "TEACHER", [session]);
-  const canModerate = useMemo(() => isAdmin || isTeacher, [isAdmin, isTeacher]);
-
-  const isDark = useMemo(() => resolvedTheme === "dark", [resolvedTheme]);
+  const canViewLectures = useMemo(
+    () => isAdmin || isTeacher,
+    [isAdmin, isTeacher],
+  );
 
   const displayName = useMemo(
     () => session?.user?.name || session?.user?.username || "User",
@@ -166,45 +165,39 @@ export function Navbar() {
     [displayName],
   );
 
-  // ✅ Cập nhật pending count từ pendingLectures
-  useEffect(() => {
-    if (canModerate && pendingLectures) {
-      setPendingCount(pendingLectures.length);
-    }
-  }, [canModerate, pendingLectures]);
-
-  // ✅ Build desktop nav items với badge
+  // ✅ Build desktop nav items
   const desktopNavItemsWithBadge = useMemo(() => {
-    return desktopNavItems.map((item) => {
-      if (item.href === "/lectures" && canModerate && pendingCount > 0) {
-        return { ...item, badge: pendingCount };
-      }
-      return item;
-    });
-  }, [canModerate, pendingCount]);
+    const items = [...desktopNavItems];
 
-  // ✅ Build mobile nav items với badge
-  const allMobileNavItems = useMemo(() => {
-    const items = [...mobileNavItems];
-
-    if (isAdmin) {
-      items.push(...adminMobileNavItems);
-    } else if (canModerate) {
+    if (canViewLectures) {
       items.push({
-        name: "Kiểm duyệt",
-        href: "/lectures/moderate",
-        icon: ShieldCheck,
-        badge: pendingCount > 0 ? pendingCount : undefined,
+        name: "Bài giảng",
+        href: "/lectures",
+        icon: FileText,
       });
     }
 
-    return items.map((item) => {
-      if (item.href === "/lectures" && canModerate && pendingCount > 0) {
-        return { ...item, badge: pendingCount };
-      }
-      return item;
-    });
-  }, [isAdmin, canModerate, pendingCount]);
+    return items;
+  }, [canViewLectures]);
+
+  // ✅ Build mobile nav items
+  const allMobileNavItems = useMemo(() => {
+    const items = [...mobileNavItems];
+
+    if (canViewLectures) {
+      items.push({
+        name: "Bài giảng",
+        href: "/lectures",
+        icon: FileText,
+      });
+    }
+
+    if (isAdmin) {
+      items.push(...adminMobileNavItems);
+    }
+
+    return items;
+  }, [isAdmin, canViewLectures]);
 
   // Handle scroll
   useEffect(() => {
@@ -325,7 +318,7 @@ export function Navbar() {
         </Link>
 
         {/* Desktop Navigation */}
-        <div className="hidden xl:flex items-center gap-0.5 flex-1 justify-center px-2 overflow-x-auto">
+        <div className="hidden lg:flex items-center gap-0.5 flex-1 justify-center px-2 overflow-x-auto">
           {desktopNavItemsWithBadge.map((item) => (
             <NavItem
               key={item.name}
@@ -342,10 +335,11 @@ export function Navbar() {
           <div className="hidden sm:block">
             <Search />
           </div>
+
           <Button
             variant="ghost"
             size="icon"
-            className="sm:hidden hover:bg-muted touch-friendly w-8 h-8 md:w-9 md:h-9 relative"
+            className="sm:hidden hover:bg-muted touch-friendly w-8 h-8 md:w-9 md:h-9"
             aria-label="Tìm kiếm"
           >
             <svg
@@ -366,13 +360,30 @@ export function Navbar() {
           <ThemeToggle />
           <Notifications />
 
+          {isAdmin && (
+            <Link href="/admin" className="hidden md:block">
+              <Button
+                variant="ghost"
+                size="sm"
+                className={cn(
+                  "gap-1 hover:bg-primary/10 touch-friendly text-xs lg:text-sm px-2 lg:px-3",
+                  pathname?.startsWith("/admin") &&
+                    "bg-primary/10 text-primary",
+                )}
+              >
+                <Crown className="w-3.5 h-3.5 lg:w-4 lg:h-4 text-primary" />
+                <span className="hidden xl:inline">Quản trị</span>
+              </Button>
+            </Link>
+          )}
+
           {/* Auth Section */}
           {isAuthenticated ? (
             <div className="relative">
               <Button
                 variant="ghost"
                 size="sm"
-                className="gap-1 hover:bg-primary/10 touch-friendly px-2 lg:px-3"
+                className="gap-1 hover:bg-primary/10 touch-friendly px-1.5 lg:px-3"
                 onClick={toggleProfile}
                 aria-label="Tài khoản"
               >
@@ -408,6 +419,7 @@ export function Navbar() {
                           Vai trò: {session?.user?.role}
                         </p>
                       </div>
+
                       <Link href="/profile">
                         <Button
                           variant="ghost"
@@ -432,27 +444,9 @@ export function Navbar() {
                           className="w-full justify-start gap-2 hover:bg-primary/10 touch-friendly"
                           onClick={closeAllMenus}
                         >
-                          <BellIcon className="w-4 h-4" /> Thông báo
+                          <Bell className="w-4 h-4" /> Thông báo
                         </Button>
                       </Link>
-
-                      {canModerate && (
-                        <Link href="/lectures/moderate">
-                          <Button
-                            variant="ghost"
-                            className="w-full justify-start gap-2 hover:bg-primary/10 touch-friendly relative"
-                            onClick={closeAllMenus}
-                          >
-                            <ShieldCheck className="w-4 h-4 text-primary" />
-                            Kiểm duyệt bài giảng
-                            {pendingCount > 0 && (
-                              <span className="ml-auto px-2 py-0.5 text-[10px] font-bold bg-red-500 text-white rounded-full animate-pulse">
-                                {pendingCount}
-                              </span>
-                            )}
-                          </Button>
-                        </Link>
-                      )}
 
                       {isAdmin && (
                         <Link href="/admin">
@@ -466,6 +460,7 @@ export function Navbar() {
                           </Button>
                         </Link>
                       )}
+
                       <Button
                         variant="ghost"
                         className="w-full justify-start gap-2 mt-1 text-destructive hover:bg-destructive/10 hover:text-destructive touch-friendly"
@@ -484,19 +479,23 @@ export function Navbar() {
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="gap-1 hover:bg-primary/10 touch-friendly text-xs lg:text-sm px-2 lg:px-3"
+                  className="gap-1 hover:bg-primary/10 touch-friendly text-xs lg:text-sm px-1.5 lg:px-3"
                 >
                   <LogIn className="w-3.5 h-3.5 lg:w-4 lg:h-4" />
-                  <span className="hidden xs:inline">Đăng nhập</span>
+                  <span className="hidden xs:inline text-xs lg:text-sm">
+                    Đăng nhập
+                  </span>
                 </Button>
               </Link>
               <Link href="/register">
                 <Button
                   size="sm"
-                  className="gap-1 hidden sm:flex bg-primary text-primary-foreground hover:bg-primary/90 touch-friendly text-xs lg:text-sm px-2 lg:px-3"
+                  className="gap-1 hidden sm:flex bg-primary text-primary-foreground hover:bg-primary/90 touch-friendly text-xs lg:text-sm px-1.5 lg:px-3"
                 >
                   <User className="w-3.5 h-3.5 lg:w-4 lg:h-4" />
-                  <span className="hidden xs:inline">Đăng ký</span>
+                  <span className="hidden xs:inline text-xs lg:text-sm">
+                    Đăng ký
+                  </span>
                 </Button>
               </Link>
             </div>
@@ -509,19 +508,24 @@ export function Navbar() {
             onClick={toggleMobileMenu}
             aria-label={isMobileMenuOpen ? "Đóng menu" : "Mở menu"}
           >
-            <Menu className="w-4 h-4 md:w-5 md:h-5" />
+            {isMobileMenuOpen ? (
+              <X className="w-4 h-4 md:w-5 md:h-5" />
+            ) : (
+              <Menu className="w-4 h-4 md:w-5 md:h-5" />
+            )}
           </Button>
         </div>
       </nav>
 
+      {/* Mobile Menu */}
       <AnimatePresence>
         {isMobileMenuOpen && (
           <motion.div
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: "auto" }}
             exit={{ opacity: 0, height: 0 }}
-            transition={{ duration: 0.2 }}
-            className="lg:hidden overflow-hidden border-t border-border bg-background/95 backdrop-blur-md"
+            transition={{ duration: 0.25, ease: "easeInOut" }}
+            className="lg:hidden overflow-hidden border-t border-border bg-background/98 backdrop-blur-xl"
           >
             <div className="p-3 md:p-4 space-y-0.5 max-h-[75vh] overflow-y-auto hide-scrollbar">
               {allMobileNavItems.map((item) => (
@@ -535,6 +539,37 @@ export function Navbar() {
                   onClick={closeAllMenus}
                 />
               ))}
+
+              {/* Mobile Bottom Actions */}
+              <div className="pt-3 mt-2 border-t border-border/50">
+                {!isAuthenticated ? (
+                  <div className="grid grid-cols-2 gap-2">
+                    <Link href="/login" onClick={closeAllMenus}>
+                      <Button className="w-full gap-2">
+                        <LogIn className="w-4 h-4" />
+                        Đăng nhập
+                      </Button>
+                    </Link>
+                    <Link href="/register" onClick={closeAllMenus}>
+                      <Button
+                        variant="outline"
+                        className="w-full gap-2 border-white/10"
+                      >
+                        <User className="w-4 h-4" />
+                        Đăng ký
+                      </Button>
+                    </Link>
+                  </div>
+                ) : (
+                  <Button
+                    variant="ghost"
+                    className="w-full justify-start gap-2 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                    onClick={handleLogout}
+                  >
+                    <LogOut className="w-4 h-4" /> Đăng xuất
+                  </Button>
+                )}
+              </div>
             </div>
           </motion.div>
         )}

@@ -42,6 +42,26 @@ export async function POST(req: NextRequest) {
     };
 
     console.log("📁 [API] Creating folder:", insertData);
+    // #region debug-point E:api-documents-insert
+    fetch("http://127.0.0.1:7777/event", {
+      method: "POST",
+      body: JSON.stringify({
+        sessionId: "lectures-folder-sync",
+        runId: "pre",
+        hypothesisId: "E",
+        location: "api/documents/route.ts:44",
+        msg: "[DEBUG] api/documents:create-folder:insert",
+        data: {
+          title: insertData.title,
+          parent_id: insertData.parent_id,
+          is_folder: insertData.is_folder,
+          category: insertData.category,
+          subject: insertData.subject,
+        },
+        ts: Date.now(),
+      }),
+    }).catch(() => {});
+    // #endregion
 
     const { data, error } = await supabaseAdmin
       .from("documents")
@@ -58,6 +78,25 @@ export async function POST(req: NextRequest) {
     }
 
     console.log("✅ [API] Folder created:", data);
+    // #region debug-point E:api-documents-result
+    fetch("http://127.0.0.1:7777/event", {
+      method: "POST",
+      body: JSON.stringify({
+        sessionId: "lectures-folder-sync",
+        runId: "pre",
+        hypothesisId: "E",
+        location: "api/documents/route.ts:61",
+        msg: "[DEBUG] api/documents:create-folder:result",
+        data: {
+          id: data?.id,
+          title: data?.title,
+          parent_id: data?.parent_id,
+          is_folder: data?.is_folder,
+        },
+        ts: Date.now(),
+      }),
+    }).catch(() => {});
+    // #endregion
     return NextResponse.json(data);
   } catch (error: any) {
     console.error("❌ [API] Error:", error);

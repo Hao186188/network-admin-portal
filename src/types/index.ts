@@ -32,7 +32,7 @@ export interface UserSession {
 }
 
 // ============================================
-// LECTURE TYPES
+// LECTURE TYPES - CẬP NHẬT
 // ============================================
 
 export interface Lecture {
@@ -40,7 +40,7 @@ export interface Lecture {
   title: string;
   description: string;
   content?: string;
-  type: "video" | "slide" | "lab" | "document";
+  type: "video" | "slide" | "lab" | "document" | "folder";
   subject?: string;
   duration: string;
   duration_minutes: number;
@@ -54,13 +54,24 @@ export interface Lecture {
   video_url?: string;
   thumbnail?: string;
   file_url?: string;
-  order: number;
+  file_size?: number;
+  file_type?: string; // ✅ THÊM file_type
+
+  // ✅ Folder Explorer
+  parent_id?: string | null;
+  path?: string[];
+  is_folder?: boolean;
+  sort_order: number;
+
+  // ✅ Trạng thái
   is_published: boolean;
   is_approved: boolean;
   status: "pending" | "approved" | "rejected";
   approved_by?: string;
   approved_at?: string;
   rejection_reason?: string;
+
+  // ✅ Timestamps
   created_at: string;
   updated_at: string;
 }
@@ -82,6 +93,7 @@ export interface LectureStats {
   totalSlides: number;
   totalLabs: number;
   totalDocuments: number;
+  totalFolders: number;
 }
 
 export interface LectureApproval {
@@ -91,6 +103,26 @@ export interface LectureApproval {
   status: "approved" | "rejected";
   reason?: string;
   created_at: string;
+}
+
+// ============================================
+// FOLDER EXPLORER TYPES
+// ============================================
+
+export interface FolderNode {
+  id: string;
+  title: string;
+  type: "folder" | "file";
+  fileType?: string;
+  children?: FolderNode[];
+  isOpen?: boolean;
+  lecture?: Lecture;
+}
+
+export interface BreadcrumbItem {
+  id: string | null;
+  title: string;
+  path: string[];
 }
 
 // ============================================
@@ -247,6 +279,41 @@ export interface Announcement {
   likes: number;
   created_at: string;
   updated_at: string;
+}
+
+// ============================================
+// DOCUMENT TYPES
+// ============================================
+
+export interface Document {
+  id: string;
+  title: string;
+  description: string;
+  file_type: string;
+  file_size: number;
+  file_url: string;
+  thumbnail_url?: string;
+  parent_id?: string | null;
+  path: string[];
+  is_folder: boolean;
+  is_published: boolean;
+  category: string;
+  subject: string;
+  tags: string[];
+  downloads: number;
+  views: number;
+  rating: number;
+  rating_avg: number;
+  likes_count: number;
+  comments_count: number;
+  uploaded_by: string;
+  uploaded_by_name?: string;
+  uploaded_by_avatar?: string;
+  semester?: string;
+  academic_year?: string;
+  created_at: string;
+  updated_at: string;
+  is_favorite?: boolean;
 }
 
 // ============================================

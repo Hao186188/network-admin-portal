@@ -1,5 +1,5 @@
 // src/hooks/use-notifications.ts
-// Vai trò: Hook quản lý thông báo - TẮT REALTIME TẠM THỜI
+// Vai trò: Hook quản lý thông báo - REALTIME BẬT
 
 "use client";
 
@@ -37,8 +37,10 @@ export function useNotifications() {
 
   const isFetchingRef = useRef(false);
   const initialFetchDoneRef = useRef(false);
-  // ✅ TẮT REALTIME TẠM THỜI
   const channelRef = useRef<any>(null);
+  const channelIdRef = useRef(
+    `notifications-realtime-${Math.random().toString(36).substring(2, 9)}`,
+  );
 
   const fetchNotifications = useCallback(
     async (force?: boolean) => {
@@ -98,11 +100,53 @@ export function useNotifications() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session?.user?.id]);
 
-  // ✅ TẮT REALTIME TẠM THỜI - KHÔNG SUBSCRIBE
-  // useEffect(() => {
-  //   if (!session?.user?.id) return;
-  //   // ... code realtime tạm thời bỏ comment
-  // }, [session?.user?.id]);
+  // ✅ BẬT REALTIME
+  useEffect(() => {
+    if (!session?.user?.id) {
+      return;
+    }
+
+    // First clean up existing channel before creating new one
+    if (channelRef.current) {
+      supabase.removeChannel(channelRef.current);
+    }
+
+    const channel = supabase
+      .channel(channelIdRef.current)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "notifications",
+          filter: `user_id=eq.${session.user.id}`,
+        },
+        async (payload) => {
+          console.log("Notification change received:", payload);
+          // Refetch notifications when there is a change
+          fetchNotifications(true);
+          if (payload.eventType === "INSERT") {
+            // Show a toast for new notifications
+            const newNotification = payload.new as Notification;
+            if (!newNotification.read) {
+              toast.info(
+                `${newNotification.title}: ${newNotification.message}`,
+              );
+            }
+          }
+        },
+      )
+      .subscribe();
+
+    channelRef.current = channel;
+
+    return () => {
+      if (channelRef.current) {
+        supabase.removeChannel(channelRef.current);
+        channelRef.current = null;
+      }
+    };
+  }, [session?.user?.id, fetchNotifications, toast]);
 
   const markAsRead = useCallback(
     async (id: string) => {

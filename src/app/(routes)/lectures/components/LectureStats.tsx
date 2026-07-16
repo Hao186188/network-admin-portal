@@ -5,9 +5,9 @@
 
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+import { LectureStats as StatsType } from "@/types";
 import { motion } from "framer-motion";
 import { BookOpen, Eye, FileText, Heart, Monitor, Video } from "lucide-react";
-import { LectureStats as StatsType } from "../types";
 
 interface LectureStatsProps {
   stats: StatsType;

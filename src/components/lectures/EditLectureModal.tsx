@@ -1,30 +1,30 @@
 // src/components/lectures/EditLectureModal.tsx
-// MODAL CHỈNH SỬA BÀI GIẢNG
+// MODAL CHỈNH SỬA BÀI GIẢNG - FIXED
 
 "use client";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
-    Dialog,
-    DialogContent,
-    DialogHeader,
-    DialogTitle,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { useLectures } from "@/hooks/useLectures";
 import { Lecture } from "@/types";
 import { Loader2, Upload, X } from "lucide-react";
+import { useSession } from "next-auth/react";
 import { useEffect, useRef, useState } from "react";
 
 interface EditLectureModalProps {
@@ -57,12 +57,13 @@ export function EditLectureModal({
   lecture,
   onSuccess,
 }: EditLectureModalProps) {
+  const { data: session } = useSession();
   const { toast } = useToast();
-  const { updateLecture } = useLectures();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState<Partial<Lecture>>({});
+  const [thumbnailFile, setThumbnailFile] = useState<File | null>(null);
   const [tagInput, setTagInput] = useState("");
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
@@ -82,6 +83,7 @@ export function EditLectureModal({
         thumbnail: lecture.thumbnail || "",
       });
       setPreviewUrl(lecture.thumbnail || null);
+      setThumbnailFile(null);
     }
   }, [lecture]);
 
@@ -106,19 +108,24 @@ export function EditLectureModal({
     }));
   };
 
-  const handleThumbnailUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleThumbnailUpload = async (
+    e: React.ChangeEvent<HTMLInputElement>,
+  ) => {
     const file = e.target.files?.[0];
     if (file) {
       const url = URL.createObjectURL(file);
       setPreviewUrl(url);
-      // Upload sẽ được xử lý khi submit
+      setThumbnailFile(file);
     }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!lecture?.id) return;
+    if (!lecture?.id) {
+      toast.error("Không tìm thấy bài giảng");
+      return;
+    }
 
     if (!formData.title?.trim()) {
       toast.error("Vui lòng nhập tiêu đề");
@@ -134,21 +141,72 @@ export function EditLectureModal({
 
     try {
       let thumbnailUrl = formData.thumbnail;
-      // Handle thumbnail upload if needed
-      // ...
 
-      await updateLecture({
-        id: lecture.id,
-        data: {
-          ...formData,
-          thumbnail: thumbnailUrl,
+      // Nếu có thumbnail file mới, upload lên
+      if (thumbnailFile) {
+        const file = thumbnailFile;
+        const fileExt = file.name.split(".").pop() || "unknown";
+        const fileName = `${Date.now()}_${Math.random().toString(36).substring(2, 8)}.${fileExt}`;
+        const filePath = `lectures/${fileName}`;
+
+        // Upload lên Supabase Storage
+        const formDataUpload = new FormData();
+        formDataUpload.append("file", file);
+        formDataUpload.append("path", filePath);
+
+        const uploadResponse = await fetch("/api/lectures/upload-thumbnail", {
+          method: "POST",
+          body: formDataUpload,
+        });
+
+        const uploadResult = await uploadResponse.json();
+
+        if (uploadResponse.ok && uploadResult.url) {
+          thumbnailUrl = uploadResult.url;
+        } else {
+          console.error("Upload thumbnail error:", uploadResult.error);
+          toast.warning("Không thể upload ảnh thumbnail, giữ nguyên ảnh cũ");
+        }
+      }
+
+      // ✅ Gọi API cập nhật
+      const response = await fetch(
+        `/api/lectures?id=${lecture.id}&action=update`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            data: {
+              title: formData.title?.trim(),
+              description: formData.description?.trim(),
+              content: formData.content?.trim(),
+              type: formData.type,
+              subject: formData.subject,
+              duration: formData.duration,
+              duration_minutes: formData.duration_minutes,
+              teacher: formData.teacher,
+              tags: formData.tags,
+              video_url: formData.video_url,
+              thumbnail: thumbnailUrl,
+            },
+          }),
         },
-      });
+      );
 
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || "Không thể cập nhật bài giảng");
+      }
+
+      toast.success("Cập nhật bài giảng thành công!");
       onSuccess();
       onClose();
-    } catch (error) {
-      // Error handled in mutation
+    } catch (error: any) {
+      console.error("Update error:", error);
+      toast.error(error.message || "Có lỗi xảy ra khi cập nhật");
     } finally {
       setIsLoading(false);
     }
@@ -347,7 +405,11 @@ export function EditLectureModal({
             >
               Hủy
             </Button>
-            <Button type="submit" className="flex-1 gap-2" disabled={isLoading}>
+            <Button
+              type="submit"
+              className="flex-1 gap-2 bg-gradient-to-r from-primary to-secondary"
+              disabled={isLoading}
+            >
               {isLoading ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />

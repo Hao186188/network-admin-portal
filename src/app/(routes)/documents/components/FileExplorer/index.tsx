@@ -298,6 +298,9 @@ export function FileExplorer({
 
     try {
       console.log(`🔄 Fetching folder contents for: ${folderId}`);
+      // #region debug-point A:fetch-folder-start
+      fetch("http://127.0.0.1:7777/event",{method:"POST",body:JSON.stringify({sessionId:"lectures-folder-sync",runId:"pre",hypothesisId:"A",location:"documents/FileExplorer:index.tsx:300",msg:"[DEBUG] fetchFolderContents:start",data:{folderId,currentFolderId,hasMounted:isMounted.current,isFetching:isFetching.current},ts:Date.now()})}).catch(()=>{});
+      // #endregion
 
       let query = supabase
         .from("documents")
@@ -323,6 +326,9 @@ export function FileExplorer({
       if (isMounted.current) {
         const documentData = (data || []) as Document[];
         console.log(`📂 Fetched ${documentData.length} items`);
+        // #region debug-point B:fetch-folder-result
+        fetch("http://127.0.0.1:7777/event",{method:"POST",body:JSON.stringify({sessionId:"lectures-folder-sync",runId:"pre",hypothesisId:"B",location:"documents/FileExplorer:index.tsx:325",msg:"[DEBUG] fetchFolderContents:result",data:{folderId,count:documentData.length,titles:documentData.slice(0,10).map((item)=>({id:item.id,title:item.title,parent_id:item.parent_id,is_folder:item.is_folder}))},ts:Date.now()})}).catch(()=>{});
+        // #endregion
         setItems(documentData);
         initialFetchDone.current = true;
         isInitialized.current = true;
@@ -437,6 +443,9 @@ export function FileExplorer({
 
       try {
         console.log("📁 Creating folder via API:", title);
+        // #region debug-point C:create-folder-request
+        fetch("http://127.0.0.1:7777/event",{method:"POST",body:JSON.stringify({sessionId:"lectures-folder-sync",runId:"pre",hypothesisId:"C",location:"documents/FileExplorer:index.tsx:440",msg:"[DEBUG] createFolder:request",data:{title:title.trim(),currentFolderId},ts:Date.now()})}).catch(()=>{});
+        // #endregion
 
         const response = await fetch("/api/documents", {
           method: "POST",
@@ -457,6 +466,9 @@ export function FileExplorer({
         }
 
         console.log("✅ Folder created:", data);
+        // #region debug-point D:create-folder-response
+        fetch("http://127.0.0.1:7777/event",{method:"POST",body:JSON.stringify({sessionId:"lectures-folder-sync",runId:"pre",hypothesisId:"D",location:"documents/FileExplorer:index.tsx:460",msg:"[DEBUG] createFolder:response",data:{createdId:data?.id,title:data?.title,parent_id:data?.parent_id,is_folder:data?.is_folder},ts:Date.now()})}).catch(()=>{});
+        // #endregion
         toast.success(`Đã tạo thư mục "${title}"`);
 
         await fetchFolderContents(currentFolderId);

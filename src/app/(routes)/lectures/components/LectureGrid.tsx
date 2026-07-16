@@ -3,8 +3,8 @@
 
 "use client";
 
+import { Lecture } from "@/types";
 import { AnimatePresence, motion } from "framer-motion";
-import { Lecture } from "../types";
 import { LectureCard } from "./LectureCard";
 import { LectureEmptyState } from "./LectureEmptyState";
 import { LectureSkeleton } from "./LectureSkeleton";
