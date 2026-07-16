@@ -1,8 +1,8 @@
 // src/app/api/documents/upload/route.ts
-// API UPLOAD FILE ĐƠN - NÂNG CẤP
+// API UPLOAD FILE ĐƠN - NÂNG CẤP FIX RLS
 
 import { authOptions } from "@/lib/auth";
-import { getSupabaseClient } from "@/lib/db/supabase-client";
+import { isServiceRoleEnabled, supabaseAdmin } from "@/lib/db/supabase-client";
 import { getServerSession } from "next-auth";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -148,14 +148,20 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // ✅ 6. Sử dụng ADMIN client (bypass RLS)
-    const supabaseAdmin = getSupabaseClient(true);
+    // ✅ 6. LOG để debug
+    console.log("🔍 [API] Upload - Session user:", session.user.id);
+    console.log("🔍 [API] Upload - File:", file.name, file.size);
+    console.log(
+      "🔍 [API] Upload - isServiceRoleEnabled:",
+      isServiceRoleEnabled,
+    );
 
+    // ✅ 7. SỬ DỤNG supabaseAdmin TRỰC TIẾP (bypass RLS)
     const fileExt = file.name.split(".").pop() || "unknown";
     const fileName = `${Date.now()}-${Math.random().toString(36).substring(2, 8)}.${fileExt}`;
     const filePath = `${session.user.id}/${fileName}`;
 
-    // ✅ 7. Upload file lên Storage
+    // ✅ Upload file lên Storage bằng supabaseAdmin
     const { error: uploadError } = await supabaseAdmin.storage
       .from("documents")
       .upload(filePath, file, {
@@ -175,7 +181,9 @@ export async function POST(req: NextRequest) {
       .from("documents")
       .getPublicUrl(filePath);
 
-    // ✅ 8. Lưu metadata vào database
+    console.log("✅ [API] Upload success:", urlData.publicUrl);
+
+    // ✅ 8. Lưu metadata vào database bằng supabaseAdmin
     const insertData = {
       title: title || file.name,
       description: description,
@@ -210,7 +218,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    console.log("✅ [API] File uploaded:", dbData);
+    console.log("✅ [API] File saved:", dbData);
     return NextResponse.json(dbData);
   } catch (error: any) {
     console.error("❌ [API] Error:", error);

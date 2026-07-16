@@ -106,6 +106,7 @@ export default function RootLayout({
           content="xDi7yQEL2pog2kHYPth3-zWqrvkkgldFURSfgDdVVtU"
         />
         <link rel="sitemap" type="application/xml" href="/sitemap.xml" />
+        {/* ✅ Favicon - chỉ khai báo 1 lần */}
         <link rel="icon" href="/favicon.ico" sizes="any" />
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
         <link rel="manifest" href="/manifest.json" />

@@ -1,5 +1,5 @@
 // src/app/manifest.ts
-// FIXED: Sửa lỗi type "any maskable"
+// HOÀN CHỈNH - FIX LỖI MANIFEST VÀ FAVICON
 
 import type { MetadataRoute } from "next";
 
@@ -14,40 +14,40 @@ export default function manifest(): MetadataRoute.Manifest {
     background_color: "#0f172a",
     theme_color: "#0f172a",
     orientation: "portrait-primary",
+    scope: "/",
+    id: "mang3hub",
+    categories: ["education", "networking", "learning"],
+    lang: "vi",
+    dir: "ltr",
+    prefer_related_applications: false,
+
     icons: [
-      {
-        src: "/favicon.ico",
-        sizes: "any",
-        type: "image/x-icon",
-      },
+      // ✅ Favicon - KHÔNG khai báo trong manifest để tránh lỗi
+      // Trình duyệt tự động tìm /favicon.ico
       {
         src: "/icon-192.png",
         sizes: "192x192",
         type: "image/png",
-        purpose: "any" as const, // ✅ Fix: chỉ "any" hoặc "maskable"
+        purpose: "any",
       },
       {
         src: "/icon-512.png",
         sizes: "512x512",
         type: "image/png",
-        purpose: "any" as const, // ✅ Fix
+        purpose: "any",
       },
       {
         src: "/maskable-icon-192.png",
         sizes: "192x192",
         type: "image/png",
-        purpose: "maskable" as const, // ✅ Fix: riêng cho maskable
+        purpose: "maskable",
       },
       {
         src: "/maskable-icon-512.png",
         sizes: "512x512",
         type: "image/png",
-        purpose: "maskable" as const, // ✅ Fix
+        purpose: "maskable",
       },
     ],
-    categories: ["education", "networking", "learning"],
-    lang: "vi",
-    dir: "ltr",
-    prefer_related_applications: false,
   };
 }

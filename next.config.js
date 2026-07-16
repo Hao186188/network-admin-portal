@@ -1,5 +1,9 @@
+// next.config.js
+// HOÀN CHỈNH - TỐI ƯU BUILD
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // ✅ Images
   images: {
     remotePatterns: [
       {
@@ -18,20 +22,105 @@ const nextConfig = {
         protocol: "https",
         hostname: "ui-avatars.com",
       },
+      {
+        protocol: "https",
+        hostname: "img.youtube.com",
+      },
+      {
+        protocol: "https",
+        hostname: "i.ytimg.com",
+      },
     ],
+    formats: ["image/avif", "image/webp"],
   },
+
+  // ✅ Experimental
   experimental: {
     serverActions: {
       allowedOrigins: ["localhost:3000", "qtm3k14.vercel.app"],
     },
+    optimizeCss: true,
+    scrollRestoration: true,
   },
-  // ✅ Sử dụng cấu hình mới
+
+  // ✅ Performance
   compress: true,
   poweredByHeader: false,
   reactStrictMode: true,
-  // ✅ Tối ưu build
+  swcMinify: true,
+
+  // ✅ Build optimization
   compiler: {
     removeConsole: process.env.NODE_ENV === "production",
+  },
+
+  // ✅ Headers for security and performance
+  async headers() {
+    return [
+      {
+        source: "/(.*)",
+        headers: [
+          {
+            key: "X-Content-Type-Options",
+            value: "nosniff",
+          },
+          {
+            key: "X-Frame-Options",
+            value: "DENY",
+          },
+          {
+            key: "X-XSS-Protection",
+            value: "1; mode=block",
+          },
+          {
+            key: "Referrer-Policy",
+            value: "strict-origin-when-cross-origin",
+          },
+        ],
+      },
+      {
+        source: "/_next/static/(.*)",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "public, max-age=31536000, immutable",
+          },
+        ],
+      },
+      {
+        source: "/static/(.*)",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "public, max-age=31536000, immutable",
+          },
+        ],
+      },
+    ];
+  },
+
+  // ✅ Redirects
+  async redirects() {
+    return [
+      {
+        source: "/home",
+        destination: "/",
+        permanent: true,
+      },
+    ];
+  },
+
+  // ✅ Webpack optimization
+  webpack: (config, { isServer }) => {
+    if (!isServer) {
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        fs: false,
+        net: false,
+        tls: false,
+      };
+    }
+    return config;
   },
 };
 

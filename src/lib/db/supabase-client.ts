@@ -1,5 +1,5 @@
 // src/lib/db/supabase-client.ts
-// HOÀN CHỈNH - FIX 401 TRÊN PRODUCTION
+// HOÀN CHỈNH - GIỮ NGUYÊN CODE CŨ, BỔ SUNG EXPORT
 
 import { createClient } from "@supabase/supabase-js";
 
@@ -110,6 +110,7 @@ if (supabaseServiceKey && supabaseServiceKey.length > 20) {
   console.warn("   → Admin operations will use regular client (RLS enabled)");
 }
 
+// ✅ EXPORT supabaseAdmin
 export const supabaseAdmin = adminClient || supabase;
 
 // ============================================
