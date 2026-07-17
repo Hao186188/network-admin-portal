@@ -1,5 +1,5 @@
 // src/app/(routes)/profile/page.tsx
-// Vai trò: Trang hồ sơ cá nhân - FIXED
+// Vai trò: Trang hồ sơ cá nhân - FIX SESSION UPDATE
 
 "use client";
 
@@ -29,11 +29,11 @@ import {
   Save,
   School,
   Users,
-  X
+  X,
 } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 // ✅ Định nghĩa type cho stats
 interface Stats {
@@ -44,7 +44,7 @@ interface Stats {
 }
 
 export default function ProfilePage() {
-  const { data: session, status } = useSession();
+  const { data: session, status, update } = useSession();
   const { toast } = useToast();
   const router = useRouter();
   const { profile, loading, updateProfile, refresh } = useProfile();
@@ -64,6 +64,11 @@ export default function ProfilePage() {
     totalAssignments: 0,
   });
   const [statsLoading, setStatsLoading] = useState(true);
+  const [isChangingRole, setIsChangingRole] = useState(false);
+
+  // ✅ Refs để kiểm soát
+  const sessionUpdatedRef = useRef(false);
+  const updateCalledRef = useRef(false);
 
   // ✅ Fetch stats - CHỈ CHẠY 1 LẦN
   useEffect(() => {
@@ -101,7 +106,7 @@ export default function ProfilePage() {
     };
 
     fetchStats();
-  }, [profile?.id]); // ✅ CHỈ CHẠY KHI PROFILE ID THAY ĐỔI
+  }, [profile?.id]);
 
   // ✅ Sync form data với profile
   useEffect(() => {
@@ -116,12 +121,138 @@ export default function ProfilePage() {
     }
   }, [profile]);
 
+  // ✅ CHỈ UPDATE SESSION 1 LẦN KHI COMPONENT MOUNT
+  useEffect(() => {
+    if (
+      session?.user &&
+      !sessionUpdatedRef.current &&
+      !updateCalledRef.current
+    ) {
+      updateCalledRef.current = true;
+
+      // Lấy role từ database để so sánh
+      const fetchUserRole = async () => {
+        try {
+          const { data, error } = await supabase
+            .from("users")
+            .select("role")
+            .eq("id", session.user.id)
+            .single();
+
+          if (error) throw error;
+
+          const dbRole = data?.role?.toUpperCase() || "STUDENT";
+          const sessionRole = session.user.role?.toUpperCase() || "STUDENT";
+
+          console.log("🔍 [Profile] DB Role:", dbRole);
+          console.log("🔍 [Profile] Session Role:", sessionRole);
+
+          // Nếu role trong database khác với session, update session
+          if (dbRole !== sessionRole) {
+            console.log(
+              `🔄 [Profile] Updating session from ${sessionRole} to ${dbRole}`,
+            );
+
+            // ✅ Gọi update với tham số để cập nhật role
+            await update({
+              ...session,
+              user: {
+                ...session.user,
+                role: dbRole,
+              },
+            });
+
+            console.log(`✅ [Profile] Session updated to: ${dbRole}`);
+            sessionUpdatedRef.current = true;
+
+            // Refresh profile để hiển thị role mới
+            refresh();
+          } else {
+            console.log("✅ [Profile] Session role matches database");
+            sessionUpdatedRef.current = true;
+          }
+        } catch (error) {
+          console.error("❌ [Profile] Error fetching user role:", error);
+        } finally {
+          // Reset sau 10 giây
+          setTimeout(() => {
+            updateCalledRef.current = false;
+          }, 10000);
+        }
+      };
+
+      fetchUserRole();
+    }
+  }, [session, update, refresh]);
+
   // Redirect if not logged in
   useEffect(() => {
     if (status === "unauthenticated") {
       router.push("/login");
     }
   }, [status, router]);
+
+  // ✅ Hàm đổi role - phần quan trọng
+  const handleChangeRole = useCallback(
+    async (newRole: string) => {
+      if (!session?.user?.id) {
+        toast.error("Vui lòng đăng nhập");
+        return;
+      }
+
+      // Kiểm tra quyền: chỉ Admin mới được đổi role
+      const currentRole = session.user.role?.toUpperCase() || "STUDENT";
+      if (currentRole !== "ADMIN") {
+        toast.error("❌ Bạn không có quyền đổi vai trò");
+        return;
+      }
+
+      setIsChangingRole(true);
+      try {
+        // ✅ 1. Update role trong database
+        const { error } = await supabase
+          .from("users")
+          .update({ role: newRole })
+          .eq("id", session.user.id);
+
+        if (error) throw error;
+
+        // ✅ 2. Update session với role mới
+        const updatedSession = await update({
+          ...session,
+          user: {
+            ...session.user,
+            role: newRole,
+          },
+        });
+
+        console.log(
+          "✅ [Profile] Session updated:",
+          updatedSession?.user?.role || newRole,
+        );
+
+        toast.success(`✅ Đã đổi vai trò thành ${newRole}`);
+
+        // ✅ 3. Refresh profile data
+        await refresh();
+
+        // ✅ 4. Reset flag để cho phép update lại
+        sessionUpdatedRef.current = false;
+        updateCalledRef.current = false;
+
+        // ✅ 5. Force reload page để cập nhật navbar
+        setTimeout(() => {
+          window.location.reload();
+        }, 500);
+      } catch (error: any) {
+        console.error("Error changing role:", error);
+        toast.error(error.message || "Không thể đổi vai trò");
+      } finally {
+        setIsChangingRole(false);
+      }
+    },
+    [session, update, refresh, toast],
+  );
 
   const handleEdit = useCallback(() => {
     if (profile) {
@@ -165,7 +296,7 @@ export default function ProfilePage() {
 
     if (result) {
       setIsEditing(false);
-      refresh(); // ✅ Refresh profile sau khi update
+      refresh();
     }
   }, [formData, updateProfile, toast, refresh]);
 
@@ -199,6 +330,15 @@ export default function ProfilePage() {
     },
     [session?.user?.id, updateProfile, toast, refresh],
   );
+
+  // ✅ Kiểm tra role - ưu tiên từ profile (database) hơn session
+  const isAdmin =
+    profile?.role?.toUpperCase() === "ADMIN" ||
+    session?.user?.role?.toUpperCase() === "ADMIN";
+  const currentRole =
+    profile?.role?.toLowerCase() ||
+    session?.user?.role?.toLowerCase() ||
+    "student";
 
   if (status === "loading" || loading) {
     return (
@@ -309,8 +449,19 @@ export default function ProfilePage() {
                       profile.name || "Chưa cập nhật"
                     )}
                   </h1>
-                  <Badge className="bg-primary/10 text-primary border-0">
-                    {profile.role || "STUDENT"}
+                  <Badge
+                    className={cn(
+                      "border-0",
+                      currentRole === "admin" && "bg-red-500/10 text-red-500",
+                      currentRole === "teacher" &&
+                        "bg-blue-500/10 text-blue-500",
+                      currentRole === "student" &&
+                        "bg-green-500/10 text-green-500",
+                    )}
+                  >
+                    {currentRole === "admin" && "👑 Admin"}
+                    {currentRole === "teacher" && "👨‍🏫 Teacher"}
+                    {currentRole === "student" && "🎓 Student"}
                   </Badge>
                 </div>
                 <div className="flex items-center gap-4 text-sm text-muted-foreground mt-2 flex-wrap">
@@ -455,6 +606,77 @@ export default function ProfilePage() {
                       {specialty}
                     </Badge>
                   ))}
+                </CardContent>
+              </Card>
+            </motion.div>
+          )}
+
+          {/* ✅ Role Management - Chỉ Admin mới thấy */}
+          {isAdmin && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3 }}
+            >
+              <Card className="border-primary/20 bg-primary/5">
+                <CardHeader>
+                  <CardTitle className="text-sm font-medium flex items-center gap-2">
+                    <Users className="w-4 h-4 text-primary" />
+                    Quản lý vai trò
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex flex-wrap gap-3">
+                    <Button
+                      variant={
+                        currentRole === "student" ? "default" : "outline"
+                      }
+                      size="sm"
+                      onClick={() => handleChangeRole("student")}
+                      disabled={isChangingRole}
+                      className={cn(
+                        currentRole === "student" &&
+                          "bg-green-500 hover:bg-green-600",
+                      )}
+                    >
+                      🎓 Học sinh
+                    </Button>
+                    <Button
+                      variant={
+                        currentRole === "teacher" ? "default" : "outline"
+                      }
+                      size="sm"
+                      onClick={() => handleChangeRole("teacher")}
+                      disabled={isChangingRole}
+                      className={cn(
+                        currentRole === "teacher" &&
+                          "bg-blue-500 hover:bg-blue-600",
+                      )}
+                    >
+                      👨‍🏫 Giáo viên
+                    </Button>
+                    <Button
+                      variant={currentRole === "admin" ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => handleChangeRole("admin")}
+                      disabled={isChangingRole}
+                      className={cn(
+                        currentRole === "admin" &&
+                          "bg-red-500 hover:bg-red-600",
+                      )}
+                    >
+                      👑 Admin
+                    </Button>
+                  </div>
+                  {isChangingRole && (
+                    <p className="text-sm text-muted-foreground mt-2 animate-pulse">
+                      Đang cập nhật...
+                    </p>
+                  )}
+                  <p className="text-xs text-muted-foreground mt-3">
+                    💡 Vai trò hiện tại:{" "}
+                    <strong>{currentRole.toUpperCase()}</strong>
+                  </p>
                 </CardContent>
               </Card>
             </motion.div>

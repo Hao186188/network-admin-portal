@@ -1,5 +1,5 @@
-// src/app/(routes)/lectures/components/FolderExplorer/FolderTree.tsx
-// HOÀN CHỈNH - PHÂN QUYỀN READONLY
+// src/app/(routes)/documents/components/FolderTree.tsx
+// CẬP NHẬT - THÊM ĐỔI TÊN THƯ MỤC
 
 "use client";
 
@@ -30,8 +30,6 @@ interface FolderNode {
   fileType?: string;
   children?: FolderNode[];
   isOpen?: boolean;
-  lecture?: any;
-  isVirtual?: boolean;
 }
 
 interface FolderTreeProps {
@@ -39,11 +37,8 @@ interface FolderTreeProps {
   onNodeClick: (node: FolderNode) => void;
   onFileClick: (node: FolderNode) => void;
   onDeleteFolder?: (node: FolderNode) => void;
-  onDeleteFile?: (node: FolderNode) => void;
   onDownloadFolder?: (node: FolderNode) => void;
   onRenameFolder?: (node: FolderNode, newTitle: string) => Promise<void>;
-  canManage?: boolean;
-  isReadOnly?: boolean;
   className?: string;
 }
 
@@ -52,22 +47,16 @@ function TreeNode({
   onNodeClick,
   onFileClick,
   onDeleteFolder,
-  onDeleteFile,
   onDownloadFolder,
   onRenameFolder,
-  canManage = false,
-  isReadOnly = false,
   level = 0,
 }: {
   node: FolderNode;
   onNodeClick: (node: FolderNode) => void;
   onFileClick: (node: FolderNode) => void;
   onDeleteFolder?: (node: FolderNode) => void;
-  onDeleteFile?: (node: FolderNode) => void;
   onDownloadFolder?: (node: FolderNode) => void;
   onRenameFolder?: (node: FolderNode, newTitle: string) => Promise<void>;
-  canManage?: boolean;
-  isReadOnly?: boolean;
   level?: number;
 }) {
   const [isOpen, setIsOpen] = useState(node.isOpen || false);
@@ -78,7 +67,6 @@ function TreeNode({
 
   const hasChildren = node.children && node.children.length > 0;
   const isFolder = node.type === "folder";
-  const isVirtual = node.isVirtual || node.id === "uncategorized";
 
   const handleClick = () => {
     if (isFolder) {
@@ -91,14 +79,6 @@ function TreeNode({
 
   const handleRename = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (isVirtual || isReadOnly) {
-      toast.error(
-        isReadOnly
-          ? "Bạn không có quyền đổi tên"
-          : "Không thể đổi tên thư mục này",
-      );
-      return;
-    }
     setIsRenaming(true);
     setNewTitle(node.title);
     setTimeout(() => {
@@ -165,25 +145,21 @@ function TreeNode({
   return (
     <div className="select-none">
       <motion.div
-        whileHover={{ x: isReadOnly ? 0 : 4 }}
+        whileHover={{ x: 4 }}
         className={cn(
           "flex items-center gap-2 px-3 py-1.5 rounded-lg cursor-pointer transition-all duration-200 group",
           isFolder
             ? "hover:bg-cyan-500/10 hover:text-cyan-400"
             : "hover:bg-white/5",
-          isVirtual && "opacity-60 cursor-default",
-          isReadOnly && "hover:bg-transparent",
         )}
         style={{ paddingLeft: `${level * 20 + 12}px` }}
         onClick={handleClick}
       >
-        {isFolder && !isVirtual && (
+        {isFolder && (
           <button
             onClick={(e) => {
               e.stopPropagation();
-              if (!isReadOnly) {
-                setIsOpen(!isOpen);
-              }
+              setIsOpen(!isOpen);
             }}
             className="text-white/40 hover:text-white/80 transition-colors"
           >
@@ -236,16 +212,10 @@ function TreeNode({
           </div>
         ) : (
           <>
-            <span
-              className={cn(
-                "text-sm truncate flex-1",
-                isVirtual ? "text-white/40" : "text-white/80",
-              )}
-            >
+            <span className="text-sm text-white/80 truncate flex-1">
               {node.title}
-              {isVirtual && " (tự động)"}
             </span>
-            {isFolder && hasChildren && !isVirtual && (
+            {isFolder && hasChildren && (
               <span className="text-[10px] text-white/30">
                 {node.children?.length}
               </span>
@@ -253,22 +223,17 @@ function TreeNode({
           </>
         )}
 
-        {/* ✅ Actions - Ẩn nếu là ReadOnly */}
-        {!isRenaming && !isReadOnly && (
+        {/* ✅ Actions cho folder - CHỈ HIỆN KHI KHÔNG RENAME */}
+        {isFolder && !isRenaming && (
           <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-            {/* Rename button - chỉ hiển thị khi có quyền quản lý */}
-            {isFolder && !isVirtual && onRenameFolder && canManage && (
-              <button
-                onClick={handleRename}
-                className="p-1 rounded hover:bg-white/10 text-white/40 hover:text-cyan-400 transition-colors"
-                title="Đổi tên"
-              >
-                <Pencil className="w-3.5 h-3.5" />
-              </button>
-            )}
-
-            {/* Download folder button - hiển thị cho tất cả user */}
-            {isFolder && !isVirtual && onDownloadFolder && (
+            <button
+              onClick={handleRename}
+              className="p-1 rounded hover:bg-white/10 text-white/40 hover:text-cyan-400 transition-colors"
+              title="Đổi tên"
+            >
+              <Pencil className="w-3.5 h-3.5" />
+            </button>
+            {onDownloadFolder && (
               <button
                 onClick={(e) => {
                   e.stopPropagation();
@@ -280,36 +245,14 @@ function TreeNode({
                 <DownloadCloud className="w-3.5 h-3.5" />
               </button>
             )}
-
-            {/* Download file button - hiển thị cho tất cả user */}
-            {!isFolder && (
+            {onDeleteFolder && (
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  if (node.lecture?.file_url) {
-                    window.open(node.lecture.file_url, "_blank");
-                  }
-                }}
-                className="p-1 rounded hover:bg-white/10 text-white/40 hover:text-cyan-400 transition-colors"
-                title="Tải xuống"
-              >
-                <DownloadCloud className="w-3.5 h-3.5" />
-              </button>
-            )}
-
-            {/* Delete button - chỉ hiển thị khi có quyền quản lý */}
-            {!isVirtual && canManage && (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  if (isFolder && onDeleteFolder) {
-                    onDeleteFolder(node);
-                  } else if (!isFolder && onDeleteFile) {
-                    onDeleteFile(node);
-                  }
+                  onDeleteFolder(node);
                 }}
                 className="p-1 rounded hover:bg-white/10 text-white/40 hover:text-red-400 transition-colors"
-                title={isFolder ? "Xóa thư mục" : "Xóa file"}
+                title="Xóa thư mục"
               >
                 <Trash2 className="w-3.5 h-3.5" />
               </button>
@@ -317,13 +260,24 @@ function TreeNode({
           </div>
         )}
 
-        {/* ✅ ReadOnly badge - hiển thị cho Student */}
-        {isReadOnly && (
-          <span className="text-[10px] text-white/20 px-1">👁️</span>
+        {/* ✅ Actions cho file */}
+        {!isFolder && node.fileType && (
+          <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                // Handle download file
+              }}
+              className="p-1 rounded hover:bg-white/10 text-white/40 hover:text-cyan-400 transition-colors"
+              title="Tải xuống"
+            >
+              <DownloadCloud className="w-3.5 h-3.5" />
+            </button>
+          </div>
         )}
       </motion.div>
 
-      {isOpen && hasChildren && !isVirtual && (
+      {isOpen && hasChildren && (
         <motion.div
           initial={{ opacity: 0, height: 0 }}
           animate={{ opacity: 1, height: "auto" }}
@@ -337,11 +291,8 @@ function TreeNode({
               onNodeClick={onNodeClick}
               onFileClick={onFileClick}
               onDeleteFolder={onDeleteFolder}
-              onDeleteFile={onDeleteFile}
               onDownloadFolder={onDownloadFolder}
               onRenameFolder={onRenameFolder}
-              canManage={canManage}
-              isReadOnly={isReadOnly}
               level={level + 1}
             />
           ))}
@@ -356,11 +307,8 @@ export function FolderTree({
   onNodeClick,
   onFileClick,
   onDeleteFolder,
-  onDeleteFile,
   onDownloadFolder,
   onRenameFolder,
-  canManage = false,
-  isReadOnly = false,
   className,
 }: FolderTreeProps) {
   return (
@@ -372,11 +320,8 @@ export function FolderTree({
           onNodeClick={onNodeClick}
           onFileClick={onFileClick}
           onDeleteFolder={onDeleteFolder}
-          onDeleteFile={onDeleteFile}
           onDownloadFolder={onDownloadFolder}
           onRenameFolder={onRenameFolder}
-          canManage={canManage}
-          isReadOnly={isReadOnly}
         />
       ))}
     </div>

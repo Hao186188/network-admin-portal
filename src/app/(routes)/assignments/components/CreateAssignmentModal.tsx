@@ -1,5 +1,5 @@
 // src/app/(routes)/assignments/components/CreateAssignmentModal.tsx
-// HOÀN CHỈNH - FIX TYPE ERROR
+// HOÀN CHỈNH - THÊM GIỚI HẠN SINH VIÊN
 
 "use client";
 
@@ -10,7 +10,14 @@ import { supabase } from "@/lib/db/supabase-client";
 import { logger } from "@/lib/logger";
 import { cn } from "@/lib/utils";
 import { AnimatePresence, motion } from "framer-motion";
-import { Calendar, ChevronDown, FileText, Plus, X } from "lucide-react";
+import {
+    Calendar,
+    ChevronDown,
+    FileText,
+    Plus,
+    UsersRound,
+    X,
+} from "lucide-react";
 import { useSession } from "next-auth/react";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
@@ -45,7 +52,6 @@ const ALLOWED_EXTENSIONS = [
   ".yml",
 ];
 
-// ✅ Định nghĩa type options với giá trị đúng
 const TYPE_OPTIONS = [
   { value: "homework", label: "Bài tập" },
   { value: "project", label: "Dự án" },
@@ -557,10 +563,11 @@ export function CreateAssignmentModal({
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [subject, setSubject] = useState("Quản trị Mạng 3");
-  // ✅ SỬA: type là AssignmentType
   const [type, setType] = useState<AssignmentType>("homework");
   const [dueDate, setDueDate] = useState("");
   const [points, setPoints] = useState(10);
+  const [maxSubmissions, setMaxSubmissions] = useState<number>(0); // ✅ THÊM GIỚI HẠN
+  const [totalStudents, setTotalStudents] = useState<number>(7); // ✅ THÊM TỔNG SỐ SINH VIÊN
   const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -578,7 +585,6 @@ export function CreateAssignmentModal({
     "Network Automation",
   ];
 
-  // ✅ SỬA: typeOptions là danh sách label để hiển thị
   const typeLabels = TYPE_OPTIONS.map((t) => t.label);
 
   const resetForm = () => {
@@ -588,6 +594,8 @@ export function CreateAssignmentModal({
     setType("homework");
     setDueDate("");
     setPoints(10);
+    setMaxSubmissions(0);
+    setTotalStudents(7);
     setAttachedFiles([]);
     setIsLoading(false);
   };
@@ -660,6 +668,11 @@ export function CreateAssignmentModal({
       return;
     }
 
+    if (maxSubmissions < 0) {
+      toast.error("Giới hạn số lượng phải lớn hơn hoặc bằng 0");
+      return;
+    }
+
     setIsLoading(true);
     try {
       let uploadedUrls: string[] = [];
@@ -671,7 +684,7 @@ export function CreateAssignmentModal({
         toast.dismiss(uploadToast);
       }
 
-      // ✅ SỬA: type đã là AssignmentType
+      // ✅ THÊM max_submissions và total_students vào dữ liệu tạo
       const result = await createAssignment({
         title: title.trim(),
         description: description.trim(),
@@ -679,6 +692,8 @@ export function CreateAssignmentModal({
         type,
         due_date: new Date(dueDate).toISOString(),
         points,
+        max_submissions: maxSubmissions || 0, // ✅ ĐÃ ĐÚNG
+        total_students: totalStudents || 7, // ✅ THÊM TỔNG SỐ SINH VIÊN
         attachments: uploadedUrls.length,
         attachment_urls: uploadedUrls,
       });
@@ -701,7 +716,6 @@ export function CreateAssignmentModal({
 
   if (!isOpen) return null;
 
-  // ✅ Hàm chuyển đổi giữa label và value
   const getTypeValueFromLabel = (label: string): AssignmentType => {
     const found = TYPE_OPTIONS.find((t) => t.label === label);
     return found?.value || "homework";
@@ -776,7 +790,6 @@ export function CreateAssignmentModal({
               label="Môn học"
               disabled={isLoading}
             />
-            {/* ✅ SỬA: Type sử dụng CustomSelect với label */}
             <CustomSelect
               value={getTypeLabelFromValue(type)}
               onChange={(label) => setType(getTypeValueFromLabel(label))}
@@ -786,8 +799,8 @@ export function CreateAssignmentModal({
             />
           </div>
 
-          {/* Due Date & Points */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {/* Due Date & Points & Max Submissions & Total Students */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div>
               <label className="text-sm font-medium text-foreground mb-2 block">
                 Hạn nộp <span className="text-destructive">*</span>
@@ -811,6 +824,45 @@ export function CreateAssignmentModal({
                 disabled={isLoading}
                 className="focus:ring-2 focus:ring-primary"
               />
+            </div>
+            <div>
+              <label className="text-sm font-medium text-foreground mb-2 block">
+                <span className="flex items-center gap-1">
+                  <UsersRound className="w-4 h-4 text-primary" />
+                  Giới hạn sinh viên
+                </span>
+              </label>
+              <Input
+                type="number"
+                value={maxSubmissions}
+                onChange={(e) => setMaxSubmissions(Number(e.target.value))}
+                min={0}
+                placeholder="0 = không giới hạn"
+                disabled={isLoading}
+                className="focus:ring-2 focus:ring-primary"
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                0 = không giới hạn
+              </p>
+            </div>
+            <div>
+              <label className="text-sm font-medium text-foreground mb-2 block">
+                <span className="flex items-center gap-1">
+                  <UsersRound className="w-4 h-4 text-primary" />
+                  Tổng số sinh viên
+                </span>
+              </label>
+              <Input
+                type="number"
+                value={totalStudents}
+                onChange={(e) => setTotalStudents(Number(e.target.value))}
+                min={1}
+                disabled={isLoading}
+                className="focus:ring-2 focus:ring-primary"
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Số sinh viên trong lớp
+              </p>
             </div>
           </div>
 

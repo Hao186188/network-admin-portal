@@ -1,14 +1,22 @@
-// src/app/(routes)/admin/types/index.ts
+// src/app/(routes)/admin/types.ts
+// Vai trò: Types cho Admin
 
 export interface AdminUser {
   id: string;
+  username: string; // ✅ THÊM
   name: string;
   email: string;
-  role: "ADMIN" | "TEACHER" | "STUDENT";
   phone: string;
+  role: "ADMIN" | "TEACHER" | "STUDENT";
   bio: string;
+  avatar?: string;
   created_at: string;
   updated_at: string;
+  student_id?: string;
+  is_verified?: boolean;
+  reputation?: number;
+  total_lectures?: number;
+  total_likes_received?: number;
 }
 
 export interface AdminStats {

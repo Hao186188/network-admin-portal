@@ -1,5 +1,4 @@
 // src/app/(routes)/documents/components/FileExplorer/FileItem.tsx
-// HOÀN CHỈNH - HỖ TRỢ TẤT CẢ ĐỊNH DẠNG BAO GỒM .URL
 
 "use client";
 
@@ -23,6 +22,7 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+import { RenameInput } from "./RenameInput";
 import { FileItemProps } from "./types";
 
 // ============================================
@@ -83,7 +83,7 @@ const getFileEmoji = (type: string): string => {
   if (["pkt", "pka"].includes(ext)) return "🌐";
   if (["cfg", "conf", "log"].includes(ext)) return "⚙️";
 
-  // ✅ Link/URL
+  // Link/URL
   if (["url", "webloc"].includes(ext)) return "🔗";
 
   // Default
@@ -91,44 +91,29 @@ const getFileEmoji = (type: string): string => {
 };
 
 // ============================================
-// HÀM LẤY ICON COMPONENT THEO LOẠI FILE
+// HÀM LẤY ICON COMPONENT
 // ============================================
 
 const getFileIcon = (type: string) => {
   const ext = type.toLowerCase();
 
-  // Documents
   if (["pdf"].includes(ext)) return FileText;
   if (["doc", "docx"].includes(ext)) return FileText;
   if (["xls", "xlsx"].includes(ext)) return FileSpreadsheet;
   if (["ppt", "pptx"].includes(ext)) return FileSpreadsheet;
-
-  // Archives
   if (["zip", "rar", "7z", "tar", "gz"].includes(ext)) return FileArchive;
-
-  // Images
   if (["jpg", "jpeg", "png", "gif", "svg", "webp"].includes(ext))
     return FileImage;
-
-  // Videos
   if (["mp4", "avi", "mov", "mkv", "webm"].includes(ext)) return FileVideo;
-
-  // Audio
   if (["mp3", "wav", "aac", "flac", "ogg"].includes(ext)) return FileAudio;
-
-  // Code
   if (["js", "ts", "jsx", "tsx", "html", "css", "json", "xml"].includes(ext))
     return FileCode;
-
-  // ✅ Link/URL
   if (["url", "webloc"].includes(ext)) return LinkIcon;
-
-  // Default
   return File;
 };
 
 // ============================================
-// HÀM ĐỊNH DẠNG KÍCH THƯỚC FILE
+// ĐỊNH DẠNG KÍCH THƯỚC FILE
 // ============================================
 
 const formatFileSize = (bytes: number): string => {
@@ -147,14 +132,22 @@ export function FileItem({
   item,
   onFolderClick,
   onDelete,
+  onRename,
   isSelected,
   onSelect,
 }: FileItemProps) {
   const [isHovered, setIsHovered] = useState(false);
+  const [isRenaming, setIsRenaming] = useState(false);
+  const [isRenamingLoading, setIsRenamingLoading] = useState(false);
   const [isFavorite, setIsFavorite] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
+
   const isFolder = item.is_folder || false;
   const isUrl = item.file_type === "url" || item.file_type === "webloc";
+
+  // ============================================
+  // HANDLERS
+  // ============================================
 
   const handleClick = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -165,22 +158,45 @@ export function FileItem({
     if (isFolder) {
       onFolderClick(item.id);
     } else if (isUrl && item.file_url) {
-      // ✅ Mở URL trong tab mới
       window.open(item.file_url, "_blank");
     }
   };
 
+  // ✅ HANDLE RENAME START
+  const handleRenameStart = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (isFolder) {
+      setIsRenaming(true);
+    }
+  };
+
+  // ✅ HANDLE RENAME SAVE
+  const handleRenameSave = async (newName: string) => {
+    if (!onRename) return;
+    setIsRenamingLoading(true);
+    try {
+      await onRename(item.id, newName);
+      setIsRenaming(false);
+      toast.success(`✅ Đã đổi tên thành "${newName}"`);
+    } catch (error: any) {
+      toast.error(error.message || "Không thể đổi tên");
+    } finally {
+      setIsRenamingLoading(false);
+    }
+  };
+
+  // ✅ HANDLE RENAME CANCEL
+  const handleRenameCancel = () => {
+    setIsRenaming(false);
+  };
+
   const handleDownload = (e: React.MouseEvent) => {
     e.stopPropagation();
-
     if (isUrl && item.file_url) {
-      // ✅ Đối với file .url, mở link thay vì tải xuống
       window.open(item.file_url, "_blank");
       return;
     }
-
     if (item.file_url) {
-      // ✅ Tải file bình thường
       const link = document.createElement("a");
       link.href = item.file_url;
       link.download = item.title;
@@ -190,10 +206,8 @@ export function FileItem({
     }
   };
 
-  // ✅ Tải xuống toàn bộ folder
   const handleDownloadFolder = async (e: React.MouseEvent) => {
     e.stopPropagation();
-
     if (!isFolder) return;
 
     setIsDownloading(true);
@@ -209,7 +223,6 @@ export function FileItem({
         throw new Error(error.error || "Không thể tải thư mục");
       }
 
-      // ✅ Tải file ZIP
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -234,11 +247,11 @@ export function FileItem({
     setIsFavorite(!isFavorite);
   };
 
+  const FileIcon = getFileIcon(item.file_type);
+
   // ============================================
   // RENDER
   // ============================================
-
-  const FileIcon = getFileIcon(item.file_type);
 
   return (
     <div
@@ -267,14 +280,12 @@ export function FileItem({
         ) : (
           <div className="w-16 h-16 flex items-center justify-center relative">
             {isUrl ? (
-              // ✅ Hiển thị icon Link cho file .url
               <div className="w-14 h-14 rounded-full bg-gradient-to-br from-blue-500/20 to-cyan-500/20 flex items-center justify-center border-2 border-blue-500/30">
                 <LinkIcon className="w-7 h-7 text-blue-400" />
               </div>
             ) : (
               <div className="text-5xl relative">
                 {getFileEmoji(item.file_type)}
-                {/* ✅ Badge nhỏ cho file .url */}
                 {isUrl && (
                   <span className="absolute -top-1 -right-1 text-[10px] bg-blue-500/30 px-1 rounded-full">
                     🔗
@@ -286,23 +297,62 @@ export function FileItem({
         )}
       </div>
 
-      {/* Name */}
-      <div className="mt-2">
-        <p className="text-sm text-white/80 truncate px-1" title={item.title}>
-          {item.title}
-        </p>
-        {!isFolder && (
-          <p className="text-[10px] text-white/30">
-            {isUrl ? "🔗 Shortcut" : formatFileSize(item.file_size)}
-          </p>
+      {/* Name - with rename support */}
+      <div className="mt-2 min-h-[3.5rem]">
+        {isRenaming && isFolder ? (
+          <RenameInput
+            initialValue={item.title}
+            onSave={handleRenameSave}
+            onCancel={handleRenameCancel}
+            isLoading={isRenamingLoading}
+          />
+        ) : (
+          <>
+            <p
+              className="text-sm text-white/80 truncate px-1"
+              title={item.title}
+            >
+              {item.title}
+            </p>
+            {!isFolder && (
+              <p className="text-[10px] text-white/30">
+                {isUrl ? "🔗 Shortcut" : formatFileSize(item.file_size)}
+              </p>
+            )}
+            {isFolder && (
+              <p className="text-[10px] text-cyan-400/40">📁 Thư mục</p>
+            )}
+          </>
         )}
-        {isFolder && <p className="text-[10px] text-cyan-400/40">📁 Thư mục</p>}
       </div>
 
-      {/* Actions - Hiện khi hover */}
-      {isHovered && (
+      {/* Actions - Hiện khi hover và không đang rename */}
+      {isHovered && !isRenaming && (
         <div className="absolute top-1 right-1 flex gap-0.5">
-          {/* ✅ Nút tải xuống folder */}
+          {/* Rename button - Chỉ cho folder */}
+          {isFolder && (
+            <button
+              className="p-1 rounded-lg bg-black/50 backdrop-blur-sm text-white/40 hover:text-cyan-400 transition-colors"
+              onClick={handleRenameStart}
+              title="Đổi tên thư mục"
+            >
+              <svg
+                className="w-3.5 h-3.5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
+                />
+              </svg>
+            </button>
+          )}
+
+          {/* Download folder button */}
           {isFolder && (
             <button
               className={cn(
@@ -319,7 +369,7 @@ export function FileItem({
             </button>
           )}
 
-          {/* ✅ Nút tải xuống/ mở link cho file */}
+          {/* Download/Open link button */}
           {!isFolder && (
             <button
               className="p-1 rounded-lg bg-black/50 text-white/40 hover:text-cyan-400 transition-colors backdrop-blur-sm"
@@ -334,6 +384,7 @@ export function FileItem({
             </button>
           )}
 
+          {/* Favorite button */}
           <button
             className={cn(
               "p-1 rounded-lg bg-black/50 backdrop-blur-sm transition-colors",
@@ -349,6 +400,7 @@ export function FileItem({
             />
           </button>
 
+          {/* Delete button */}
           <button
             className="p-1 rounded-lg bg-black/50 text-white/40 hover:text-red-400 transition-colors backdrop-blur-sm"
             onClick={(e) => {

@@ -1,5 +1,5 @@
 // src/components/layout/navbar.tsx
-// HOÀN CHỈNH - KHÔNG CÓ SHIELDCHECK
+// HOÀN CHỈNH - NÂNG CẤP VỚI ZUSTAND STORE
 
 "use client";
 
@@ -7,7 +7,9 @@ import { Notifications } from "@/components/common/notifications";
 import { Search } from "@/components/common/search";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
+import { supabase } from "@/lib/db/supabase-client";
 import { cn } from "@/lib/utils";
+import { useRoleStore } from "@/store/useRoleStore";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   Bell,
@@ -34,7 +36,7 @@ import { signOut, useSession } from "next-auth/react";
 import { useTheme } from "next-themes";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { memo, useCallback, useEffect, useMemo, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 // ============================================
 // TYPES
@@ -51,15 +53,16 @@ interface NavItemType {
 // CONSTANTS
 // ============================================
 
-// ✅ Desktop Navigation
+// ✅ Desktop Navigation - TẤT CẢ USER ĐỀU THẤY BÀI GIẢNG
 const desktopNavItems: NavItemType[] = [
   { name: "Trang chủ", href: "/", icon: Home },
   { name: "Diễn đàn", href: "/forum", icon: MessageCircle },
   { name: "Bài tập", href: "/assignments", icon: ClipboardList },
   { name: "Tài liệu", href: "/documents", icon: BookOpen },
+  { name: "Bài giảng", href: "/lectures", icon: FileText },
 ];
 
-// ✅ Mobile Navigation
+// ✅ Mobile Navigation - TẤT CẢ USER ĐỀU THẤY BÀI GIẢNG
 const mobileNavItems: NavItemType[] = [
   { name: "Trang chủ", href: "/", icon: Home },
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
@@ -67,6 +70,7 @@ const mobileNavItems: NavItemType[] = [
   { name: "Môn học", href: "/courses", icon: BookMarked },
   { name: "Bài tập", href: "/assignments", icon: ClipboardList },
   { name: "Tài liệu", href: "/documents", icon: BookOpen },
+  { name: "Bài giảng", href: "/lectures", icon: FileText },
   { name: "Diễn đàn", href: "/forum", icon: MessageCircle },
   { name: "Dự án", href: "/projects", icon: Code },
   { name: "Giới thiệu", href: "/about", icon: Info },
@@ -74,10 +78,23 @@ const mobileNavItems: NavItemType[] = [
   { name: "Liên hệ", href: "/contact", icon: Mail },
 ];
 
-// ✅ Admin items
+// ✅ Admin items (chỉ hiển thị khi là Admin)
 const adminMobileNavItems: NavItemType[] = [
   { name: "Quản trị", href: "/admin", icon: Crown },
 ];
+
+// ✅ Role colors
+const ROLE_COLORS = {
+  ADMIN: "bg-red-500/20 text-red-400 border-red-500/20",
+  TEACHER: "bg-blue-500/20 text-blue-400 border-blue-500/20",
+  STUDENT: "bg-green-500/20 text-green-400 border-green-500/20",
+};
+
+const ROLE_LABELS = {
+  ADMIN: "👑 Admin",
+  TEACHER: "👨‍🏫 Teacher",
+  STUDENT: "🎓 Student",
+};
 
 // ============================================
 // COMPONENTS
@@ -137,7 +154,7 @@ MobileNavItem.displayName = "MobileNavItem";
 // ============================================
 
 export function Navbar() {
-  const { data: session, status } = useSession();
+  const { data: session, status, update } = useSession();
   const pathname = usePathname();
   const { setTheme, resolvedTheme } = useTheme();
   const [isScrolled, setIsScrolled] = useState(false);
@@ -145,59 +162,196 @@ export function Navbar() {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
 
+  // ✅ Zustand store - đồng bộ role toàn cục
+  const { role: storeRole, setRole, setCanManage } = useRoleStore();
+
+  // ✅ State để lưu role từ database - KHỞI TẠO VỚI SESSION ROLE
+  const [userRole, setUserRole] = useState<string>(() => {
+    const role = session?.user?.role?.toUpperCase() || "STUDENT";
+    console.log(`🔍 [Navbar] Initial role from session: ${role}`);
+    return role;
+  });
+
+  // ✅ Refs để kiểm soát
+  const syncDoneRef = useRef(false);
+  const syncInProgressRef = useRef(false);
+  const isMountedRef = useRef(true);
+  const storeSyncedRef = useRef(false);
+
+  // ✅ Kiểm tra role
+  const isAdmin = useMemo(() => userRole === "ADMIN", [userRole]);
+  const isTeacher = useMemo(() => userRole === "TEACHER", [userRole]);
+  const isStudent = useMemo(() => userRole === "STUDENT", [userRole]);
+
   const isAuthenticated = useMemo(
     () => status === "authenticated" && !!session?.user,
     [status, session],
-  );
-  const isAdmin = useMemo(() => session?.user?.role === "ADMIN", [session]);
-  const isTeacher = useMemo(() => session?.user?.role === "TEACHER", [session]);
-  const canViewLectures = useMemo(
-    () => isAdmin || isTeacher,
-    [isAdmin, isTeacher],
   );
 
   const displayName = useMemo(
     () => session?.user?.name || session?.user?.username || "User",
     [session],
   );
+
   const userInitial = useMemo(
     () => displayName.charAt(0).toUpperCase(),
     [displayName],
   );
 
   // ✅ Build desktop nav items
-  const desktopNavItemsWithBadge = useMemo(() => {
-    const items = [...desktopNavItems];
-
-    if (canViewLectures) {
-      items.push({
-        name: "Bài giảng",
-        href: "/lectures",
-        icon: FileText,
-      });
-    }
-
-    return items;
-  }, [canViewLectures]);
+  const desktopNavItemsWithBadge = useMemo(() => desktopNavItems, []);
 
   // ✅ Build mobile nav items
   const allMobileNavItems = useMemo(() => {
     const items = [...mobileNavItems];
-
-    if (canViewLectures) {
-      items.push({
-        name: "Bài giảng",
-        href: "/lectures",
-        icon: FileText,
-      });
-    }
-
     if (isAdmin) {
       items.push(...adminMobileNavItems);
     }
-
     return items;
-  }, [isAdmin, canViewLectures]);
+  }, [isAdmin]);
+
+  // ✅ Handle mount
+  useEffect(() => {
+    isMountedRef.current = true;
+    setMounted(true);
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
+  // ✅ Cập nhật userRole và store khi session thay đổi
+  useEffect(() => {
+    if (session?.user?.role) {
+      const role = session.user.role.toUpperCase();
+      console.log(`🔄 [Navbar] Session changed, role: ${role}`);
+
+      // Cập nhật state
+      if (!syncDoneRef.current) {
+        setUserRole(role);
+      }
+
+      // ✅ SYNC VÀO ZUSTAND STORE
+      if (!storeSyncedRef.current) {
+        setRole(role);
+        setCanManage(role === "ADMIN" || role === "TEACHER");
+        storeSyncedRef.current = true;
+        console.log(`✅ [Navbar] Synced role to store: ${role}`);
+      }
+    }
+  }, [session?.user?.role, setRole, setCanManage]);
+
+  // ✅ CHỈ SYNC ROLE 1 LẦN - KHÔNG RESET
+  useEffect(() => {
+    if (
+      syncDoneRef.current ||
+      syncInProgressRef.current ||
+      !mounted ||
+      !session?.user?.id
+    ) {
+      return;
+    }
+
+    syncInProgressRef.current = true;
+
+    const syncRole = async () => {
+      try {
+        console.log("🔄 [Navbar] Syncing role with database...");
+
+        const { data, error } = await supabase
+          .from("users")
+          .select("role")
+          .eq("id", session.user.id)
+          .single();
+
+        if (error) throw error;
+
+        const dbRoleValue = data?.role?.toUpperCase() || "STUDENT";
+        const sessionRole = session.user.role?.toUpperCase() || "STUDENT";
+
+        console.log(`📊 [Navbar] DB: ${dbRoleValue}, Session: ${sessionRole}`);
+
+        // ✅ LUÔN CẬP NHẬT userRole với role từ database
+        if (dbRoleValue !== userRole) {
+          console.log(
+            `🔄 [Navbar] Updating role from ${userRole} to ${dbRoleValue}`,
+          );
+          setUserRole(dbRoleValue);
+
+          // ✅ Cập nhật store
+          setRole(dbRoleValue);
+          setCanManage(dbRoleValue === "ADMIN" || dbRoleValue === "TEACHER");
+          console.log(`✅ [Navbar] Updated store role to: ${dbRoleValue}`);
+        }
+
+        if (dbRoleValue !== sessionRole) {
+          console.log(`🔄 [Navbar] Updating session to: ${dbRoleValue}`);
+
+          await update({
+            ...session,
+            user: {
+              ...session.user,
+              role: dbRoleValue,
+            },
+          });
+
+          console.log(`✅ [Navbar] Session updated to: ${dbRoleValue}`);
+        } else {
+          console.log(`✅ [Navbar] Role already synced: ${sessionRole}`);
+        }
+
+        syncDoneRef.current = true;
+        storeSyncedRef.current = true;
+      } catch (error) {
+        console.error("❌ [Navbar] Error syncing role:", error);
+        syncDoneRef.current = true;
+      } finally {
+        syncInProgressRef.current = false;
+      }
+    };
+
+    const timeoutId = setTimeout(syncRole, 200);
+    return () => clearTimeout(timeoutId);
+  }, [mounted, session, update, userRole, setRole, setCanManage]);
+
+  // ✅ Lắng nghe sự kiện storage - KHÔNG RESET STATE
+  useEffect(() => {
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === "nextauth.message" || e.key === "nextauth.state") {
+        console.log("🔄 [Navbar] Storage changed, checking session...");
+        update().then(() => {
+          console.log("✅ [Navbar] Session refreshed from storage event");
+        });
+      }
+    };
+
+    window.addEventListener("storage", handleStorageChange);
+    return () => window.removeEventListener("storage", handleStorageChange);
+  }, [update]);
+
+  // ✅ Lắng nghe sự kiện visibility change
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        console.log("🔄 [Navbar] Tab visible, checking session...");
+        update().then(() => {
+          console.log("✅ [Navbar] Session refreshed from visibility change");
+        });
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () =>
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+  }, [update]);
+
+  // ✅ Reset sync khi đăng nhập/đăng xuất
+  useEffect(() => {
+    if (status === "authenticated") {
+      syncDoneRef.current = false;
+      syncInProgressRef.current = false;
+      storeSyncedRef.current = false;
+    }
+  }, [status]);
 
   // Handle scroll
   useEffect(() => {
@@ -206,11 +360,6 @@ export function Navbar() {
     };
     window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
-
-  // Handle mount
-  useEffect(() => {
-    setMounted(true);
   }, []);
 
   // Close menus on route change
@@ -244,6 +393,16 @@ export function Navbar() {
   const closeAllMenus = useCallback(() => {
     setIsMobileMenuOpen(false);
     setIsProfileOpen(false);
+  }, []);
+
+  // ✅ Get role color
+  const getRoleColor = useCallback((role: string) => {
+    return ROLE_COLORS[role as keyof typeof ROLE_COLORS] || ROLE_COLORS.STUDENT;
+  }, []);
+
+  // ✅ Get role label
+  const getRoleLabel = useCallback((role: string) => {
+    return ROLE_LABELS[role as keyof typeof ROLE_LABELS] || ROLE_LABELS.STUDENT;
   }, []);
 
   // Ẩn navbar trên auth pages
@@ -393,6 +552,14 @@ export function Navbar() {
                 <span className="hidden md:inline text-xs lg:text-sm font-medium text-foreground max-w-[60px] lg:max-w-[80px] truncate">
                   {displayName}
                 </span>
+                <span
+                  className={cn(
+                    "absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-background transition-colors",
+                    isAdmin && "bg-red-500",
+                    isTeacher && "bg-blue-500",
+                    isStudent && "bg-green-500",
+                  )}
+                />
               </Button>
 
               <AnimatePresence>
@@ -415,9 +582,19 @@ export function Navbar() {
                         <p className="text-xs text-muted-foreground truncate">
                           {session?.user?.email}
                         </p>
-                        <p className="text-xs text-muted-foreground truncate">
-                          Vai trò: {session?.user?.role}
-                        </p>
+                        <div className="mt-1 flex items-center gap-2">
+                          <span className="text-xs text-muted-foreground">
+                            Vai trò:
+                          </span>
+                          <span
+                            className={cn(
+                              "text-xs font-medium px-2 py-0.5 rounded-full border",
+                              getRoleColor(userRole),
+                            )}
+                          >
+                            {getRoleLabel(userRole)}
+                          </span>
+                        </div>
                       </div>
 
                       <Link href="/profile">

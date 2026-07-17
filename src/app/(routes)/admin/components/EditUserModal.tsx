@@ -1,4 +1,5 @@
 // src/app/(routes)/admin/components/EditUserModal.tsx
+// HOÀN CHỈNH - FIX TYPE ERROR
 
 "use client";
 
@@ -37,14 +38,28 @@ export function EditUserModal({
     if (!name.trim()) return;
 
     setLoading(true);
-    const success = await onSave(user.id, {
-      name: name.trim(),
-      phone: phone.trim(),
-      bio: bio.trim(),
-      role: role as any,
-    });
-    setLoading(false);
-    if (success) onClose();
+    try {
+      // ✅ Chỉ gửi các field có giá trị
+      const updateData: Partial<AdminUser> = {
+        name: name.trim(),
+        role: role as any,
+      };
+
+      if (phone?.trim()) {
+        updateData.phone = phone.trim();
+      }
+
+      if (bio?.trim()) {
+        updateData.bio = bio.trim();
+      }
+
+      const success = await onSave(user.id, updateData);
+      if (success) onClose();
+    } catch (error) {
+      console.error("Error saving user:", error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -69,6 +84,9 @@ export function EditUserModal({
           <p className="text-sm text-muted-foreground">
             Đang chỉnh sửa:{" "}
             <span className="font-medium text-foreground">{user.email}</span>
+          </p>
+          <p className="text-xs text-muted-foreground mt-1">
+            Tên đăng nhập: @{user.username}
           </p>
         </div>
 

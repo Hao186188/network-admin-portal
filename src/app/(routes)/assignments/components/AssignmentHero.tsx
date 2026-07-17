@@ -1,5 +1,5 @@
 // src/app/(routes)/assignments/components/AssignmentHero.tsx
-// NÂNG CẤP - TÍCH HỢP HIỆU ỨNG NETWORK/SYSTEM ADMIN
+// HOÀN CHỈNH - FIX HYDRATION ERROR
 
 "use client";
 
@@ -79,6 +79,7 @@ function TerminalTyping({
 // ============================================
 
 function DataPacketFlow() {
+  const [mounted, setMounted] = useState(false);
   const [packets, setPackets] = useState<
     Array<{
       id: number;
@@ -89,10 +90,10 @@ function DataPacketFlow() {
       delay: number;
     }>
   >([]);
-  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     setMounted(true);
+    // ✅ CHỈ TẠO PACKETS KHI MOUNTED (CLIENT)
     const newPackets = Array.from({ length: 12 }, (_, i) => ({
       id: i,
       x: Math.random() * 100,
@@ -104,6 +105,7 @@ function DataPacketFlow() {
     setPackets(newPackets);
   }, []);
 
+  // ✅ KHÔNG RENDER GÌ KHI CHƯA MOUNTED
   if (!mounted || packets.length === 0) {
     return null;
   }
@@ -164,6 +166,7 @@ function AnimatedCounter({ value, label, icon: Icon, color }: any) {
     };
 
     requestAnimationFrame(animate);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value]);
 
   useEffect(() => {
@@ -232,18 +235,51 @@ export function AssignmentHero({
   onCreateClick,
 }: AssignmentHeroProps) {
   const [showTerminal, setShowTerminal] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    setMounted(true);
     const timer = setTimeout(() => setShowTerminal(true), 1000);
     return () => clearTimeout(timer);
   }, []);
 
+  // ✅ KHÔNG RENDER GÌ KHI CHƯA MOUNTED (TRÁNH HYDRATION ERROR)
+  if (!mounted) {
+    return (
+      <div className="relative overflow-hidden rounded-2xl p-6 md:p-8 lg:p-10 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+        <div className="relative z-10 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
+          <div className="flex-1">
+            <div className="h-6 w-32 bg-white/10 rounded animate-pulse mb-4" />
+            <div className="h-8 w-48 bg-white/10 rounded animate-pulse mb-2" />
+            <div className="h-4 w-64 bg-white/10 rounded animate-pulse" />
+            <div className="flex gap-3 mt-4">
+              <div className="h-10 w-32 bg-white/10 rounded animate-pulse" />
+              <div className="h-10 w-32 bg-white/10 rounded animate-pulse" />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-2 xl:grid-cols-3 gap-2 w-full lg:w-auto">
+            {[...Array(5)].map((_, i) => (
+              <div
+                key={i}
+                className="flex items-center gap-3 p-3 rounded-xl bg-white/5"
+              >
+                <div className="w-10 h-10 rounded-lg bg-white/10 animate-pulse" />
+                <div>
+                  <div className="h-6 w-8 bg-white/10 rounded animate-pulse" />
+                  <div className="h-3 w-12 bg-white/10 rounded animate-pulse mt-1" />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="relative overflow-hidden rounded-2xl p-6 md:p-8 lg:p-10 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
-      {/* Data Packet Flow Background */}
       <DataPacketFlow />
 
-      {/* Grid Overlay */}
       <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff03_1px,transparent_1px),linear-gradient(to_bottom,#ffffff03_1px,transparent_1px)] bg-[size:40px_40px] pointer-events-none" />
 
       <div className="absolute -top-40 -right-40 w-80 h-80 bg-cyan-500/20 rounded-full blur-3xl animate-pulse" />
@@ -251,7 +287,6 @@ export function AssignmentHero({
 
       <div className="relative z-10 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
         <div className="flex-1">
-          {/* Network Pulse Status */}
           <motion.div
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
@@ -260,7 +295,6 @@ export function AssignmentHero({
             <NetworkPulse />
           </motion.div>
 
-          {/* Terminal Typing Effect */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -319,7 +353,6 @@ export function AssignmentHero({
           </motion.div>
         </div>
 
-        {/* Stats Counters - Grid responsive */}
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-2 xl:grid-cols-3 gap-2 w-full lg:w-auto">
           <AnimatedCounter
             value={totalAssignments}
@@ -354,7 +387,6 @@ export function AssignmentHero({
         </div>
       </div>
 
-      {/* Bottom Status Bar - Network Style */}
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}

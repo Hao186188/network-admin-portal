@@ -1,5 +1,5 @@
 // src/app/(routes)/lectures/page.tsx
-// FIXED - SỬ DỤNG TYPE TỪ FILE CHUNG
+// SỬ DỤNG STORE THAY VÌ SESSION
 
 "use client";
 
@@ -7,6 +7,7 @@ import { Footer } from "@/components/layout/footer";
 import { Navbar } from "@/components/layout/navbar";
 import { Button } from "@/components/ui/button";
 import { useLectures } from "@/hooks/useLectures";
+import { useRoleStore } from "@/store/useRoleStore";
 import { Lecture, LectureFilter } from "@/types";
 import { motion } from "framer-motion";
 import { FolderOpen, Plus } from "lucide-react";
@@ -24,6 +25,7 @@ import { CreateLectureModal } from "./CreateLectureModal";
 export default function LecturesPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
+  const { role: userRole, canManage } = useRoleStore(); // ✅ Lấy từ store
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [filter, setFilter] = useState<LectureFilter>({
     search: "",
@@ -49,19 +51,19 @@ export default function LecturesPage() {
     toggleLike,
   } = useLectures();
 
-  const isAdmin = session?.user?.role === "ADMIN";
-  const isTeacher = session?.user?.role === "TEACHER";
-  const canView = isAdmin || isTeacher;
+  // ✅ Kiểm tra quyền
+  const isAdmin = userRole === "ADMIN";
+  const isTeacher = userRole === "TEACHER";
+  const isStudent = userRole === "STUDENT";
+  const canView = isAdmin || isTeacher || isStudent;
 
-  // ✅ Chuyển hướng nếu không có quyền
+  // ✅ Chuyển hướng nếu không có quyền xem
   if (status === "authenticated" && !canView) {
     router.push("/dashboard");
     return null;
   }
 
-  // ✅ Sử dụng type từ file chung
   const typedLectures = lectures as Lecture[];
-
   const filteredLectures = filterLectures(typedLectures, filter);
   const stats = getStats(typedLectures);
   const uniqueTags = getUniqueTags(typedLectures);
@@ -144,17 +146,19 @@ export default function LecturesPage() {
                 <FolderOpen className="w-4 h-4" />
                 {showFolderExplorer ? "Ẩn thư mục" : "Hiển thị thư mục"}
               </Button>
-              <Button
-                onClick={() => setIsCreateModalOpen(true)}
-                className="gap-2 rounded-full bg-gradient-to-r from-primary to-secondary hover:shadow-lg transition-all hover:scale-105 flex-shrink-0"
-              >
-                <Plus className="w-4 h-4" />
-                Đăng bài giảng
-              </Button>
+              {canManage && (
+                <Button
+                  onClick={() => setIsCreateModalOpen(true)}
+                  className="gap-2 rounded-full bg-gradient-to-r from-primary to-secondary hover:shadow-lg transition-all hover:scale-105 flex-shrink-0"
+                >
+                  <Plus className="w-4 h-4" />
+                  Đăng bài giảng
+                </Button>
+              )}
             </div>
           </div>
 
-          {/* Folder Explorer */}
+          {/* Folder Explorer - TRUYỀN ROLE TỪ STORE */}
           {showFolderExplorer && (
             <motion.div
               initial={{ opacity: 0, y: -20 }}
@@ -168,6 +172,8 @@ export default function LecturesPage() {
                 onNavigate={(folderId) => {
                   console.log("📂 Navigated to:", folderId);
                 }}
+                userRole={userRole}
+                canManage={canManage}
               />
             </motion.div>
           )}
@@ -246,11 +252,13 @@ export default function LecturesPage() {
         </div>
       </div>
 
-      <CreateLectureModal
-        isOpen={isCreateModalOpen}
-        onClose={() => setIsCreateModalOpen(false)}
-        onSuccess={handleCreateSuccess}
-      />
+      {canManage && (
+        <CreateLectureModal
+          isOpen={isCreateModalOpen}
+          onClose={() => setIsCreateModalOpen(false)}
+          onSuccess={handleCreateSuccess}
+        />
+      )}
 
       <Footer />
     </>

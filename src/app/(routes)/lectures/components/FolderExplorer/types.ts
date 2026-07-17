@@ -1,9 +1,7 @@
 // src/app/(routes)/lectures/components/FolderExplorer/types.ts
-// TYPE DEFINITIONS - FIXED EXPORT
 
 import { Lecture } from "@/types";
 
-// ✅ Export tất cả interfaces
 export interface FolderNode {
   id: string;
   title: string;
@@ -12,6 +10,7 @@ export interface FolderNode {
   children?: FolderNode[];
   isOpen?: boolean;
   lecture?: Lecture;
+  isVirtual?: boolean;
 }
 
 export interface BreadcrumbItem {
@@ -25,8 +24,11 @@ export interface FolderExplorerProps {
   onNavigate?: (folderId: string | null) => void;
   onLectureClick?: (lecture: Lecture) => void;
   onRefresh?: () => void;
+  userRole?: string;
+  canManage?: boolean;
 }
 
+// ✅ THÊM: Props cho FolderBreadcrumbs
 export interface FolderBreadcrumbsProps {
   items: BreadcrumbItem[];
   onNavigate: (id: string | null) => void;
@@ -36,6 +38,12 @@ export interface FolderTreeProps {
   nodes: FolderNode[];
   onNodeClick: (node: FolderNode) => void;
   onFileClick: (node: FolderNode) => void;
+  onDeleteFolder?: (node: FolderNode) => void;
+  onDeleteFile?: (node: FolderNode) => void;
+  onDownloadFolder?: (node: FolderNode) => void;
+  onRenameFolder?: (node: FolderNode, newTitle: string) => Promise<void>;
+  canManage?: boolean;
+  isReadOnly?: boolean;
   className?: string;
 }
 

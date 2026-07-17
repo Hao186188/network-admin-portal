@@ -28,7 +28,11 @@ export function Providers({ children }: { children: React.ReactNode }) {
   );
 
   return (
-    <SessionProvider>
+    <SessionProvider
+      refetchInterval={0}
+      refetchOnWindowFocus={true}
+      // ✅ KHÔNG set basePath
+    >
       <QueryClientProvider client={queryClient}>
         <ThemeProvider
           attribute="class"

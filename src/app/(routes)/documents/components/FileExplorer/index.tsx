@@ -1,5 +1,4 @@
 // src/app/(routes)/documents/components/FileExplorer/index.tsx
-// HOÀN CHỈNH - TỐI ƯU HIỆU SUẤT & TRẢI NGHIỆM
 
 "use client";
 
@@ -278,7 +277,56 @@ export function FileExplorer({
     details: [],
   });
 
-  // 📂 Lấy nội dung thư mục hiện tại
+  // ============================================
+  // ✅ HANDLE RENAME FOLDER
+  // ============================================
+
+  const handleRenameFolder = useCallback(
+    async (id: string, newTitle: string) => {
+      if (!session?.user?.id) {
+        toast.error("Vui lòng đăng nhập");
+        return;
+      }
+
+      if (!newTitle.trim()) {
+        toast.error("Tên không được để trống");
+        return;
+      }
+
+      try {
+        console.log(`📝 [Rename] Renaming folder ${id} to "${newTitle}"`);
+
+        const response = await fetch(`/api/documents?id=${id}`, {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            title: newTitle.trim(),
+          }),
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.error || "Không thể đổi tên thư mục");
+        }
+
+        // Refresh nội dung folder hiện tại
+        await fetchFolderContents(currentFolderId);
+        await fetchBreadcrumbs(currentFolderId);
+      } catch (error: any) {
+        console.error("❌ [Rename] Error:", error);
+        throw error;
+      }
+    },
+    [session, currentFolderId],
+  );
+
+  // ============================================
+  // 📂 FETCH FOLDER CONTENTS
+  // ============================================
+
   const fetchFolderContents = useCallback(async (folderId: string | null) => {
     if (isFetching.current) {
       console.log("⏭️ Already fetching, skipping...");
@@ -298,9 +346,6 @@ export function FileExplorer({
 
     try {
       console.log(`🔄 Fetching folder contents for: ${folderId}`);
-      // #region debug-point A:fetch-folder-start
-      fetch("http://127.0.0.1:7777/event",{method:"POST",body:JSON.stringify({sessionId:"lectures-folder-sync",runId:"pre",hypothesisId:"A",location:"documents/FileExplorer:index.tsx:300",msg:"[DEBUG] fetchFolderContents:start",data:{folderId,currentFolderId,hasMounted:isMounted.current,isFetching:isFetching.current},ts:Date.now()})}).catch(()=>{});
-      // #endregion
 
       let query = supabase
         .from("documents")
@@ -326,9 +371,6 @@ export function FileExplorer({
       if (isMounted.current) {
         const documentData = (data || []) as Document[];
         console.log(`📂 Fetched ${documentData.length} items`);
-        // #region debug-point B:fetch-folder-result
-        fetch("http://127.0.0.1:7777/event",{method:"POST",body:JSON.stringify({sessionId:"lectures-folder-sync",runId:"pre",hypothesisId:"B",location:"documents/FileExplorer:index.tsx:325",msg:"[DEBUG] fetchFolderContents:result",data:{folderId,count:documentData.length,titles:documentData.slice(0,10).map((item)=>({id:item.id,title:item.title,parent_id:item.parent_id,is_folder:item.is_folder}))},ts:Date.now()})}).catch(()=>{});
-        // #endregion
         setItems(documentData);
         initialFetchDone.current = true;
         isInitialized.current = true;
@@ -356,7 +398,10 @@ export function FileExplorer({
     }
   }, []);
 
-  // 🧭 Lấy đường dẫn breadcrumb
+  // ============================================
+  // 🧭 FETCH BREADCRUMBS
+  // ============================================
+
   const fetchBreadcrumbs = useCallback(async (folderId: string | null) => {
     if (!folderId) {
       if (isMounted.current) {
@@ -395,7 +440,10 @@ export function FileExplorer({
     }
   }, []);
 
-  // 📍 Điều hướng đến folder
+  // ============================================
+  // 📍 NAVIGATE TO FOLDER
+  // ============================================
+
   const navigateToFolder = useCallback(
     async (folderId: string | null) => {
       if (isNavigating.current) {
@@ -428,7 +476,10 @@ export function FileExplorer({
     [currentFolderId, fetchFolderContents, fetchBreadcrumbs, onNavigate],
   );
 
-  // ➕ Tạo folder mới
+  // ============================================
+  // ➕ CREATE FOLDER
+  // ============================================
+
   const createFolder = useCallback(
     async (title: string) => {
       if (!session?.user?.id) {
@@ -443,9 +494,6 @@ export function FileExplorer({
 
       try {
         console.log("📁 Creating folder via API:", title);
-        // #region debug-point C:create-folder-request
-        fetch("http://127.0.0.1:7777/event",{method:"POST",body:JSON.stringify({sessionId:"lectures-folder-sync",runId:"pre",hypothesisId:"C",location:"documents/FileExplorer:index.tsx:440",msg:"[DEBUG] createFolder:request",data:{title:title.trim(),currentFolderId},ts:Date.now()})}).catch(()=>{});
-        // #endregion
 
         const response = await fetch("/api/documents", {
           method: "POST",
@@ -466,9 +514,6 @@ export function FileExplorer({
         }
 
         console.log("✅ Folder created:", data);
-        // #region debug-point D:create-folder-response
-        fetch("http://127.0.0.1:7777/event",{method:"POST",body:JSON.stringify({sessionId:"lectures-folder-sync",runId:"pre",hypothesisId:"D",location:"documents/FileExplorer:index.tsx:460",msg:"[DEBUG] createFolder:response",data:{createdId:data?.id,title:data?.title,parent_id:data?.parent_id,is_folder:data?.is_folder},ts:Date.now()})}).catch(()=>{});
-        // #endregion
         toast.success(`Đã tạo thư mục "${title}"`);
 
         await fetchFolderContents(currentFolderId);
@@ -485,7 +530,10 @@ export function FileExplorer({
     [session, currentFolderId, fetchFolderContents],
   );
 
-  // 🗑️ Xóa item
+  // ============================================
+  // 🗑️ DELETE ITEM
+  // ============================================
+
   const deleteItem = useCallback(
     (id: string) => {
       const item = items.find((i) => i.id === id);
@@ -526,7 +574,10 @@ export function FileExplorer({
     [items, currentFolderId, fetchFolderContents],
   );
 
-  // 📤 Upload file - NÂNG CẤP
+  // ============================================
+  // 📤 UPLOAD FILES
+  // ============================================
+
   const uploadFiles = useCallback(
     async (files: FileList) => {
       if (!session?.user?.id) {
@@ -644,7 +695,11 @@ export function FileExplorer({
     [session, currentFolderId, fetchFolderContents],
   );
 
-  // 🎯 Effect khi component mount
+  // ============================================
+  // 🎯 EFFECTS
+  // ============================================
+
+  // Mount effect
   useEffect(() => {
     isMounted.current = true;
 
@@ -661,12 +716,16 @@ export function FileExplorer({
         abortControllerRef.current.abort();
       }
     };
-  }, []);
+  }, [initialFolderId, navigateToFolder]);
 
-  // ✅ Effect debug
+  // Debug effect
   useEffect(() => {
     console.log(`📊 State - items: ${items.length}, loading: ${loading}`);
   }, [items, loading]);
+
+  // ============================================
+  // RENDER
+  // ============================================
 
   return (
     <>
@@ -723,6 +782,7 @@ export function FileExplorer({
               items={items}
               onFolderClick={navigateToFolder}
               onDelete={deleteItem}
+              onRename={handleRenameFolder}
               selectedItems={selectedItems}
               setSelectedItems={setSelectedItems}
             />
@@ -731,6 +791,7 @@ export function FileExplorer({
               items={items}
               onFolderClick={navigateToFolder}
               onDelete={deleteItem}
+              onRename={handleRenameFolder}
               selectedItems={selectedItems}
               setSelectedItems={setSelectedItems}
             />

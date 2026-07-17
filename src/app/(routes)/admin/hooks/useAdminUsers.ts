@@ -1,15 +1,17 @@
 // src/app/(routes)/admin/hooks/useAdminUsers.ts
-// HOÀN CHỈNH - KHÔNG LOOP
+// HOÀN CHỈNH - UPDATE SESSION SAU KHI ĐỔI ROLE
 
 "use client";
 
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/db/supabase-client";
+import { useSession } from "next-auth/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AdminStats, AdminUser } from "../types";
 
 export function useAdminUsers() {
   const { toast } = useToast();
+  const { data: session, update } = useSession();
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -69,7 +71,7 @@ export function useAdminUsers() {
       isMounted.current = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // ✅ CHỈ CHẠY 1 LẦN
+  }, []);
 
   const refresh = useCallback(() => {
     console.log("🔄 [useAdminUsers] Refresh called");
@@ -81,12 +83,20 @@ export function useAdminUsers() {
   const updateUser = useCallback(
     async (id: string, data: Partial<AdminUser>) => {
       try {
+        // ✅ Tạo object update với các field hợp lệ
+        const updateData: any = {
+          ...data,
+          updated_at: new Date().toISOString(),
+        };
+
+        // ✅ Nếu bio không có trong data, không update
+        if (data.bio === undefined) {
+          delete updateData.bio;
+        }
+
         const { error } = await supabase
           .from("users")
-          .update({
-            ...data,
-            updated_at: new Date().toISOString(),
-          })
+          .update(updateData)
           .eq("id", id);
 
         if (error) throw error;
@@ -127,9 +137,15 @@ export function useAdminUsers() {
     [toast],
   );
 
+  // ✅ Đổi role - QUAN TRỌNG: UPDATE SESSION
   const changeRole = useCallback(
     async (id: string, role: string) => {
       try {
+        console.log(
+          `🔄 [useAdminUsers] Changing role for user ${id} to ${role}`,
+        );
+
+        // ✅ 1. Update role trong database
         const { error } = await supabase
           .from("users")
           .update({
@@ -140,6 +156,7 @@ export function useAdminUsers() {
 
         if (error) throw error;
 
+        // ✅ 2. Update local state
         setUsers((prev) =>
           prev.map((u) =>
             u.id === id
@@ -152,14 +169,40 @@ export function useAdminUsers() {
           ),
         );
 
-        toast.success(`Đã chuyển vai trò thành công`);
+        // ✅ 3. QUAN TRỌNG: Nếu đổi role cho chính mình, update session
+        if (session?.user?.id === id) {
+          console.log(
+            `🔄 [useAdminUsers] Updating own session from ${session.user.role} to ${role}`,
+          );
+
+          // Update session với role mới
+          await update({
+            user: {
+              ...session.user,
+              role: role,
+            },
+          });
+
+          console.log(`✅ [useAdminUsers] Session updated to role: ${role}`);
+
+          // Force reload để navbar cập nhật
+          setTimeout(() => {
+            window.location.reload();
+          }, 500);
+        } else {
+          // Nếu đổi role cho user khác, vẫn update session để refresh token
+          await update();
+        }
+
+        toast.success(`Đã chuyển vai trò thành ${role}`);
         return true;
       } catch (err: any) {
+        console.error("❌ [useAdminUsers] Error changing role:", err);
         toast.error(err.message || "Có lỗi xảy ra khi thay đổi vai trò");
         return false;
       }
     },
-    [toast],
+    [toast, update, session],
   );
 
   const getStats = useCallback((): AdminStats => {

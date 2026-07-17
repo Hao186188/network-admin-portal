@@ -1,5 +1,5 @@
 // src/app/api/lectures/route.ts
-// CẬP NHẬT - XÓA FOLDER VÀ NỘI DUNG BÊN TRONG
+// HOÀN CHỈNH - THÊM RENAME, FIX DELETE
 
 import { authOptions } from "@/lib/auth";
 import { supabaseAdmin } from "@/lib/db/supabase-client";
@@ -202,7 +202,7 @@ export async function POST(req: NextRequest) {
 }
 
 // ============================================
-// PATCH: CẬP NHẬT
+// PATCH: CẬP NHẬT (THÊM RENAME)
 // ============================================
 
 export async function PATCH(req: NextRequest) {
@@ -220,6 +220,64 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ error: "ID is required" }, { status: 400 });
     }
 
+    // ✅ RENAME FOLDER
+    if (!action) {
+      const body = await req.json();
+      const { title } = body;
+
+      if (!title || !title.trim()) {
+        return NextResponse.json(
+          { error: "Title is required" },
+          { status: 400 },
+        );
+      }
+
+      // Kiểm tra quyền
+      const { data: existing, error: fetchError } = await supabaseAdmin
+        .from("lectures")
+        .select("teacher_id, is_folder")
+        .eq("id", id)
+        .single();
+
+      if (fetchError) {
+        return NextResponse.json({ error: "Not found" }, { status: 404 });
+      }
+
+      // Chỉ Admin hoặc người tạo mới được rename
+      const isAdmin = session.user.role === "ADMIN";
+      const isOwner = existing.teacher_id === session.user.id;
+
+      if (!isAdmin && !isOwner) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      }
+
+      // Chỉ cho phép rename folder
+      if (!existing.is_folder) {
+        return NextResponse.json(
+          { error: "Only folders can be renamed" },
+          { status: 400 },
+        );
+      }
+
+      const { error: updateError } = await supabaseAdmin
+        .from("lectures")
+        .update({
+          title: title.trim(),
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", id);
+
+      if (updateError) {
+        return NextResponse.json(
+          { error: updateError.message },
+          { status: 500 },
+        );
+      }
+
+      return NextResponse.json({ success: true, id, title: title.trim() });
+    }
+
+    // ✅ VIEW count
     if (action === "view") {
       const { data: current, error: fetchError } = await supabaseAdmin
         .from("lectures")
@@ -239,6 +297,7 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ id, views: newViews });
     }
 
+    // ✅ LIKE count
     if (action === "like") {
       const { data: current, error: fetchError } = await supabaseAdmin
         .from("lectures")
@@ -276,9 +335,18 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    // ✅ Cho phép Admin và Teacher xóa
     const isAdmin = session.user.role === "ADMIN";
-    if (!isAdmin) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    const isTeacher = session.user.role === "TEACHER";
+
+    if (!isAdmin && !isTeacher) {
+      console.log(
+        `⛔ [API] User ${session.user.id} is not authorized to delete`,
+      );
+      return NextResponse.json(
+        { error: "Forbidden - Only Admin or Teacher can delete" },
+        { status: 403 },
+      );
     }
 
     const { searchParams } = new URL(req.url);
@@ -288,12 +356,14 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ error: "ID is required" }, { status: 400 });
     }
 
-    console.log(`🗑️ [API] Deleting: ${id}`);
+    console.log(
+      `🗑️ [API] Deleting: ${id} by ${session.user.id} (${session.user.role})`,
+    );
 
     // ✅ 1. Lấy thông tin item
     const { data: item, error: fetchError } = await supabaseAdmin
       .from("lectures")
-      .select("is_folder, file_url, parent_id")
+      .select("is_folder, file_url, parent_id, title, teacher_id")
       .eq("id", id)
       .single();
 
@@ -302,18 +372,29 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ error: "Item not found" }, { status: 404 });
     }
 
-    // ✅ 2. Nếu là folder, xóa tất cả nội dung bên trong
+    // ✅ 2. Kiểm tra quyền sở hữu (Teacher chỉ xóa được của mình)
+    if (isTeacher && item.teacher_id !== session.user.id) {
+      console.log(
+        `⛔ [API] Teacher ${session.user.id} not owner of item ${id}`,
+      );
+      return NextResponse.json(
+        { error: "Forbidden - You can only delete your own items" },
+        { status: 403 },
+      );
+    }
+
+    // ✅ 3. Nếu là folder, xóa tất cả nội dung bên trong
     if (item.is_folder) {
-      console.log(`🗑️ [API] Deleting folder and all contents`);
+      console.log(`🗑️ [API] Deleting folder: ${item.title}`);
 
       // Lấy tất cả file trong folder (đệ quy)
       const allFileIds: string[] = [];
-      const allFileUrls: string[] = [];
+      const allFilePaths: string[] = [];
 
       const collectFiles = async (folderId: string) => {
         const { data: children, error } = await supabaseAdmin
           .from("lectures")
-          .select("id, is_folder, file_url")
+          .select("id, is_folder, file_url, teacher_id")
           .eq("parent_id", folderId);
 
         if (error) {
@@ -322,12 +403,23 @@ export async function DELETE(req: NextRequest) {
         }
 
         for (const child of children || []) {
+          // ✅ Teacher chỉ xóa được file của mình
+          if (isTeacher && child.teacher_id !== session.user.id) {
+            console.log(
+              `⛔ [API] Skipping file ${child.id} - not owned by teacher`,
+            );
+            continue;
+          }
+
           if (child.is_folder) {
             await collectFiles(child.id);
           } else {
             allFileIds.push(child.id);
             if (child.file_url) {
-              allFileUrls.push(child.file_url);
+              const fileName = child.file_url.split("/").pop();
+              if (fileName) {
+                allFilePaths.push(`lectures/${fileName}`);
+              }
             }
           }
         }
@@ -338,19 +430,21 @@ export async function DELETE(req: NextRequest) {
       console.log(`🗑️ [API] Found ${allFileIds.length} files to delete`);
 
       // Xóa file trên storage
-      for (const fileUrl of allFileUrls) {
-        if (fileUrl && fileUrl.includes("/lectures/")) {
-          const fileName = fileUrl.split("/").pop();
-          if (fileName) {
-            try {
-              await supabaseAdmin.storage
-                .from("lectures")
-                .remove([`lectures/${fileName}`]);
-              console.log(`🗑️ [API] Deleted file: ${fileName}`);
-            } catch (error) {
-              console.error(`❌ [API] Error deleting file: ${fileName}`, error);
-            }
+      if (allFilePaths.length > 0) {
+        try {
+          const { error: storageError } = await supabaseAdmin.storage
+            .from("lectures")
+            .remove(allFilePaths);
+
+          if (storageError) {
+            console.error("❌ [API] Storage delete error:", storageError);
+          } else {
+            console.log(
+              `🗑️ [API] Deleted ${allFilePaths.length} files from storage`,
+            );
           }
+        } catch (error) {
+          console.error("❌ [API] Error deleting files from storage:", error);
         }
       }
 
@@ -366,14 +460,24 @@ export async function DELETE(req: NextRequest) {
             "❌ [API] Error deleting children:",
             deleteChildrenError,
           );
+        } else {
+          console.log(
+            `🗑️ [API] Deleted ${allFileIds.length} files from database`,
+          );
         }
       }
 
-      // Xóa các folder con
-      const { error: deleteFoldersError } = await supabaseAdmin
+      // Xóa các folder con (chỉ xóa folder của teacher nếu là teacher)
+      let deleteQuery = supabaseAdmin
         .from("lectures")
         .delete()
         .eq("parent_id", id);
+
+      if (isTeacher) {
+        deleteQuery = deleteQuery.eq("teacher_id", session.user.id);
+      }
+
+      const { error: deleteFoldersError } = await deleteQuery;
 
       if (deleteFoldersError) {
         console.error(
@@ -381,9 +485,29 @@ export async function DELETE(req: NextRequest) {
           deleteFoldersError,
         );
       }
+    } else {
+      // ✅ 4. Nếu là file, xóa file trên storage
+      if (item.file_url) {
+        const fileName = item.file_url.split("/").pop();
+        if (fileName) {
+          try {
+            const { error: storageError } = await supabaseAdmin.storage
+              .from("lectures")
+              .remove([`lectures/${fileName}`]);
+
+            if (storageError) {
+              console.error("❌ [API] Storage delete error:", storageError);
+            } else {
+              console.log(`🗑️ [API] Deleted file: ${fileName}`);
+            }
+          } catch (error) {
+            console.error("❌ [API] Error deleting file:", error);
+          }
+        }
+      }
     }
 
-    // ✅ 3. Xóa item chính
+    // ✅ 5. Xóa item chính
     const { error } = await supabaseAdmin
       .from("lectures")
       .delete()

@@ -1,5 +1,5 @@
 // src/lib/auth.ts
-// HOÀN CHỈNH - VỚI SESSION PROVIDER
+// HOÀN CHỈNH - THÊM CORS SUPPORT
 
 import { supabase } from "@/lib/db/supabase-client";
 import bcrypt from "bcryptjs";
@@ -62,25 +62,32 @@ export const authOptions: NextAuthOptions = {
             throw new Error("Mật khẩu không đúng");
           }
 
+          console.log("✅ [Auth] User logged in:", {
+            id: user.id,
+            username: user.username,
+            email: user.email,
+            role: user.role || "STUDENT",
+          });
+
           return {
             id: user.id,
-            name: user.name || "User",
+            name: user.name || user.full_name || "User",
             email: user.email,
             username: user.username || "",
             role: user.role || "STUDENT",
             phone: user.phone || "",
             student_id: user.student_id || "",
-            image: user.image || "",
+            image: user.avatar || user.image || "",
           };
-        } catch (error) {
+        } catch (error: any) {
           console.error("❌ Auth error:", error);
-          throw error;
+          throw new Error(error.message || "Đăng nhập thất bại");
         }
       },
     }),
   ],
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger, session }) {
       if (user) {
         token.id = user.id;
         token.name = user.name;
@@ -90,7 +97,27 @@ export const authOptions: NextAuthOptions = {
         token.phone = user.phone || "";
         token.student_id = user.student_id || "";
         token.picture = user.image || "";
+
+        console.log("🔄 [JWT] Initial token set with role:", token.role);
       }
+
+      if (trigger === "update" && session?.user) {
+        console.log("🔄 [JWT] Updating session with new data:", session.user);
+        if (session.user.role) {
+          token.role = session.user.role;
+        }
+        if (session.user.name) {
+          token.name = session.user.name;
+        }
+        if (session.user.username) {
+          token.username = session.user.username;
+        }
+        if (session.user.image) {
+          token.picture = session.user.image;
+        }
+        console.log("🔄 [JWT] Token updated with role:", token.role);
+      }
+
       return token;
     },
     async session({ session, token }) {
@@ -103,8 +130,21 @@ export const authOptions: NextAuthOptions = {
         session.user.phone = (token.phone as string) || "";
         session.user.student_id = (token.student_id as string) || "";
         session.user.image = (token.picture as string) || "";
+
+        console.log("🔄 [Session] Updated session with role:", {
+          id: session.user.id,
+          username: session.user.username,
+          role: session.user.role,
+        });
       }
+
       return session;
+    },
+    async redirect({ url, baseUrl }) {
+      // ✅ Cho phép redirect đến các URL hợp lệ
+      if (url.startsWith("/")) return `${baseUrl}${url}`;
+      else if (new URL(url).origin === baseUrl) return url;
+      return baseUrl;
     },
   },
   pages: {
@@ -114,8 +154,37 @@ export const authOptions: NextAuthOptions = {
   },
   session: {
     strategy: "jwt",
-    maxAge: 30 * 24 * 60 * 60, // 30 days
+    maxAge: 30 * 24 * 60 * 60,
   },
   secret: process.env.NEXTAUTH_SECRET,
   debug: process.env.NODE_ENV === "development",
+  // ✅ THÊM CORS CONFIG
+  cookies: {
+    sessionToken: {
+      name: `next-auth.session-token`,
+      options: {
+        httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+        secure: process.env.NODE_ENV === "production",
+      },
+    },
+    callbackUrl: {
+      name: `next-auth.callback-url`,
+      options: {
+        sameSite: "lax",
+        path: "/",
+        secure: process.env.NODE_ENV === "production",
+      },
+    },
+    csrfToken: {
+      name: `next-auth.csrf-token`,
+      options: {
+        httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+        secure: process.env.NODE_ENV === "production",
+      },
+    },
+  },
 };

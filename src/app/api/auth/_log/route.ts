@@ -1,18 +1,15 @@
-// src/app/api/auth/session/route.ts
-// Vai trò: API lấy session - FIX LỖI 400
+// src/app/api/auth/_log/route.ts
+// Vai trò: NextAuth log endpoint
 
-import { authOptions } from "@/lib/auth";
-import { getServerSession } from "next-auth";
+export const dynamic = "force-dynamic";
+
 import { NextResponse } from "next/server";
 
+export async function POST() {
+  // NextAuth log endpoint - chỉ cần trả về 200
+  return NextResponse.json({ success: true });
+}
+
 export async function GET() {
-  try {
-    const session = await getServerSession(authOptions);
-    return NextResponse.json(session);
-  } catch (error) {
-    return NextResponse.json(
-      { error: "Internal Server Error" },
-      { status: 500 },
-    );
-  }
+  return NextResponse.json({ success: true });
 }

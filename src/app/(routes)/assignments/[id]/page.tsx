@@ -1,5 +1,5 @@
 // src/app/(routes)/assignments/[id]/page.tsx
-// Vai trò: Trang chi tiết bài tập - FIXED TYPE
+// HOÀN CHỈNH - DÙNG supabaseAdmin CHO GRADE
 
 "use client";
 
@@ -8,9 +8,21 @@ import { Navbar } from "@/components/layout/navbar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Textarea } from "@/components/ui/textarea";
 import { useAssignments } from "@/hooks/use-assignments";
 import { useToast } from "@/hooks/use-toast";
+import { supabase, supabaseAdmin } from "@/lib/db/supabase-client";
 import { cn } from "@/lib/utils";
 import { AnimatePresence, motion } from "framer-motion";
 import {
@@ -26,7 +38,7 @@ import {
   Star,
   Upload,
   Users,
-  XCircle
+  XCircle,
 } from "lucide-react";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
@@ -74,7 +86,7 @@ const submissionStatusConfig = {
 };
 
 // ============================================
-// ✅ ANIMATION VARIANTS - SỬA TYPE
+// ANIMATION VARIANTS
 // ============================================
 
 const containerVariants = {
@@ -108,7 +120,6 @@ const headerVariants = {
   },
 };
 
-// ✅ SỬA: pulse variants với ease đúng type
 const pulseVariants = {
   pulse: {
     scale: [1, 1.05, 1],
@@ -120,6 +131,217 @@ const pulseVariants = {
     },
   },
 };
+
+// ============================================
+// GRADE MODAL - DÙNG supabaseAdmin
+// ============================================
+
+interface GradeModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  submission: any;
+  assignmentTitle: string;
+  onSuccess: (updatedSubmission: any) => void;
+}
+
+function GradeModal({
+  isOpen,
+  onClose,
+  submission,
+  assignmentTitle,
+  onSuccess,
+}: GradeModalProps) {
+  const { toast } = useToast();
+  const [grade, setGrade] = useState<number>(0);
+  const [feedback, setFeedback] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    if (isOpen && submission) {
+      setGrade(submission.grade || 0);
+      setFeedback(submission.feedback || "");
+    }
+  }, [isOpen, submission]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!submission) {
+      toast.error("Không tìm thấy bài nộp");
+      return;
+    }
+
+    if (grade < 0 || grade > 10) {
+      toast.error("Điểm phải từ 0 đến 10");
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      console.log("📝 Bắt đầu chấm điểm submission:", submission.id);
+      console.log("📝 Grade:", grade);
+      console.log("📝 Feedback:", feedback);
+
+      const newStatus = grade >= 5 ? "APPROVED" : "REJECTED";
+
+      // ✅ DÙNG supabaseAdmin ĐỂ BYPASS RLS
+      const { error } = await supabaseAdmin
+        .from("submissions")
+        .update({
+          grade: grade,
+          feedback: feedback || "",
+          status: newStatus,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", submission.id);
+
+      if (error) {
+        console.error("❌ Update error:", error);
+        throw error;
+      }
+
+      console.log("✅ Updated submission successfully!");
+
+      // ✅ Tạo thông báo cho học sinh
+      try {
+        const statusText = grade >= 5 ? "Đã đạt" : "Cần cải thiện";
+        await supabase.from("notifications").insert({
+          title: `Bài tập "${assignmentTitle}" đã được chấm điểm`,
+          message: `Bạn đạt ${grade}/10 điểm (${statusText}). ${feedback ? `Nhận xét: ${feedback}` : ""}`,
+          type: "grade",
+          read: false,
+          link: `/assignments/${submission.assignment_id}`,
+          user_id: submission.user_id,
+          created_at: new Date().toISOString(),
+        });
+      } catch (notifError) {
+        console.error("❌ Notification error:", notifError);
+      }
+
+      // ✅ Tạo object submission đã cập nhật
+      const updatedSubmission = {
+        ...submission,
+        grade: grade,
+        feedback: feedback || "",
+        status: newStatus,
+        updated_at: new Date().toISOString(),
+      };
+
+      toast.success(`✅ Đã chấm điểm thành công!`);
+      onSuccess(updatedSubmission);
+      onClose();
+      setGrade(0);
+      setFeedback("");
+    } catch (error: any) {
+      console.error("❌ Grade error:", error);
+      toast.error(error?.message || "Có lỗi xảy ra khi chấm điểm");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  if (!isOpen || !submission) return null;
+
+  return (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="bg-slate-900 border border-white/10 text-white max-w-md">
+        <DialogHeader>
+          <DialogTitle className="text-xl font-bold text-white flex items-center gap-2">
+            <Star className="w-5 h-5 text-yellow-400" />
+            Chấm điểm bài nộp
+          </DialogTitle>
+          <DialogDescription className="text-white/40">
+            Nhập điểm và nhận xét cho bài nộp của học sinh
+          </DialogDescription>
+        </DialogHeader>
+
+        <form onSubmit={handleSubmit} className="space-y-4 py-4">
+          <div className="space-y-2">
+            <Label className="text-white/60">Học sinh</Label>
+            <p className="text-white/80 text-sm">
+              {submission.user?.name || "Chưa có thông tin"}
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <Label className="text-white/60">File nộp</Label>
+            <Button
+              variant="outline"
+              size="sm"
+              className="border-white/10 text-white/60 hover:text-white"
+              onClick={() => {
+                if (submission.file_url) {
+                  window.open(submission.file_url, "_blank");
+                }
+              }}
+            >
+              <Download className="w-4 h-4 mr-2" />
+              {submission.file_name || "Tải file"}
+            </Button>
+          </div>
+
+          <div className="space-y-2">
+            <Label className="text-white/60">
+              Điểm <span className="text-red-400">*</span>
+            </Label>
+            <Input
+              type="number"
+              value={grade}
+              onChange={(e) => setGrade(Number(e.target.value))}
+              placeholder="Nhập điểm (0-10)"
+              className="bg-white/5 border-white/10 text-white placeholder:text-white/30 focus:border-cyan-500/50"
+              min={0}
+              max={10}
+              step={0.5}
+              required
+              disabled={isLoading}
+            />
+            <p className="text-xs text-white/30">
+              Điểm từ 0 đến 10, có thể nhập số thập phân (ví dụ: 7.5)
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <Label className="text-white/60">Nhận xét</Label>
+            <Textarea
+              value={feedback}
+              onChange={(e) => setFeedback(e.target.value)}
+              placeholder="Nhập nhận xét cho học sinh..."
+              rows={4}
+              className="bg-white/5 border-white/10 text-white placeholder:text-white/30 focus:border-cyan-500/50 resize-none"
+              disabled={isLoading}
+            />
+          </div>
+
+          <DialogFooter className="gap-3 pt-4">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onClose}
+              className="border-white/10 text-white/60 hover:text-white hover:border-white/20"
+              disabled={isLoading}
+            >
+              Hủy
+            </Button>
+            <Button
+              type="submit"
+              className="gap-2 bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600"
+              disabled={isLoading}
+            >
+              {isLoading ? (
+                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <>
+                  <Star className="w-4 h-4" />
+                  Chấm điểm & Gửi thông báo
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
 
 // ============================================
 // MAIN COMPONENT
@@ -144,6 +366,8 @@ export default function AssignmentDetailPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isGradeModalOpen, setIsGradeModalOpen] = useState(false);
+  const [selectedSubmission, setSelectedSubmission] = useState<any>(null);
 
   const assignmentId = params.id as string;
 
@@ -156,6 +380,7 @@ export default function AssignmentDetailPage() {
       ]);
       setAssignment(assignmentData);
       setSubmissions(submissionsData || []);
+      console.log("✅ Fetched submissions:", submissionsData?.length || 0);
     } catch (err) {
       console.error("Error fetching assignment:", err);
       setError("Không thể tải thông tin bài tập");
@@ -175,6 +400,19 @@ export default function AssignmentDetailPage() {
     await fetchData();
     setIsRefreshing(false);
     toast.success("Đã cập nhật dữ liệu!");
+  };
+
+  const handleGradeSuccess = (updatedSubmission: any) => {
+    console.log("✅ Grade success, updating UI...", updatedSubmission);
+
+    // ✅ Cập nhật submissions state trực tiếp
+    setSubmissions((prevSubmissions) =>
+      prevSubmissions.map((sub) =>
+        sub.id === updatedSubmission.id ? updatedSubmission : sub,
+      ),
+    );
+
+    toast.success("Đã cập nhật danh sách bài nộp");
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -219,6 +457,12 @@ export default function AssignmentDetailPage() {
 
   const handleDownload = async (url: string, fileName: string) => {
     await downloadFile(url, fileName);
+  };
+
+  const handleGradeClick = (submission: any) => {
+    console.log("📝 Opening grade modal for submission:", submission.id);
+    setSelectedSubmission(submission);
+    setIsGradeModalOpen(true);
   };
 
   if (loading) {
@@ -292,6 +536,8 @@ export default function AssignmentDetailPage() {
     });
   };
 
+  const pendingSubmissions = submissions.filter((s) => s.status === "PENDING");
+
   return (
     <>
       <Navbar />
@@ -335,7 +581,6 @@ export default function AssignmentDetailPage() {
             <motion.div variants={headerVariants}>
               <Card className="overflow-hidden border-border/50 bg-card/80 backdrop-blur-sm">
                 <CardContent className="p-6 md:p-8">
-                  {/* Header */}
                   <div className="flex flex-wrap items-start justify-between gap-4 mb-6">
                     <div>
                       <div className="flex items-center gap-2 flex-wrap mb-3">
@@ -383,7 +628,6 @@ export default function AssignmentDetailPage() {
                     )}
                   </div>
 
-                  {/* Details Grid */}
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-4 rounded-xl bg-muted/30 border border-border/50">
                     <div>
                       <p className="text-xs text-muted-foreground flex items-center gap-1">
@@ -441,7 +685,7 @@ export default function AssignmentDetailPage() {
               </Card>
             </motion.div>
 
-            {/* Submit Section */}
+            {/* Submit Section - Student */}
             {isStudent && assignment.status !== "graded" && (
               <motion.div variants={itemVariants}>
                 <Card className="border-border/50">
@@ -493,6 +737,18 @@ export default function AssignmentDetailPage() {
                             <p className="text-xs text-muted-foreground">
                               Ngày nộp: {formatDate(userSubmission.created_at)}
                             </p>
+                            {userSubmission.grade !== undefined &&
+                              userSubmission.grade !== null && (
+                                <div className="mt-1 flex items-center gap-1">
+                                  <Star className="w-4 h-4 text-yellow-500" />
+                                  <span className="font-bold text-yellow-500">
+                                    {userSubmission.grade}
+                                  </span>
+                                  <span className="text-sm text-muted-foreground">
+                                    /10
+                                  </span>
+                                </div>
+                              )}
                           </div>
                         </div>
                         <div className="mt-3 flex gap-2">
@@ -605,95 +861,141 @@ export default function AssignmentDetailPage() {
             )}
 
             {/* Submissions List - Teacher only */}
-            {isTeacher && submissions.length > 0 && (
+            {isTeacher && (
               <motion.div variants={itemVariants}>
                 <Card className="border-border/50">
                   <CardContent className="p-6">
-                    <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                      <Users className="w-5 h-5 text-primary" />
-                      Danh sách bài nộp ({submissions.length})
-                    </h3>
-                    <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2">
-                      <AnimatePresence>
-                        {submissions.map((sub, index) => {
-                          const subStatus =
-                            submissionStatusConfig[
-                              sub.status as keyof typeof submissionStatusConfig
-                            ];
-                          const SubIcon = subStatus.icon;
-                          return (
-                            <motion.div
-                              key={sub.id}
-                              initial={{ opacity: 0, y: 20 }}
-                              animate={{ opacity: 1, y: 0 }}
-                              transition={{
-                                duration: 0.3,
-                                delay: index * 0.05,
-                              }}
-                              className="flex items-center justify-between p-4 rounded-xl bg-muted/30 hover:bg-muted/50 transition-colors border border-border/50"
-                            >
-                              <div className="flex items-center gap-3 min-w-0">
-                                <div className="w-10 h-10 rounded-full bg-gradient-to-r from-primary to-secondary flex items-center justify-center flex-shrink-0">
-                                  <Users className="w-5 h-5 text-white" />
-                                </div>
-                                <div className="min-w-0">
-                                  <p className="font-medium truncate">
-                                    {sub.user?.name || "Unknown"}
-                                  </p>
-                                  <p className="text-sm text-muted-foreground truncate">
-                                    {sub.file_name}
-                                  </p>
-                                  <p className="text-xs text-muted-foreground">
-                                    {formatDate(sub.created_at)}
-                                  </p>
-                                </div>
-                              </div>
-                              <div className="flex items-center gap-3 flex-shrink-0">
-                                <div
-                                  className={cn(
-                                    "flex items-center gap-1 px-3 py-1 rounded-full",
-                                    subStatus.color,
-                                  )}
-                                >
-                                  <SubIcon className="w-3 h-3" />
-                                  <span className="text-xs font-medium">
-                                    {subStatus.label}
-                                  </span>
-                                </div>
-                                {sub.status === "APPROVED" && (
-                                  <Badge
-                                    variant="secondary"
-                                    className="bg-green-500/10 text-green-600"
-                                  >
-                                    <Star className="w-3 h-3 mr-1" />
-                                    {sub.grade}/10
-                                  </Badge>
-                                )}
-                                {sub.status === "REJECTED" && (
-                                  <Badge
-                                    variant="secondary"
-                                    className="bg-red-500/10 text-red-600"
-                                  >
-                                    <XCircle className="w-3 h-3 mr-1" />
-                                    {sub.grade}/10
-                                  </Badge>
-                                )}
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-8 w-8 hover:bg-primary/10"
-                                  onClick={() =>
-                                    handleDownload(sub.file_url, sub.file_name)
-                                  }
-                                >
-                                  <Download className="w-4 h-4" />
-                                </Button>
-                              </div>
-                            </motion.div>
-                          );
-                        })}
-                      </AnimatePresence>
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-lg font-semibold flex items-center gap-2">
+                        <Users className="w-5 h-5 text-primary" />
+                        Danh sách bài nộp ({submissions.length})
+                      </h3>
+                      <Badge variant="outline" className="text-xs">
+                        {pendingSubmissions.length} chờ chấm
+                      </Badge>
                     </div>
+
+                    {submissions.length === 0 ? (
+                      <div className="text-center py-8 text-muted-foreground">
+                        <Users className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                        <p>Chưa có học sinh nào nộp bài</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2">
+                        <AnimatePresence>
+                          {submissions.map((sub, index) => {
+                            const subStatus =
+                              submissionStatusConfig[
+                                sub.status as keyof typeof submissionStatusConfig
+                              ];
+                            const SubIcon = subStatus.icon;
+                            const isGraded =
+                              sub.status === "APPROVED" ||
+                              sub.status === "REJECTED";
+                            const isPending = sub.status === "PENDING";
+
+                            return (
+                              <motion.div
+                                key={sub.id}
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{
+                                  duration: 0.3,
+                                  delay: index * 0.05,
+                                }}
+                                className={cn(
+                                  "flex items-center justify-between p-4 rounded-xl transition-colors border",
+                                  isPending
+                                    ? "bg-yellow-50/50 dark:bg-yellow-950/20 border-yellow-200/50 dark:border-yellow-800/50"
+                                    : "bg-muted/30 hover:bg-muted/50 border-border/50",
+                                )}
+                              >
+                                <div className="flex items-center gap-3 min-w-0">
+                                  <div
+                                    className={cn(
+                                      "w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0",
+                                      isPending
+                                        ? "bg-yellow-500/20"
+                                        : "bg-gradient-to-r from-primary to-secondary",
+                                    )}
+                                  >
+                                    {isPending ? (
+                                      <Clock className="w-5 h-5 text-yellow-500" />
+                                    ) : (
+                                      <Users className="w-5 h-5 text-white" />
+                                    )}
+                                  </div>
+                                  <div className="min-w-0">
+                                    <p className="font-medium truncate">
+                                      {sub.user?.name || "Unknown"}
+                                    </p>
+                                    <p className="text-sm text-muted-foreground truncate">
+                                      {sub.file_name}
+                                    </p>
+                                    <p className="text-xs text-muted-foreground">
+                                      {formatDate(sub.created_at)}
+                                    </p>
+                                  </div>
+                                </div>
+
+                                <div className="flex items-center gap-2 flex-shrink-0">
+                                  {/* Nút Chấm điểm - Chỉ hiển thị khi PENDING */}
+                                  {isPending && (
+                                    <Button
+                                      size="sm"
+                                      className="gap-1 bg-yellow-500/20 text-yellow-500 hover:bg-yellow-500/30 border border-yellow-500/20"
+                                      onClick={() => handleGradeClick(sub)}
+                                    >
+                                      <Star className="w-4 h-4" />
+                                      Chấm điểm
+                                    </Button>
+                                  )}
+
+                                  {/* Hiển thị điểm đã chấm */}
+                                  {isGraded && sub.grade !== undefined && (
+                                    <div className="flex items-center gap-1 px-3 py-1 rounded-full bg-green-500/10 border border-green-500/20">
+                                      <Star className="w-4 h-4 text-yellow-500" />
+                                      <span className="font-bold text-yellow-500">
+                                        {sub.grade}
+                                      </span>
+                                      <span className="text-xs text-muted-foreground">
+                                        /10
+                                      </span>
+                                    </div>
+                                  )}
+
+                                  <div
+                                    className={cn(
+                                      "flex items-center gap-1 px-3 py-1 rounded-full",
+                                      subStatus.color,
+                                    )}
+                                  >
+                                    <SubIcon className="w-3 h-3" />
+                                    <span className="text-xs font-medium">
+                                      {subStatus.label}
+                                    </span>
+                                  </div>
+
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8 hover:bg-primary/10"
+                                    onClick={() =>
+                                      handleDownload(
+                                        sub.file_url,
+                                        sub.file_name,
+                                      )
+                                    }
+                                  >
+                                    <Download className="w-4 h-4" />
+                                  </Button>
+                                </div>
+                              </motion.div>
+                            );
+                          })}
+                        </AnimatePresence>
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               </motion.div>
@@ -702,6 +1004,18 @@ export default function AssignmentDetailPage() {
         </div>
       </div>
       <Footer />
+
+      {/* ✅ Grade Modal */}
+      <GradeModal
+        isOpen={isGradeModalOpen}
+        onClose={() => {
+          setIsGradeModalOpen(false);
+          setSelectedSubmission(null);
+        }}
+        submission={selectedSubmission}
+        assignmentTitle={assignment?.title || ""}
+        onSuccess={handleGradeSuccess}
+      />
     </>
   );
 }

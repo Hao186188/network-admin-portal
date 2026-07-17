@@ -1,5 +1,5 @@
 // src/hooks/useLectures.ts
-// BỔ SUNG DEBUG LOG
+// HOÀN CHỈNH - TỐI ƯU, DEBUG LOG
 
 "use client";
 
@@ -41,6 +41,7 @@ export function useLectures() {
   const channelIdRef = useRef(
     `lectures-realtime-${Math.random().toString(36).substring(2, 9)}`,
   );
+  const fetchInProgressRef = useRef(false);
 
   const isAdmin = session?.user?.role === "ADMIN";
   const isTeacher = session?.user?.role === "TEACHER";
@@ -49,11 +50,14 @@ export function useLectures() {
   // ============================================
   // REALTIME SUBSCRIPTION
   // ============================================
+
   useEffect(() => {
     if (!canView) return;
 
+    // Cleanup existing channel
     if (channelRef.current) {
       supabase.removeChannel(channelRef.current);
+      channelRef.current = null;
     }
 
     const channel = supabase
@@ -66,23 +70,28 @@ export function useLectures() {
           table: "lectures",
         },
         (payload) => {
-          console.log("📡 Lecture change received:", payload);
+          console.log(
+            "📡 [useLectures] Realtime change received:",
+            payload.eventType,
+          );
+          // Invalidate cache để fetch lại
           queryClient.invalidateQueries({ queryKey: ["lectures"] });
         },
       )
       .subscribe((status) => {
-        console.log("📡 Realtime subscription status:", status);
+        console.log(`📡 [useLectures] Realtime subscription status: ${status}`);
       });
 
     channelRef.current = channel;
 
     return () => {
+      console.log("📡 [useLectures] Cleaning up subscription...");
       if (channelRef.current) {
         supabase.removeChannel(channelRef.current);
         channelRef.current = null;
       }
     };
-  }, [canView]);
+  }, [canView, queryClient]);
 
   // ============================================
   // QUERY: Fetch all lectures
@@ -91,21 +100,33 @@ export function useLectures() {
   const lecturesQuery = useQuery({
     queryKey: ["lectures"],
     queryFn: async (): Promise<Lecture[]> => {
+      // Tránh fetch trùng lặp
+      if (fetchInProgressRef.current) {
+        console.log("⏭️ [useLectures] Fetch already in progress, skipping...");
+        return [];
+      }
+
+      fetchInProgressRef.current = true;
+
       try {
-        console.log("🔍 Fetching lectures from API...");
+        console.log("🔍 [useLectures] Fetching lectures from API...");
         const response = await fetch("/api/lectures");
         const data = await response.json();
+
         if (!response.ok) {
           throw new Error(data.error || "Lỗi khi tải dữ liệu");
         }
-        console.log(`✅ Fetched ${data?.length || 0} lectures`);
+
+        console.log(`✅ [useLectures] Fetched ${data?.length || 0} lectures`);
         return data || [];
       } catch (error) {
-        console.error("Error fetching lectures:", error);
+        console.error("❌ [useLectures] Error fetching lectures:", error);
         throw error;
+      } finally {
+        fetchInProgressRef.current = false;
       }
     },
-    staleTime: Infinity,
+    staleTime: 5 * 60 * 1000, // 5 phút
     refetchOnWindowFocus: false,
     retry: 1,
     enabled: !!session?.user && canView,
@@ -120,14 +141,20 @@ export function useLectures() {
       queryKey: ["lecture", id],
       queryFn: async (): Promise<Lecture> => {
         try {
+          console.log(`🔍 [useLectures] Fetching lecture ${id}...`);
           const response = await fetch(`/api/lectures?id=${id}`);
           const data = await response.json();
+
           if (!response.ok) {
             throw new Error(data.error || "Không tìm thấy bài giảng");
           }
+
           return data;
         } catch (error) {
-          console.error("Error fetching lecture:", error);
+          console.error(
+            `❌ [useLectures] Error fetching lecture ${id}:`,
+            error,
+          );
           throw error;
         }
       },
@@ -147,7 +174,10 @@ export function useLectures() {
         throw new Error("Vui lòng đăng nhập để đăng bài");
       }
 
-      console.log("📝 Creating lecture with data:", data);
+      console.log("📝 [useLectures] Creating lecture with data:", {
+        ...data,
+        thumbnailFile: data.thumbnailFile ? "File present" : "No file",
+      });
 
       const formData = new FormData();
       formData.append("title", data.title || "");
@@ -164,6 +194,7 @@ export function useLectures() {
       formData.append("tags", JSON.stringify(data.tags || []));
       formData.append("video_url", data.video_url || "");
       formData.append("thumbnail", data.thumbnail || "");
+
       if (data.thumbnailFile) {
         formData.append("thumbnailFile", data.thumbnailFile);
       }
@@ -178,15 +209,15 @@ export function useLectures() {
         throw new Error(result.error || "Không thể tạo bài giảng");
       }
 
-      console.log("✅ Lecture created:", result);
+      console.log("✅ [useLectures] Lecture created:", result.id);
       return result;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["lectures"] });
       toast.success("Đăng bài thành công!");
     },
     onError: (error: any) => {
-      console.error("Create lecture error:", error);
+      console.error("❌ [useLectures] Create lecture error:", error);
       toast.error(error.message || "Có lỗi xảy ra khi đăng bài");
     },
   });
@@ -215,7 +246,7 @@ export function useLectures() {
         sessionStorage.setItem(viewKey, "true");
         return result;
       } catch (error) {
-        console.error("Error incrementing view:", error);
+        console.error("❌ [useLectures] Error incrementing view:", error);
         throw error;
       }
     },
@@ -245,7 +276,7 @@ export function useLectures() {
 
         return result;
       } catch (error) {
-        console.error("Error toggling like:", error);
+        console.error("❌ [useLectures] Error toggling like:", error);
         throw error;
       }
     },
@@ -266,6 +297,8 @@ export function useLectures() {
       if (!session?.user) throw new Error("Vui lòng đăng nhập");
       if (!isAdmin) throw new Error("Chỉ admin mới có quyền xóa");
 
+      console.log(`🗑️ [useLectures] Deleting lecture ${id}...`);
+
       const response = await fetch(`/api/lectures?id=${id}`, {
         method: "DELETE",
       });
@@ -277,12 +310,13 @@ export function useLectures() {
 
       return id;
     },
-    onSuccess: () => {
+    onSuccess: (id) => {
       queryClient.invalidateQueries({ queryKey: ["lectures"] });
+      queryClient.invalidateQueries({ queryKey: ["lecture", id] });
       toast.success("Đã xóa bài giảng");
     },
     onError: (error: any) => {
-      console.error("Delete lecture error:", error);
+      console.error("❌ [useLectures] Delete lecture error:", error);
       toast.error(error.message || "Có lỗi xảy ra khi xóa");
     },
   });
@@ -325,10 +359,12 @@ export function useLectures() {
 
     let filtered = [...lectures];
 
+    // Chỉ lấy file gốc (không phải folder và không có parent)
     filtered = filtered.filter(
       (l) => !(l.is_folder || l.type === "folder") && !l.parent_id,
     );
 
+    // Search
     if (filter.search) {
       const searchLower = filter.search.toLowerCase();
       filtered = filtered.filter(
@@ -339,20 +375,24 @@ export function useLectures() {
       );
     }
 
+    // Filter by type
     if (filter.type && filter.type !== "all") {
       filtered = filtered.filter((l) => l.type === filter.type);
     }
 
+    // Filter by tags
     if (filter.tags && filter.tags.length > 0) {
       filtered = filtered.filter((l: Lecture) =>
         filter.tags.some((tag: string) => l.tags?.includes(tag)),
       );
     }
 
+    // Filter by subject
     if (filter.subject) {
       filtered = filtered.filter((l) => l.subject === filter.subject);
     }
 
+    // Sort
     switch (filter.sortBy) {
       case "newest":
         filtered.sort(
@@ -372,6 +412,13 @@ export function useLectures() {
             new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
         );
         break;
+      default:
+        // Mặc định: mới nhất
+        filtered.sort(
+          (a, b) =>
+            new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+        );
+        break;
     }
 
     return filtered;
@@ -388,6 +435,8 @@ export function useLectures() {
     isFetching: lecturesQuery.isFetching,
     error: lecturesQuery.error,
     refresh: () => {
+      console.log("🔄 [useLectures] Manual refresh");
+      fetchInProgressRef.current = false;
       lecturesQuery.refetch();
     },
 
@@ -396,9 +445,15 @@ export function useLectures() {
 
     // Mutations
     createLecture: createLectureMutation.mutate,
+    createLectureAsync: createLectureMutation.mutateAsync,
     incrementView: incrementViewMutation.mutate,
     toggleLike: toggleLikeMutation.mutate,
     deleteLecture: deleteLectureMutation.mutate,
+    deleteLectureAsync: deleteLectureMutation.mutateAsync,
+
+    // Mutation states
+    isCreating: createLectureMutation.isPending,
+    isDeleting: deleteLectureMutation.isPending,
 
     // Utilities
     getStats,

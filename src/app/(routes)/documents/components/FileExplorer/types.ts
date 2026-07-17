@@ -1,5 +1,16 @@
 // src/app/(routes)/documents/components/FileExplorer/types.ts
+
 import { Document } from "../../types";
+
+// ✅ Định nghĩa FolderNode
+export interface FolderNode {
+  id: string;
+  title: string;
+  type: "folder" | "file";
+  fileType?: string;
+  children?: FolderNode[];
+  isOpen?: boolean;
+}
 
 export interface BreadcrumbItem {
   id: string | null;
@@ -15,6 +26,7 @@ export interface FileItemProps {
   item: Document;
   onFolderClick: (id: string) => void;
   onDelete: (id: string) => void;
+  onRename?: (id: string, newTitle: string) => Promise<void>;
   isSelected: boolean;
   onSelect: (id: string, ctrlKey: boolean) => void;
 }
@@ -23,6 +35,7 @@ export interface FileGridProps {
   items: Document[];
   onFolderClick: (id: string) => void;
   onDelete: (id: string) => void;
+  onRename?: (id: string, newTitle: string) => Promise<void>;
   selectedItems: string[];
   setSelectedItems: (items: string[]) => void;
 }
@@ -31,6 +44,7 @@ export interface FileListProps {
   items: Document[];
   onFolderClick: (id: string) => void;
   onDelete: (id: string) => void;
+  onRename?: (id: string, newTitle: string) => Promise<void>;
   selectedItems: string[];
   setSelectedItems: (items: string[]) => void;
 }
@@ -55,4 +69,11 @@ export interface NewFolderModalProps {
   isOpen: boolean;
   onClose: () => void;
   onCreate: (title: string) => Promise<void>;
+}
+
+export interface RenameInputProps {
+  initialValue: string;
+  onSave: (newName: string) => Promise<void>;
+  onCancel: () => void;
+  isLoading?: boolean;
 }

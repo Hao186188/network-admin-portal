@@ -1,5 +1,4 @@
 // src/app/(routes)/documents/components/FileExplorer/FileList.tsx
-// HOÀN CHỈNH - THÊM NÚT TẢI XUỐNG FOLDER
 
 "use client";
 
@@ -11,11 +10,12 @@ import {
   File,
   Folder,
   Star,
-  Trash2
+  Trash2,
 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Document } from "../../types";
+import { RenameInput } from "./RenameInput";
 import { FileListProps } from "./types";
 
 const formatFileSize = (bytes: number): string => {
@@ -28,9 +28,12 @@ export function FileList({
   items,
   onFolderClick,
   onDelete,
+  onRename,
   selectedItems,
   setSelectedItems,
 }: FileListProps) {
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [isRenamingLoading, setIsRenamingLoading] = useState(false);
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
   const [downloadingFolders, setDownloadingFolders] = useState<Set<string>>(
     new Set(),
@@ -48,6 +51,35 @@ export function FileList({
     }
   };
 
+  // ✅ HANDLE RENAME START
+  const handleRenameStart = (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    const item = items.find((i) => i.id === id);
+    if (item?.is_folder) {
+      setRenamingId(id);
+    }
+  };
+
+  // ✅ HANDLE RENAME SAVE
+  const handleRenameSave = async (id: string, newName: string) => {
+    if (!onRename) return;
+    setIsRenamingLoading(true);
+    try {
+      await onRename(id, newName);
+      setRenamingId(null);
+      toast.success(`✅ Đã đổi tên thành "${newName}"`);
+    } catch (error: any) {
+      toast.error(error.message || "Không thể đổi tên");
+    } finally {
+      setIsRenamingLoading(false);
+    }
+  };
+
+  // ✅ HANDLE RENAME CANCEL
+  const handleRenameCancel = () => {
+    setRenamingId(null);
+  };
+
   const handleDownload = (e: React.MouseEvent, item: Document) => {
     e.stopPropagation();
     if (item.file_url) {
@@ -55,10 +87,8 @@ export function FileList({
     }
   };
 
-  // ✅ Tải xuống toàn bộ folder
   const handleDownloadFolder = async (e: React.MouseEvent, item: Document) => {
     e.stopPropagation();
-
     if (!item.is_folder) return;
 
     setDownloadingFolders((prev) => new Set(prev).add(item.id));
@@ -139,6 +169,7 @@ export function FileList({
             const isSelected = selectedItems.includes(item.id);
             const isFavorite = favorites.has(item.id);
             const isDownloading = downloadingFolders.has(item.id);
+            const isRenamingThis = renamingId === item.id;
 
             return (
               <motion.tr
@@ -167,10 +198,22 @@ export function FileList({
                     ) : (
                       <File className="w-5 h-5 text-blue-400 flex-shrink-0" />
                     )}
-                    <span className="text-sm text-white truncate max-w-[200px]">
-                      {item.title}
-                    </span>
-                    {isFolder && (
+
+                    {/* Name với rename support */}
+                    {isRenamingThis && isFolder ? (
+                      <RenameInput
+                        initialValue={item.title}
+                        onSave={(newName) => handleRenameSave(item.id, newName)}
+                        onCancel={handleRenameCancel}
+                        isLoading={isRenamingLoading}
+                      />
+                    ) : (
+                      <span className="text-sm text-white truncate max-w-[200px]">
+                        {item.title}
+                      </span>
+                    )}
+
+                    {isFolder && !isRenamingThis && (
                       <span className="text-[10px] text-cyan-400/50 font-mono">
                         📁
                       </span>
@@ -190,7 +233,30 @@ export function FileList({
                 </td>
                 <td className="py-2.5 px-3 text-right">
                   <div className="flex items-center justify-end gap-1">
-                    {/* ✅ Nút tải xuống folder */}
+                    {/* Rename button - Chỉ cho folder */}
+                    {isFolder && !isRenamingThis && (
+                      <button
+                        className="p-1.5 rounded-lg text-white/30 hover:text-cyan-400 hover:bg-cyan-400/10 transition-colors"
+                        onClick={(e) => handleRenameStart(e, item.id)}
+                        title="Đổi tên thư mục"
+                      >
+                        <svg
+                          className="w-4 h-4"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
+                          />
+                        </svg>
+                      </button>
+                    )}
+
+                    {/* Download folder button */}
                     {isFolder && (
                       <button
                         className={cn(
@@ -207,6 +273,7 @@ export function FileList({
                       </button>
                     )}
 
+                    {/* Download file button */}
                     {!isFolder && (
                       <button
                         className="p-1.5 rounded-lg text-white/30 hover:text-cyan-400 hover:bg-cyan-400/10 transition-colors"
@@ -217,6 +284,7 @@ export function FileList({
                       </button>
                     )}
 
+                    {/* Favorite button */}
                     <button
                       className={cn(
                         "p-1.5 rounded-lg transition-colors",
@@ -235,6 +303,7 @@ export function FileList({
                       />
                     </button>
 
+                    {/* Delete button */}
                     <button
                       className="p-1.5 rounded-lg text-white/30 hover:text-red-400 hover:bg-red-400/10 transition-colors"
                       onClick={(e) => {

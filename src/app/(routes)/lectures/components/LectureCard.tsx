@@ -1,5 +1,5 @@
 // src/app/(routes)/lectures/components/LectureCard.tsx
-// LECTURE CARD - HOÀN CHỈNH
+// LECTURE CARD - HOÀN CHỈNH (FIX LỖI)
 
 "use client";
 
@@ -11,17 +11,17 @@ import { cn, formatRelativeTime } from "@/lib/utils";
 import { Lecture } from "@/types";
 import { motion } from "framer-motion";
 import {
-    BookOpen,
-    Clock,
-    Download,
-    ExternalLink,
-    Eye,
-    FileText,
-    Heart,
-    Monitor,
-    Play,
-    Users,
-    Video,
+  BookOpen,
+  Clock,
+  Download,
+  ExternalLink,
+  Eye,
+  FileText,
+  Heart,
+  Monitor,
+  Play,
+  Users,
+  Video,
 } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
@@ -33,7 +33,6 @@ interface LectureCardProps {
   isLiked?: boolean;
 }
 
-// ✅ Định nghĩa type cho config
 type LectureType = "video" | "slide" | "lab" | "document";
 
 interface TypeConfig {
@@ -79,7 +78,6 @@ export function LectureCard({
   const { toast } = useToast();
   const [isHovered, setIsHovered] = useState(false);
 
-  // ✅ Sử dụng type an toàn
   const lectureType = lecture.type as LectureType;
   const TypeIcon = typeConfig[lectureType]?.icon || FileText;
   const config = typeConfig[lectureType] || typeConfig.document;
@@ -163,7 +161,7 @@ export function LectureCard({
               {config.label}
             </Badge>
 
-            {/* Duration Badge */}
+            {/* ✅ Duration Badge - FIX: dùng && thay vì if */}
             {lecture.duration && (
               <Badge
                 variant="outline"

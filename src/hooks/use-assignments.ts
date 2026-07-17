@@ -1,12 +1,12 @@
 // src/hooks/use-assignments.ts
-// HOÀN CHỈNH - FIX LOOP REQUEST
+// HOÀN CHỈNH - XỬ LÝ LỖI INSERT
 
 "use client";
 
 import {
-  isServiceRoleEnabled,
-  supabase,
-  supabaseAdmin,
+    isServiceRoleEnabled,
+    supabase,
+    supabaseAdmin,
 } from "@/lib/db/supabase-client";
 import { logger } from "@/lib/logger";
 import { useSession } from "next-auth/react";
@@ -23,11 +23,15 @@ export interface Assignment {
   status: "pending" | "submitted" | "graded";
   submissions: number;
   total_students: number;
+  max_submissions?: number;
   points: number;
+  grade?: number;
+  feedback?: string;
   attachments: number;
   attachment_urls: string[];
   user_id: string;
   created_by?: string;
+  graded_at?: string;
   created_at: string;
   updated_at: string;
 }
@@ -59,13 +63,11 @@ export function useAssignments() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
 
-  // ✅ SỬA: Dùng ref để track fetch state
   const hasFetched = useRef(false);
   const isFetching = useRef(false);
 
-  // ✅ Lấy danh sách bài tập - CHỈ CHẠY 1 LẦN
+  // ✅ Lấy danh sách bài tập với count thực tế
   const fetchAssignments = useCallback(async () => {
-    // ✅ Nếu đã fetch hoặc đang fetch thì bỏ qua
     if (hasFetched.current || isFetching.current) {
       logger.log("⏭️ Skip fetchAssignments - already fetched or fetching");
       return;
@@ -88,7 +90,22 @@ export function useAssignments() {
 
       if (fetchError) throw fetchError;
 
-      setAssignments(data || []);
+      // ✅ Đếm submissions thực tế cho mỗi assignment
+      const assignmentsWithRealCount = await Promise.all(
+        (data || []).map(async (assignment) => {
+          const { count, error: countError } = await supabase
+            .from("submissions")
+            .select("*", { count: "exact", head: true })
+            .eq("assignment_id", assignment.id);
+
+          return {
+            ...assignment,
+            submissions: countError ? assignment.submissions : (count || 0),
+          };
+        })
+      );
+
+      setAssignments(assignmentsWithRealCount);
       hasFetched.current = true;
     } catch (error: any) {
       logger.error("Error fetching assignments:", error);
@@ -100,25 +117,21 @@ export function useAssignments() {
     }
   }, [session?.user?.id, toast]);
 
-  // ✅ Effect chỉ chạy 1 lần khi mount
   useEffect(() => {
-    // Reset state khi session thay đổi
     if (session?.user?.id) {
       hasFetched.current = false;
       isFetching.current = false;
       fetchAssignments();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [session?.user?.id]); // ✅ Chỉ phụ thuộc vào user id
+  }, [session?.user?.id]);
 
-  // ✅ Refresh - reset và fetch lại
   const refresh = useCallback(() => {
     hasFetched.current = false;
     isFetching.current = false;
     fetchAssignments();
   }, [fetchAssignments]);
 
-  // Lấy chi tiết bài tập
   const getAssignmentDetail = useCallback(
     async (id: string) => {
       try {
@@ -139,7 +152,6 @@ export function useAssignments() {
     [toast],
   );
 
-  // Lấy danh sách bài nộp
   const getAssignmentSubmissions = useCallback(
     async (assignmentId: string) => {
       try {
@@ -165,7 +177,6 @@ export function useAssignments() {
     [toast],
   );
 
-  // Tải file
   const downloadFile = useCallback(
     async (url: string, fileName: string) => {
       try {
@@ -188,9 +199,9 @@ export function useAssignments() {
     [toast],
   );
 
-  // Tạo bài tập
+  // ✅ Tạo bài tập - FIX LỖI INSERT
   const createAssignment = useCallback(
-    async (data: Partial<Assignment>) => {
+    async (data: Partial<Assignment> & { max_submissions?: number }) => {
       if (!session?.user) {
         toast.error("Vui lòng đăng nhập");
         return null;
@@ -202,6 +213,9 @@ export function useAssignments() {
           return null;
         }
 
+        console.log("📝 Creating assignment with data:", data);
+
+        // ✅ Build insert data
         const insertData: any = {
           title: data.title,
           description: data.description || "",
@@ -212,7 +226,7 @@ export function useAssignments() {
           submissions: 0,
           total_students: data.total_students || 0,
           points: data.points || 0,
-          attachments: 0,
+          attachments: data.attachments || 0,
           user_id: session.user.id,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
@@ -221,6 +235,12 @@ export function useAssignments() {
         if (data.attachment_urls && data.attachment_urls.length > 0) {
           insertData.attachment_urls = data.attachment_urls;
         }
+
+        if (data.max_submissions !== undefined && data.max_submissions > 0) {
+          insertData.max_submissions = data.max_submissions;
+        }
+
+        console.log("📝 Insert data:", insertData);
 
         const client = isServiceRoleEnabled ? supabaseAdmin : supabase;
 
@@ -232,18 +252,37 @@ export function useAssignments() {
 
         if (error) {
           logger.error("Insert error:", error);
+          console.error("❌ Full error:", error);
+
+          if (error.message?.includes("max_submissions")) {
+            console.log("🔄 Retry without max_submissions...");
+            delete insertData.max_submissions;
+
+            const { data: retryData, error: retryError } = await client
+              .from("assignments")
+              .insert(insertData)
+              .select()
+              .single();
+
+            if (retryError) throw retryError;
+
+            setAssignments((prev) => [retryData, ...prev]);
+            toast.success("Tạo bài tập thành công!");
+            refresh();
+            return retryData;
+          }
+
           throw error;
         }
 
         setAssignments((prev) => [newAssignment, ...prev]);
-        toast.success("Tạo bài tập thành công");
-
-        // ✅ Refresh để cập nhật danh sách
+        toast.success("Tạo bài tập thành công!");
         refresh();
 
         return newAssignment;
       } catch (error: any) {
         logger.error("Error creating assignment:", error);
+        console.error("❌ Error creating assignment:", error);
         toast.error(error.message || "Có lỗi xảy ra khi tạo bài tập");
         return null;
       }
@@ -251,7 +290,6 @@ export function useAssignments() {
     [session?.user, toast, refresh],
   );
 
-  // Upload file
   const uploadFile = useCallback(
     async (file: File, path: string): Promise<string | null> => {
       try {
@@ -269,7 +307,6 @@ export function useAssignments() {
         if (uploadError) {
           console.error("❌ Upload error:", uploadError);
 
-          // Thử lại với supabaseAdmin nếu đang dùng supabase thường
           if (client !== supabaseAdmin) {
             console.log("🔄 Retry with supabaseAdmin...");
             const { data: retryData, error: retryError } =
@@ -311,7 +348,6 @@ export function useAssignments() {
     [],
   );
 
-  // Upload nhiều file
   const uploadFiles = useCallback(
     async (files: File[], assignmentId: string): Promise<string[]> => {
       const urls: string[] = [];
@@ -338,7 +374,7 @@ export function useAssignments() {
     [uploadFile, toast],
   );
 
-  // Nộp bài tập
+  // ✅ Nộp bài tập
   const submitAssignment = useCallback(
     async (data: { assignment_id: string; file: File; user_id: string }) => {
       if (!session?.user) {
@@ -350,6 +386,34 @@ export function useAssignments() {
       try {
         const { assignment_id, file, user_id } = data;
 
+        // ✅ Kiểm tra đã nộp chưa
+        const { data: existing } = await supabase
+          .from("submissions")
+          .select("id")
+          .eq("assignment_id", assignment_id)
+          .eq("user_id", user_id)
+          .maybeSingle();
+
+        if (existing) {
+          toast.error("Bạn đã nộp bài tập này rồi");
+          return false;
+        }
+
+        // ✅ Kiểm tra giới hạn
+        const { data: assignment } = await supabase
+          .from("assignments")
+          .select("max_submissions, submissions")
+          .eq("id", assignment_id)
+          .single();
+
+        if (assignment?.max_submissions && assignment.max_submissions > 0) {
+          if (assignment.submissions >= assignment.max_submissions) {
+            toast.error("Số lượng sinh viên nộp bài đã đủ");
+            return false;
+          }
+        }
+
+        // ✅ Upload file
         const filePath = `assignments/${assignment_id}/submissions/${user_id}/${Date.now()}_${file.name}`;
         const fileUrl = await uploadFile(file, filePath);
 
@@ -357,6 +421,7 @@ export function useAssignments() {
           throw new Error("Không thể upload file");
         }
 
+        // ✅ Tạo submission - TRIGGER TỰ TĂNG COUNT
         const { error: submitError } = await supabase
           .from("submissions")
           .insert({
@@ -372,35 +437,24 @@ export function useAssignments() {
 
         if (submitError) throw submitError;
 
-        const { data: current } = await supabase
-          .from("assignments")
-          .select("submissions")
-          .eq("id", assignment_id)
-          .single();
+        // ✅ CẬP NHẬT COUNT THỦ CÔNG
+        // Đếm số submissions thực tế và cập nhật vào assignments
+        const { count: actualCount, error: countError } = await supabase
+          .from("submissions")
+          .select("*", { count: "exact", head: true })
+          .eq("assignment_id", assignment_id);
 
-        if (current) {
-          const newCount = (current.submissions || 0) + 1;
+        if (!countError && actualCount !== null) {
           await supabase
             .from("assignments")
             .update({
-              submissions: newCount,
-              status: "submitted",
+              submissions: actualCount,
               updated_at: new Date().toISOString(),
             })
             .eq("id", assignment_id);
         }
 
-        setAssignments((prev) =>
-          prev.map((a) =>
-            a.id === assignment_id
-              ? { ...a, status: "submitted", submissions: a.submissions + 1 }
-              : a,
-          ),
-        );
-
         toast.success("Nộp bài thành công!");
-
-        // ✅ Refresh để cập nhật danh sách
         refresh();
 
         return true;

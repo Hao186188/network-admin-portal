@@ -1,5 +1,4 @@
 // src/app/(routes)/documents/components/FileExplorer/FileGrid.tsx
-// FIXED: Thêm debug
 
 "use client";
 
@@ -11,12 +10,10 @@ export function FileGrid({
   items,
   onFolderClick,
   onDelete,
+  onRename,
   selectedItems,
   setSelectedItems,
 }: FileGridProps) {
-  // ✅ Debug
-  console.log("📊 FileGrid received items:", items.length);
-
   const handleSelect = (id: string, ctrlKey: boolean) => {
     if (ctrlKey) {
       setSelectedItems(
@@ -30,19 +27,12 @@ export function FileGrid({
   };
 
   if (items.length === 0) {
-    console.log("⚠️ FileGrid: No items to display");
     return (
       <div className="text-center py-16 text-white/40">
         <p>Thư mục trống</p>
       </div>
     );
   }
-
-  console.log("✅ FileGrid: Rendering", items.length, "items");
-  console.log(
-    "📋 Items:",
-    items.map((d) => ({ id: d.id, title: d.title })),
-  );
 
   return (
     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
@@ -57,6 +47,7 @@ export function FileGrid({
             item={item}
             onFolderClick={onFolderClick}
             onDelete={onDelete}
+            onRename={onRename}
             isSelected={selectedItems.includes(item.id)}
             onSelect={handleSelect}
           />

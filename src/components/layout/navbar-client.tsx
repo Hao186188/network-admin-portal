@@ -1,5 +1,5 @@
 // src/components/layout/navbar-client.tsx
-// Vai trò: Navbar Client - FIX TYPE
+// Vai trò: Navbar Client - HOÀN CHỈNH
 
 "use client";
 

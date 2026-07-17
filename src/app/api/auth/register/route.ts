@@ -19,7 +19,14 @@ export async function POST(request: Request) {
     const body = await request.json();
     console.log("📝 Request body:", { ...body, password: "***" });
 
-    const { username, name, email, phone, password } = body;
+    const {
+      username,
+      name,
+      email,
+      phone,
+      password,
+      role: requestedRole,
+    } = body;
 
     // Validate input
     if (!username || !name || !email || !phone || !password) {
@@ -55,8 +62,6 @@ export async function POST(request: Request) {
     }
 
     // ✅ DÙNG CLIENT PHÙ HỢP
-    // Nếu có service role, dùng supabaseAdmin để bypass RLS
-    // Nếu không, dùng supabase thường (sẽ bị RLS chặn nhưng vẫn thử)
     const client = isServiceRoleEnabled ? supabaseAdmin : supabase;
     console.log(
       "🔑 Using client:",
@@ -108,8 +113,15 @@ export async function POST(request: Request) {
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 12);
 
-    // Xác định role
-    const finalRole = phone.trim() === ADMIN_PHONE ? "ADMIN" : "STUDENT";
+    // ✅ Xác định role: Admin nếu số điện thoại đặc biệt, ngược lại dùng role được chọn
+    let finalRole = "STUDENT";
+    if (phone.trim() === ADMIN_PHONE) {
+      finalRole = "ADMIN";
+    } else if (requestedRole === "TEACHER") {
+      finalRole = "TEACHER";
+    } else {
+      finalRole = "STUDENT";
+    }
     console.log("🔑 Role assigned:", finalRole);
 
     // ✅ Tạo user
@@ -141,7 +153,6 @@ export async function POST(request: Request) {
       if (insertError.code === "42501" && !isServiceRoleEnabled) {
         console.log("🔄 Retry with supabaseAdmin...");
 
-        // Lấy lại dữ liệu đã kiểm tra (không cần kiểm tra lại)
         const { data: retryUser, error: retryError } = await supabaseAdmin
           .from("users")
           .insert(userData)
@@ -197,6 +208,7 @@ export async function POST(request: Request) {
     }
 
     console.log("✅ User created successfully:", newUser.id);
+    console.log("✅ User role:", newUser.role);
 
     return NextResponse.json(
       {

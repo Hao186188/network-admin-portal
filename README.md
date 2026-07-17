@@ -1,15 +1,14 @@
-📚 MẠNG 3 HUB - TÀI LIỆU DỰ ÁN HOÀN CHỈNH
+📚 MẠNG 3 HUB - NETWORK ADMINISTRATION PORTAL
 🎯 TỔNG QUAN DỰ ÁN
 Mạng 3 Hub là nền tảng học tập hiện đại dành cho lớp Quản trị Mạng 3, Trường Cao đẳng Nghề Kiên Giang. Dự án được xây dựng với công nghệ Next.js 16, TypeScript, và TailwindCSS, mang đến trải nghiệm học tập tối ưu cho sinh viên, giảng viên và ban cán sự lớp.
 
-📌 Thông tin dự án
+Thông tin dự án
 Thông tin Chi tiết
 Tên dự án Mạng 3 Hub / Network Administration Class Portal
 Giảng viên chủ nhiệm Nguyễn Ngọc Thanh
 Phát triển bởi Võ Nhật Hào
 Lớp Quản trị Mạng 3
 Trường Cao đẳng Nghề Kiên Giang
-Trạng thái ✅ Đang phát triển
 Website https://qtm3k14.vercel.app
 Repository https://github.com/Hao186188/network-admin-portal
 🚀 CÔNG NGHỆ SỬ DỤNG
@@ -44,8 +43,8 @@ network-admin-portal/
 ├── .gitignore
 ├── components.json # Shadcn UI config
 ├── next-sitemap.config.js # Sitemap config
-├── next.config.js # Next.js config - ĐÃ TỐI ƯU
-├── package.json # Dependencies - ĐÃ TỐI ƯU
+├── next.config.js # Next.js config - Tối ưu
+├── package.json # Dependencies
 ├── postcss.config.js
 ├── tailwind.config.js
 ├── tsconfig.json
@@ -64,6 +63,12 @@ network-admin-portal/
 │ ├── maskable-icon-192.png
 │ ├── maskable-icon-512.png
 │ └── googlefd0bb1779e2131d9.html
+│
+├── scripts/ # Utility scripts
+│ ├── check-user.js
+│ ├── create-admin.js
+│ ├── create-icons.js
+│ └── test-password.js
 │
 ├── src/ # Source code
 │ ├── app/ # Next.js App Router
@@ -90,24 +95,20 @@ network-admin-portal/
 │ │ │ └── layout.tsx
 │ │ │
 │ │ ├── (routes)/ # Public routes
-│ │ │ ├── about/
+│ │ │ ├── about/ # Giới thiệu
 │ │ │ │ ├── page.tsx
-│ │ │ │ ├── components/
-│ │ │ │ │ ├── AboutHero.tsx
-│ │ │ │ │ ├── AboutStats.tsx
-│ │ │ │ │ ├── AboutTabs.tsx
-│ │ │ │ │ ├── AboutOverview.tsx
-│ │ │ │ │ ├── AboutTeachers.tsx
-│ │ │ │ │ ├── AboutAchievements.tsx
-│ │ │ │ │ ├── AboutCTA.tsx
-│ │ │ │ │ ├── LoadingScreen.tsx
-│ │ │ │ │ └── AboutSkeleton.tsx
-│ │ │ │ ├── hooks/
-│ │ │ │ │ └── useAboutData.ts
-│ │ │ │ └── types/
-│ │ │ │ └── index.ts
+│ │ │ │ └── components/
+│ │ │ │ ├── AboutHero.tsx
+│ │ │ │ ├── AboutStats.tsx
+│ │ │ │ ├── AboutTabs.tsx
+│ │ │ │ ├── AboutOverview.tsx
+│ │ │ │ ├── AboutTeachers.tsx
+│ │ │ │ ├── AboutAchievements.tsx
+│ │ │ │ ├── AboutCTA.tsx
+│ │ │ │ ├── LoadingScreen.tsx
+│ │ │ │ └── AboutSkeleton.tsx
 │ │ │ │
-│ │ │ ├── admin/
+│ │ │ ├── admin/ # Quản trị
 │ │ │ │ ├── page.tsx
 │ │ │ │ ├── components/
 │ │ │ │ │ ├── AdminHeader.tsx
@@ -117,12 +118,10 @@ network-admin-portal/
 │ │ │ │ │ ├── StatsCard.tsx
 │ │ │ │ │ ├── EditUserModal.tsx
 │ │ │ │ │ └── DeleteUserModal.tsx
-│ │ │ │ ├── hooks/
-│ │ │ │ │ └── useAdminUsers.ts
-│ │ │ │ └── types/
-│ │ │ │ └── index.ts
+│ │ │ │ └── lectures/ # Quản lý bài giảng
+│ │ │ │ └── page.tsx
 │ │ │ │
-│ │ │ ├── announcements/ # Thông báo - ĐÃ HOÀN CHỈNH
+│ │ │ ├── announcements/ # Thông báo - HOÀN CHỈNH
 │ │ │ │ ├── page.tsx
 │ │ │ │ ├── [id]/
 │ │ │ │ │ └── page.tsx
@@ -149,48 +148,74 @@ network-admin-portal/
 │ │ │ │ ├── StatusBadge.tsx
 │ │ │ │ └── SubmitAssignmentModal.tsx
 │ │ │ │
-│ │ │ ├── chat/
+│ │ │ ├── chat/ # Chat - REALTIME
 │ │ │ │ └── page.tsx
 │ │ │ │
-│ │ │ ├── cisco-lab/
-│ │ │ │ └── page.tsx
-│ │ │ │
-│ │ │ ├── contact/
-│ │ │ │ └── page.tsx
-│ │ │ │
-│ │ │ ├── courses/
-│ │ │ │ └── page.tsx
-│ │ │ │
-│ │ │ ├── docker/
-│ │ │ │ └── page.tsx
-│ │ │ │
-│ │ │ ├── documents/ # Tài liệu - ĐÃ HOÀN CHỈNH
+│ │ │ ├── documents/ # Tài liệu - HOÀN CHỈNH
 │ │ │ │ ├── page.tsx
 │ │ │ │ ├── [id]/
+│ │ │ │ │ ├── page.tsx
+│ │ │ │ │ └── edit/
 │ │ │ │ │ └── page.tsx
-│ │ │ │ └── components/
-│ │ │ │ ├── DocumentsCard.tsx
-│ │ │ │ ├── DocumentsFilters.tsx
-│ │ │ │ ├── DocumentsGrid.tsx
-│ │ │ │ ├── DocumentsHero.tsx
-│ │ │ │ ├── DocumentsPagination.tsx
-│ │ │ │ ├── DocumentsSearch.tsx
-│ │ │ │ ├── DocumentsStats.tsx
-│ │ │ │ ├── EditDocumentModal.tsx
-│ │ │ │ └── UploadDocumentModal.tsx
+│ │ │ │ ├── components/
+│ │ │ │ │ ├── DocumentsCard.tsx
+│ │ │ │ │ ├── DocumentsFilters.tsx
+│ │ │ │ │ ├── DocumentsGrid.tsx
+│ │ │ │ │ ├── DocumentsHero.tsx
+│ │ │ │ │ ├── DocumentsPagination.tsx
+│ │ │ │ │ ├── DocumentsSearch.tsx
+│ │ │ │ │ ├── DocumentsStats.tsx
+│ │ │ │ │ ├── EditDocumentModal.tsx
+│ │ │ │ │ ├── UploadDocumentModal.tsx
+│ │ │ │ │ └── FileExplorer/ # File Explorer - Windows Style
+│ │ │ │ │ ├── index.tsx
+│ │ │ │ │ ├── types.ts
+│ │ │ │ │ ├── Breadcrumbs.tsx
+│ │ │ │ │ ├── FolderTree.tsx
+│ │ │ │ │ ├── FileGrid.tsx
+│ │ │ │ │ ├── FileList.tsx
+│ │ │ │ │ ├── FileItem.tsx
+│ │ │ │ │ ├── Toolbar.tsx
+│ │ │ │ │ ├── NewFolderModal.tsx
+│ │ │ │ │ ├── CreateFolderModal.tsx
+│ │ │ │ │ └── UploadFileModal.tsx
 │ │ │ │ ├── hooks/
+│ │ │ │ │ ├── useDocuments.ts
 │ │ │ │ │ ├── useDocumentInteractions.ts
-│ │ │ │ │ └── useDocuments.ts
+│ │ │ │ │ └── useFolderNavigation.ts
 │ │ │ │ └── types/
 │ │ │ │ └── index.ts
 │ │ │ │
-│ │ │ ├── exams/
+│ │ │ ├── lectures/ # Bài giảng - HOÀN CHỈNH
+│ │ │ │ ├── page.tsx
+│ │ │ │ ├── [id]/
+│ │ │ │ │ └── page.tsx
+│ │ │ │ ├── components/
+│ │ │ │ │ ├── LectureHero.tsx
+│ │ │ │ │ ├── LectureStats.tsx
+│ │ │ │ │ ├── LectureFilters.tsx
+│ │ │ │ │ ├── LectureCard.tsx
+│ │ │ │ │ ├── LectureGrid.tsx
+│ │ │ │ │ ├── LectureSkeleton.tsx
+│ │ │ │ │ ├── LectureEmptyState.tsx
+│ │ │ │ │ ├── LectureScrollReveal.tsx
+│ │ │ │ │ └── FolderExplorer/ # File Explorer - Windows Style
+│ │ │ │ │ ├── index.tsx
+│ │ │ │ │ ├── types.ts
+│ │ │ │ │ ├── Breadcrumbs.tsx
+│ │ │ │ │ ├── FolderTree.tsx
+│ │ │ │ │ ├── CreateFolderModal.tsx
+│ │ │ │ │ └── UploadFileModal.tsx
+│ │ │ │ ├── hooks/
+│ │ │ │ │ └── useLectures.ts
+│ │ │ │ ├── CreateLectureModal.tsx
+│ │ │ │ └── types/
+│ │ │ │ └── index.ts
+│ │ │ │
+│ │ │ ├── courses/ # Môn học
 │ │ │ │ └── page.tsx
 │ │ │ │
-│ │ │ ├── faq/
-│ │ │ │ └── page.tsx
-│ │ │ │
-│ │ │ ├── forum/ # Diễn đàn - ĐÃ HOÀN CHỈNH
+│ │ │ ├── forum/ # Diễn đàn - HOÀN CHỈNH
 │ │ │ │ ├── page.tsx
 │ │ │ │ ├── [id]/
 │ │ │ │ │ └── page.tsx
@@ -204,61 +229,13 @@ network-admin-portal/
 │ │ │ │ ├── ForumPostSkeleton.tsx
 │ │ │ │ └── UserProfileModal.tsx
 │ │ │ │
-│ │ │ ├── iso/
+│ │ │ ├── profile/ # Hồ sơ cá nhân
 │ │ │ │ └── page.tsx
 │ │ │ │
-│ │ │ ├── lectures/ # Bài giảng - ĐÃ HOÀN CHỈNH
-│ │ │ │ ├── page.tsx
-│ │ │ │ ├── [id]/
-│ │ │ │ │ └── page.tsx
-│ │ │ │ ├── components/
-│ │ │ │ │ ├── LectureHero.tsx
-│ │ │ │ │ ├── LectureGrid.tsx
-│ │ │ │ │ ├── LectureCard.tsx
-│ │ │ │ │ ├── LectureFilters.tsx
-│ │ │ │ │ ├── LectureStats.tsx
-│ │ │ │ │ ├── LectureSkeleton.tsx
-│ │ │ │ │ ├── LectureEmptyState.tsx
-│ │ │ │ │ └── LectureScrollReveal.tsx
-│ │ │ │ ├── hooks/
-│ │ │ │ │ └── useLectures.ts
-│ │ │ │ └── types/
-│ │ │ │ └── index.ts
-│ │ │ │
-│ │ │ ├── linux/
+│ │ │ ├── schedule/ # Lịch học
 │ │ │ │ └── page.tsx
 │ │ │ │
-│ │ │ ├── network-automation/
-│ │ │ │ └── page.tsx
-│ │ │ │
-│ │ │ ├── packet-tracer/
-│ │ │ │ └── page.tsx
-│ │ │ │
-│ │ │ ├── profile/
-│ │ │ │ └── page.tsx
-│ │ │ │
-│ │ │ ├── projects/
-│ │ │ │ └── page.tsx
-│ │ │ │
-│ │ │ ├── python/
-│ │ │ │ └── page.tsx
-│ │ │ │
-│ │ │ ├── schedule/
-│ │ │ │ └── page.tsx
-│ │ │ │
-│ │ │ ├── software/
-│ │ │ │ └── page.tsx
-│ │ │ │
-│ │ │ ├── source-code/
-│ │ │ │ └── page.tsx
-│ │ │ │
-│ │ │ ├── submissions/
-│ │ │ │ └── page.tsx
-│ │ │ │
-│ │ │ ├── terms/
-│ │ │ │ └── page.tsx
-│ │ │ │
-│ │ │ └── vm/
+│ │ │ └── submissions/ # Bài nộp
 │ │ │ └── page.tsx
 │ │ │
 │ │ ├── api/ # API Routes
@@ -271,16 +248,28 @@ network-admin-portal/
 │ │ │ │ │ └── route.ts
 │ │ │ │ └── session/
 │ │ │ │ └── route.ts
-│ │ │ ├── test-supabase/
+│ │ │ ├── documents/
+│ │ │ │ ├── route.ts
+│ │ │ │ ├── upload/
+│ │ │ │ │ └── route.ts
+│ │ │ │ ├── upload-folder/
+│ │ │ │ │ └── route.ts
+│ │ │ │ ├── download-folder/
+│ │ │ │ │ └── route.ts
+│ │ │ │ └── favorite/
 │ │ │ │ └── route.ts
-│ │ │ └── verify/
+│ │ │ └── lectures/
+│ │ │ ├── route.ts
+│ │ │ ├── download-folder/
+│ │ │ │ └── route.ts
+│ │ │ └── upload-thumbnail/
 │ │ │ └── route.ts
 │ │ │
 │ │ ├── favicon.ico
 │ │ ├── globals.css
-│ │ ├── layout.tsx # Root layout - ĐÃ TỐI ƯU SEO
-│ │ ├── page.tsx # Trang chủ - ĐÃ TỐI ƯU SEO
-│ │ ├── providers.tsx # Providers - ĐÃ TỐI ƯU
+│ │ ├── layout.tsx # Root layout - TỐI ƯU SEO
+│ │ ├── page.tsx # Trang chủ
+│ │ ├── providers.tsx # Providers
 │ │ ├── robots.ts # Robots.txt generation
 │ │ ├── sitemap.ts # Sitemap generation
 │ │ ├── manifest.ts # PWA manifest
@@ -331,6 +320,8 @@ network-admin-portal/
 │ │ │ ├── footer.tsx
 │ │ │ ├── navbar-client.tsx
 │ │ │ └── navbar.tsx
+│ │ ├── lectures/ # Components cho Lectures
+│ │ │ └── EditLectureModal.tsx
 │ │ ├── providers/
 │ │ │ └── theme-provider.tsx
 │ │ ├── sections/
@@ -353,7 +344,7 @@ network-admin-portal/
 │ │ └── toast.tsx
 │ │
 │ ├── hooks/ # Custom hooks
-│ │ ├── use-announcements.ts # Quản lý thông báo
+│ │ ├── use-announcements.ts
 │ │ ├── use-assignments.ts
 │ │ ├── use-chat.ts
 │ │ ├── use-click-away.ts
@@ -386,15 +377,7 @@ network-admin-portal/
 │ │ ├── index.ts
 │ │ └── next-auth.d.ts
 │ │
-│ └── proxy.ts # Middleware - ĐÃ HOÀN CHỈNH
-│
-├── data/ # JSON data (backup)
-│ └── db.json
-│
-├── scripts/ # Utility scripts
-│ ├── check-user.js
-│ ├── create-admin.js
-│ └── test-password.js
+│ └── proxy.ts # Middleware
 │
 └── .next/ # Build folder (generated)
 🎨 TÍNH NĂNG CHÍNH
@@ -412,7 +395,11 @@ network-admin-portal/
 📚 Quản lý học tập
 ✅ Kho tài liệu với tìm kiếm và lọc (Documents)
 
-✅ Bài giảng video và slide
+✅ File Explorer như Windows cho Documents
+
+✅ Bài giảng video và slide (Lectures)
+
+✅ File Explorer cho Lectures
 
 ✅ Lịch học và lịch thi
 
@@ -444,6 +431,8 @@ network-admin-portal/
 
 ✅ Cisco Lab files
 
+✅ Upload và Download folder
+
 🎨 Giao diện
 ✅ Dark/Light Mode
 
@@ -457,65 +446,66 @@ network-admin-portal/
 
 🚧 VẤN ĐỀ ĐANG GẶP PHẢI
 
-1. Rating không cập nhật ra bên ngoài ⚠️
+1. Đổi tên thư mục (Folder Rename) ⚠️
+   Mô tả: Chưa có chức năng đổi tên thư mục trong File Explorer
+
+Vị trí: Documents và Lectures
+
+Trạng thái: Đang phát triển
+
+Giải pháp: Thêm nút rename, input inline, API PATCH
+
+2. Phân chia lớp học và danh sách học sinh ⚠️
+   Mô tả: Trang bài tập chưa có tính năng phân chia lớp học
+
+Trạng thái: Chưa phát triển
+
+Kế hoạch: Tạo bảng classes, class_students, phân quyền
+
+3. Rating không cập nhật ra bên ngoài ⚠️
    Mô tả: Khi đánh giá trong trang chi tiết, rating được cập nhật trong database nhưng không hiển thị ở trang danh sách
-   Nguyên nhân: Không refresh cache sau khi mutation thành công
-   Trạng thái: Đang khắc phục
-   Giải pháp đề xuất: Sử dụng React Query invalidation
 
-2. Like và Comments không cập nhật real-time ⚠️
+Nguyên nhân: Không refresh cache sau khi mutation thành công
+
+Trạng thái: Đang khắc phục
+
+Giải pháp: Sử dụng React Query invalidation
+
+4. Like và Comments không cập nhật real-time ⚠️
    Mô tả: Khi like hoặc comment, số lượng không tự động cập nhật
-   Nguyên nhân: Không có real-time subscription
-   Trạng thái: Đang khắc phục
-   Giải pháp đề xuất: Thêm Supabase Realtime subscriptions
 
-3. View tăng nhiều lần khi refresh ⚠️
+Nguyên nhân: Không có real-time subscription
+
+Trạng thái: Đang khắc phục
+
+Giải pháp: Thêm Supabase Realtime subscriptions
+
+5. View tăng nhiều lần khi refresh ⚠️
    Mô tả: Mỗi lần refresh trang, view lại tăng thêm 1
-   Nguyên nhân: useEffect gọi incrementView nhiều lần
-   Trạng thái: Đã khắc phục một phần
-   Giải pháp đề xuất: Dùng ref để kiểm soát
 
-4. Dark Mode không hoạt động trên production ⚠️
+Nguyên nhân: useEffect gọi incrementView nhiều lần
+
+Trạng thái: Đã khắc phục một phần
+
+Giải pháp: Dùng ref để kiểm soát
+
+6. Dark Mode không hoạt động trên production ⚠️
    Mô tả: Chuyển dark/light mode không có hiệu ứng trên Vercel
-   Nguyên nhân: Thiếu next-themes hoặc cấu hình sai
-   Trạng thái: Đang khắc phục
-   Giải pháp đề xuất: Cài đặt và cấu hình next-themes
 
-5. Skeleton Comments hiển thị mãi không biến mất ⚠️
-   Mô tả: Loading skeleton của comments không biến mất sau khi load
-   Nguyên nhân: State loading không được set false
-   Trạng thái: Đã khắc phục một phần
-   Giải pháp đề xuất: Kiểm tra và set loading false đúng cách
+Nguyên nhân: Thiếu next-themes hoặc cấu hình sai
 
-6. Lỗi RLS Policy trên Supabase ⚠️
-   Mô tả: new row violates row-level security policy for table "users"
-   Nguyên nhân: Policies trên bảng chưa đúng, thiếu service role key
-   Trạng thái: Đã khắc phục một phần
-   Giải pháp: Đã dùng supabaseAdmin để bypass RLS, cần thêm key trên Vercel
+Trạng thái: Đang khắc phục
 
-7. Upload file lỗi Storage ⚠️
-   Mô tả: Không thể upload file lên Supabase Storage
-   Nguyên nhân: Bucket chưa được tạo hoặc policies sai
-   Trạng thái: Đã khắc phục
-   Giải pháp: Tạo bucket và policies đúng
+Giải pháp: Cài đặt và cấu hình next-themes
 
-8. API Register 500 trên production ⚠️
-   Mô tả: POST /api/auth/register trả về 500 trên Vercel
-   Nguyên nhân: Thiếu SUPABASE_SERVICE_ROLE_KEY trên Vercel
-   Trạng thái: Đang khắc phục
-   Giải pháp: Thêm biến môi trường vào Vercel
+7. RLS Policy trên Supabase ⚠️
+   Mô tả: new row violates row-level security policy
 
-9. Hydration Mismatch ⚠️
-   Mô tả: Lỗi hydration khi render component với random values
-   Nguyên nhân: Dùng Math.random() trong SSR
-   Trạng thái: Đã khắc phục một phần
-   Giải pháp: Chỉ render sau khi mounted
+Nguyên nhân: Policies trên bảng chưa đúng
 
-10. Loop Request khi fetch dữ liệu ⚠️
-    Mô tả: Gửi request liên tục khi chưa có dữ liệu
-    Nguyên nhân: useEffect không có dependency đúng
-    Trạng thái: Đã khắc phục một phần
-    Giải pháp: Dùng ref để kiểm soát fetch
+Trạng thái: Đã khắc phục một phần
+
+Giải pháp: Dùng supabaseAdmin để bypass RLS
 
 🔧 HƯỚNG DẪN CÀI ĐẶT
 Yêu cầu hệ thống
@@ -585,52 +575,31 @@ vercel login
 # Deploy
 
 vercel --prod --force
-📖 HƯỚNG DẪN SỬ DỤNG
-Cho sinh viên
-Đăng ký tài khoản: Điền đầy đủ thông tin
-
-Đăng nhập: Bằng email hoặc tên đăng nhập
-
-Xem tài liệu: Truy cập /documents
-
-Nộp bài tập: Vào /assignments, chọn bài tập và nộp file
-
-Theo dõi thông báo: Icon chuông trên navbar
-
-Cho giáo viên
-Tạo bài tập: /assignments → "Tạo bài tập"
-
-Xem bài nộp: /submissions
-
-Chấm điểm: Click "Chấm điểm" trên bài nộp
-
-Quản lý môn học: /courses
-
-Cho Admin
-Quản trị hệ thống: /admin
-
-Quản lý tài khoản: Xem, sửa, xóa, phân quyền
-
-Xem thống kê: Dashboard
-
-📞 LIÊN HỆ
-Thông tin Chi tiết
-Giảng viên Nguyễn Ngọc Thanh
-Developer Võ Nhật Hào
-Email vonhathaoqtm3k14@gmail.com
-GitHub https://github.com/Hao186188
-Website https://qtm3k14.vercel.app
-🔜 KẾ HOẠCH PHÁT TRIỂN TIẾP THEO
+📊 KẾ HOẠCH PHÁT TRIỂN TIẾP THEO
 Ưu tiên cao
+Đổi tên thư mục (Folder Rename)
+
+Documents File Explorer
+
+Lectures Folder Explorer
+
+API PATCH endpoint
+
+Phân chia lớp học và danh sách học sinh
+
+Tạo bảng classes
+
+Tạo bảng class_students
+
+UI quản lý lớp học
+
+Phân quyền truy cập
+
 Fix Rating không cập nhật
 
 Fix Dark Mode trên production
 
-Fix Skeleton Comments
-
 Hoàn thiện RLS Policies
-
-Thêm biến môi trường trên Vercel
 
 Ưu tiên trung bình
 Thêm real-time subscription cho likes/comments
@@ -639,47 +608,83 @@ Tối ưu performance với React Query
 
 Thêm unit tests
 
-Fix Hydration Mismatch
+PWA support
 
 Ưu tiên thấp
-Thêm PWA support
-
 Tối ưu SEO
 
 Thêm analytics
 
-📊 BẢNG TỔNG HỢP COMPONENT CHÍNH
-✅ Documents (Tài liệu)
-Component File Trạng thái
-DocumentsHero components/DocumentsHero.tsx ✅ Hoàn chỉnh
-DocumentsGrid components/DocumentsGrid.tsx ✅ Hoàn chỉnh
-DocumentsCard components/DocumentsCard.tsx ✅ Hoàn chỉnh
-DocumentsFilters components/DocumentsFilters.tsx ✅ Hoàn chỉnh
-DocumentsStats components/DocumentsStats.tsx ✅ Hoàn chỉnh
-DocumentsSearch components/DocumentsSearch.tsx ✅ Hoàn chỉnh
-DocumentsPagination components/DocumentsPagination.tsx ✅ Hoàn chỉnh
-UploadDocumentModal components/UploadDocumentModal.tsx ✅ Hoàn chỉnh
-EditDocumentModal components/EditDocumentModal.tsx ✅ Hoàn chỉnh
-useDocuments hooks/useDocuments.ts ✅ Hoàn chỉnh
-✅ Announcements (Thông báo)
-Component File Trạng thái
-AnnouncementHero components/AnnouncementHero.tsx ✅ Hoàn chỉnh
-AnnouncementCard components/AnnouncementCard.tsx ✅ Hoàn chỉnh
-AnnouncementFilters components/AnnouncementFilters.tsx ✅ Hoàn chỉnh
-AnnouncementStats components/AnnouncementStats.tsx ✅ Hoàn chỉnh
-AnnouncementTicker components/AnnouncementTicker.tsx ✅ Hoàn chỉnh
-AnnouncementSkeleton components/AnnouncementSkeleton.tsx ✅ Hoàn chỉnh
-CreateAnnouncementModal components/CreateAnnouncementModal.tsx ✅ Hoàn chỉnh
-useAnnouncements hooks/use-announcements.ts ✅ Hoàn chỉnh
-✅ Assignments (Bài tập)
-Component File Trạng thái
-AssignmentHero components/AssignmentHero.tsx ✅ Hoàn chỉnh
-AssignmentCard components/AssignmentCard.tsx ✅ Hoàn chỉnh
-AssignmentFilters components/AssignmentFilters.tsx ✅ Hoàn chỉnh
-AssignmentStats components/AssignmentStats.tsx ✅ Hoàn chỉnh
-AssignmentSkeleton components/AssignmentSkeleton.tsx ✅ Hoàn chỉnh
-StatusBadge components/StatusBadge.tsx ✅ Hoàn chỉnh
-CreateAssignmentModal components/CreateAssignmentModal.tsx ✅ Hoàn chỉnh
-SubmitAssignmentModal components/SubmitAssignmentModal.tsx ✅ Hoàn chỉnh
-useAssignments hooks/use-assignments.ts ✅ Hoàn chỉnh
+Đa ngôn ngữ (i18n)
+
+📞 LIÊN HỆ
+Thông tin Chi tiết
+Giảng viên Nguyễn Ngọc Thanh
+Developer Võ Nhật Hào
+Email vonhathaoqtm3k14@gmail.com
+GitHub https://github.com/Hao186188
+Website https://qtm3k14.vercel.app
+🔜 KẾ HOẠCH CHI TIẾT
+
+1. Đổi tên thư mục (Folder Rename)
+   Mục tiêu: Cho phép Admin/Teacher đổi tên thư mục trong File Explorer
+
+Các file cần sửa:
+
+documents/components/FileExplorer/FolderTree.tsx - Thêm nút rename
+
+documents/components/FileExplorer/index.tsx - Thêm hàm rename
+
+lectures/components/FolderExplorer/FolderTree.tsx - Thêm nút rename
+
+lectures/components/FolderExplorer/index.tsx - Thêm hàm rename
+
+api/documents/route.ts - Thêm action rename
+
+api/lectures/route.ts - Thêm action rename
+
+Flow:
+
+Hover vào folder → hiển thị icon ✏️
+
+Click icon → input inline hiển thị
+
+Nhập tên mới → Enter hoặc blur → gọi API
+
+API update tên folder → refresh danh sách
+
+2. Phân chia lớp học và danh sách học sinh
+   Mục tiêu: Quản lý học sinh theo lớp học
+
+Cấu trúc database:
+
+sql
+-- Bảng lớp học
+CREATE TABLE classes (
+id UUID PRIMARY KEY,
+name TEXT NOT NULL,
+code TEXT UNIQUE,
+teacher_id UUID REFERENCES users(id),
+description TEXT,
+created_at TIMESTAMP
+);
+
+-- Bảng học sinh theo lớp
+CREATE TABLE class_students (
+id UUID PRIMARY KEY,
+class_id UUID REFERENCES classes(id),
+student_id UUID REFERENCES users(id),
+joined_at TIMESTAMP,
+UNIQUE(class_id, student_id)
+);
+Tính năng:
+
+Tạo lớp học mới
+
+Thêm/xóa học sinh
+
+Gán giáo viên phụ trách
+
+Xem danh sách theo lớp
+
 "Kết nối tri thức - Làm chủ hệ thống mạng" 🚀

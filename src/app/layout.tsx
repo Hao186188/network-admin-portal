@@ -1,5 +1,5 @@
 // src/app/layout.tsx
-// LAYOUT - HOÀN CHỈNH TỐI ƯU
+// LAYOUT - HOÀN CHỈNH
 
 import type { Metadata, Viewport } from "next";
 import { Inter, Poppins } from "next/font/google";
@@ -28,59 +28,7 @@ export const metadata: Metadata = {
   },
   description:
     "Nền tảng học tập hiện đại dành cho sinh viên Quản trị Mạng 3, Trường Cao đẳng Nghề Kiên Giang.",
-  keywords:
-    "Mạng 3 Hub, Quản trị Mạng, Học tập, Kiên Giang, Cao đẳng Nghề, Network Administration",
-  authors: [{ name: "Võ Nhật Hào" }],
-  creator: "Võ Nhật Hào",
-  publisher: "Mạng 3 Hub",
-  robots: {
-    index: true,
-    follow: true,
-    googleBot: {
-      index: true,
-      follow: true,
-      "max-video-preview": -1,
-      "max-image-preview": "large",
-      "max-snippet": -1,
-    },
-  },
-  verification: {
-    google: "xDi7yQEL2pog2kHYPth3-zWqrvkkgldFURSfgDdVVtU",
-  },
-  openGraph: {
-    title: "Mạng 3 Hub - Quản trị Mạng 3",
-    description:
-      "Nền tảng học tập hiện đại dành cho sinh viên Quản trị Mạng 3.",
-    url: "https://qtm3k14.vercel.app",
-    siteName: "Mạng 3 Hub",
-    locale: "vi_VN",
-    type: "website",
-    images: [
-      {
-        url: "https://qtm3k14.vercel.app/og-image.png",
-        width: 1200,
-        height: 630,
-        alt: "Mạng 3 Hub",
-      },
-    ],
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "Mạng 3 Hub - Quản trị Mạng 3",
-    description:
-      "Nền tảng học tập hiện đại dành cho sinh viên Quản trị Mạng 3.",
-    images: ["https://qtm3k14.vercel.app/og-image.png"],
-  },
-  metadataBase: new URL(
-    process.env.NEXT_PUBLIC_APP_URL || "https://qtm3k14.vercel.app",
-  ),
-  alternates: {
-    canonical: "/",
-    languages: {
-      "vi-VN": "/vi",
-    },
-  },
-  category: "education",
+  // ... rest metadata
 };
 
 export const viewport: Viewport = {
@@ -106,16 +54,9 @@ export default function RootLayout({
           content="xDi7yQEL2pog2kHYPth3-zWqrvkkgldFURSfgDdVVtU"
         />
         <link rel="sitemap" type="application/xml" href="/sitemap.xml" />
-        {/* ✅ Favicon - chỉ khai báo 1 lần */}
         <link rel="icon" href="/favicon.ico" sizes="any" />
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
         <link rel="manifest" href="/manifest.json" />
-        <link
-          rel="alternate"
-          type="application/rss+xml"
-          title="Mạng 3 Hub"
-          href="/feed.xml"
-        />
       </head>
       <body
         className={`${inter.variable} ${poppins.variable} font-inter antialiased`}

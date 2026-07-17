@@ -1,8 +1,11 @@
 // next.config.js
-// HOÀN CHỈNH - TĂNG GIỚI HẠN UPLOAD
+// HOÀN CHỈNH - THÊM allowedDevOrigins CHO IP
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // ✅ ALLOWED DEV ORIGINS - QUAN TRỌNG CHO IP
+  allowedDevOrigins: ["192.168.1.52", "localhost", "127.0.0.1"],
+
   // ✅ Images
   images: {
     remotePatterns: [
@@ -32,16 +35,23 @@ const nextConfig = {
       },
     ],
     formats: ["image/avif", "image/webp"],
+    deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
+    imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
   },
 
   // ✅ Experimental - TĂNG GIỚI HẠN
   experimental: {
     serverActions: {
-      allowedOrigins: ["localhost:3000", "qtm3k14.vercel.app"],
+      allowedOrigins: [
+        "localhost:3000",
+        "192.168.1.52:3000",
+        "qtm3k14.vercel.app",
+      ],
       bodySizeLimit: "10mb",
     },
     optimizeCss: true,
     scrollRestoration: true,
+    webpackMemoryOptimizations: true,
   },
 
   // ✅ Turbopack config
@@ -81,6 +91,23 @@ const nextConfig = {
             key: "Referrer-Policy",
             value: "strict-origin-when-cross-origin",
           },
+          {
+            key: "Permissions-Policy",
+            value: "camera=(), microphone=(), geolocation=()",
+          },
+          // ✅ CORS HEADERS
+          {
+            key: "Access-Control-Allow-Origin",
+            value: "*",
+          },
+          {
+            key: "Access-Control-Allow-Methods",
+            value: "GET, POST, PUT, DELETE, OPTIONS",
+          },
+          {
+            key: "Access-Control-Allow-Headers",
+            value: "Content-Type, Authorization",
+          },
         ],
       },
       {
@@ -101,6 +128,28 @@ const nextConfig = {
           },
         ],
       },
+      {
+        source: "/api/(.*)",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "no-cache, no-store, must-revalidate",
+          },
+          // ✅ CORS CHO API
+          {
+            key: "Access-Control-Allow-Origin",
+            value: "*",
+          },
+          {
+            key: "Access-Control-Allow-Methods",
+            value: "GET, POST, PUT, DELETE, OPTIONS",
+          },
+          {
+            key: "Access-Control-Allow-Headers",
+            value: "Content-Type, Authorization",
+          },
+        ],
+      },
     ];
   },
 
@@ -112,7 +161,32 @@ const nextConfig = {
         destination: "/",
         permanent: true,
       },
+      {
+        source: "/old-documents",
+        destination: "/documents",
+        permanent: true,
+      },
     ];
+  },
+
+  // ✅ Rewrites (nếu cần)
+  async rewrites() {
+    return [
+      // Không có rewrite nào
+    ];
+  },
+
+  // ✅ Webpack config
+  webpack: (config, { isServer }) => {
+    if (!isServer) {
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        fs: false,
+        net: false,
+        tls: false,
+      };
+    }
+    return config;
   },
 };
 

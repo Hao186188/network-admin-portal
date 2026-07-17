@@ -1,21 +1,21 @@
 // src/app/(routes)/lectures/components/FolderExplorer/FolderBreadcrumbs.tsx
-// BREADCRUMBS CHO LECTURES FOLDER
+// BREADCRUMBS CHO LECTURES FOLDER - HOÀN CHỈNH
 
 "use client";
 
 import { cn } from "@/lib/utils";
 import { ChevronRight, Folder, FolderOpen, Home } from "lucide-react";
-import { FolderBreadcrumbsProps } from "./types";
+import { BreadcrumbItem, FolderBreadcrumbsProps } from "./types";
 
 export function FolderBreadcrumbs({
   items,
   onNavigate,
 }: FolderBreadcrumbsProps) {
-  if (items.length === 0) return null;
+  if (!items || items.length === 0) return null;
 
   return (
     <div className="flex items-center gap-1 px-4 py-2.5 border-b border-white/5 bg-black/20 overflow-x-auto hide-scrollbar rounded-t-xl">
-      {items.map((item, index) => {
+      {items.map((item: BreadcrumbItem, index: number) => {
         const isLast = index === items.length - 1;
         const isRoot = item.id === null;
 

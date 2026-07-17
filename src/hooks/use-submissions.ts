@@ -160,6 +160,13 @@ export function useSubmissions() {
     id: string,
   ): Promise<{ success: boolean; error?: string }> => {
     try {
+      // ✅ Lấy assignment_id trước khi xóa
+      const { data: submission } = await supabase
+        .from("submissions")
+        .select("assignment_id")
+        .eq("id", id)
+        .single();
+
       const { error: deleteError } = await supabase
         .from("submissions")
         .delete()
@@ -168,6 +175,24 @@ export function useSubmissions() {
       if (deleteError) {
         console.error("Delete error:", deleteError);
         return { success: false, error: deleteError.message };
+      }
+
+      // ✅ Cập nhật count sau khi xóa
+      if (submission?.assignment_id) {
+        const { count: actualCount, error: countError } = await supabase
+          .from("submissions")
+          .select("*", { count: "exact", head: true })
+          .eq("assignment_id", submission.assignment_id);
+
+        if (!countError && actualCount !== null) {
+          await supabase
+            .from("assignments")
+            .update({
+              submissions: actualCount,
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", submission.assignment_id);
+        }
       }
 
       setSubmissions((prev) => prev.filter((sub) => sub.id !== id));

@@ -1,10 +1,11 @@
 // src/app/(auth)/register/hooks/useRegister.ts
-// Vai trò: Hook xử lý logic đăng ký
+// Vai trò: Hook xử lý logic đăng ký - FIX SESSION
 
 "use client";
 
 import { useToast } from "@/hooks/use-toast";
 import axios from "axios";
+import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
@@ -21,6 +22,7 @@ export interface RegisterFormData {
 export function useRegister() {
   const router = useRouter();
   const { toast } = useToast();
+  const { update } = useSession(); // ✅ Thêm update
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -112,14 +114,24 @@ export function useRegister() {
       });
 
       if (response.status === 201) {
-        toast.success(
-          isAdminPhone
-            ? "🎉 Đăng ký thành công! Bạn được cấp quyền Admin."
-            : "Đăng ký thành công! Vui lòng đăng nhập",
-        );
-        router.push("/login");
+        const roleMessage = isAdminPhone
+          ? "🎉 Đăng ký thành công! Bạn được cấp quyền Admin."
+          : finalRole === "TEACHER"
+            ? "👨‍🏫 Đăng ký thành công! Bạn được cấp quyền Giáo viên."
+            : "Đăng ký thành công! Vui lòng đăng nhập";
+
+        toast.success(roleMessage);
+
+        // ✅ Nếu đã đăng nhập, update session để nhận role mới
+        await update();
+
+        // ✅ Chuyển hướng đến login
+        setTimeout(() => {
+          router.push("/login");
+        }, 1000);
       }
     } catch (error: any) {
+      console.error("❌ Register error:", error);
       toast.error(error.response?.data?.message || "Có lỗi xảy ra khi đăng ký");
     } finally {
       setIsLoading(false);

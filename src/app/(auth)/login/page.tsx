@@ -1,5 +1,5 @@
 // src/app/(auth)/login/page.tsx
-// Vai trò: Trang đăng nhập - FIX AUTO LOGIN
+// Vai trò: Trang đăng nhập - FIX AUTO LOGIN & UPDATE SESSION
 
 "use client";
 
@@ -26,7 +26,7 @@ export default function LoginPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { toast } = useToast();
-  const { data: session, status } = useSession();
+  const { data: session, status, update } = useSession(); // ✅ THÊM update
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [loginType, setLoginType] = useState<"email" | "username">("email");
@@ -83,9 +83,29 @@ export default function LoginPage() {
       }
 
       if (result?.ok) {
+        // ✅ QUAN TRỌNG: Update session để lấy role mới nhất
+        console.log("🔄 Updating session after login...");
+        const updatedSession = await update();
+        console.log("✅ Session updated:", {
+          role: updatedSession?.user?.role,
+          name: updatedSession?.user?.name,
+        });
+
         toast.success("Đăng nhập thành công!");
         sessionStorage.removeItem("isLoggingOut");
-        window.location.href = callbackUrl;
+
+        // ✅ Redirect dựa trên role
+        const role = updatedSession?.user?.role?.toUpperCase() || "STUDENT";
+        let redirectUrl = callbackUrl;
+
+        if (role === "ADMIN" && callbackUrl === "/dashboard") {
+          redirectUrl = "/admin";
+        } else if (role === "TEACHER" && callbackUrl === "/dashboard") {
+          redirectUrl = "/dashboard";
+        }
+
+        console.log(`🔀 Redirecting to: ${redirectUrl} (Role: ${role})`);
+        window.location.href = redirectUrl;
       } else {
         toast.error("Đăng nhập thất bại, vui lòng thử lại");
       }

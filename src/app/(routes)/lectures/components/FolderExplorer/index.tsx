@@ -1,13 +1,23 @@
 // src/app/(routes)/lectures/components/FolderExplorer/index.tsx
-// CẬP NHẬT - THÊM XÓA VÀ TẢI FOLDER
+// HOÀN CHỈNH - NHẬN PROPS TỪ PAGE
 
 "use client";
 
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Lecture } from "@/types";
-import { Folder, FolderPlus, Loader2, Upload } from "lucide-react";
+import { Eye, Folder, FolderPlus, Loader2, Upload } from "lucide-react";
 import { useSession } from "next-auth/react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { CreateFolderModal } from "./CreateFolderModal";
 import { FolderBreadcrumbs } from "./FolderBreadcrumbs";
@@ -20,8 +30,10 @@ export function FolderExplorer({
   onNavigate,
   onLectureClick,
   onRefresh,
+  userRole: propUserRole,
+  canManage: propCanManage,
 }: FolderExplorerProps) {
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
   const [loading, setLoading] = useState(true);
   const [allLectures, setAllLectures] = useState<Lecture[]>([]);
   const [currentFolderId, setCurrentFolderId] = useState<string | null>(
@@ -36,14 +48,75 @@ export function FolderExplorer({
   const [isCreating, setIsCreating] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
 
-  const canView =
-    session?.user?.role === "ADMIN" || session?.user?.role === "TEACHER";
+  // ✅ State cho confirm dialog
+  const [confirmDialog, setConfirmDialog] = useState<{
+    isOpen: boolean;
+    title: string;
+    description: string;
+    onConfirm: () => void;
+    isLoading?: boolean;
+  }>({
+    isOpen: false,
+    title: "",
+    description: "",
+    onConfirm: () => {},
+    isLoading: false,
+  });
 
-  // 📂 Lấy tất cả bài giảng
+  // ✅ Refs để kiểm soát
+  const fetchInProgressRef = useRef(false);
+  const hasFetchedRef = useRef(false);
+  const isMountedRef = useRef(true);
+  const initDoneRef = useRef(false);
+
+  // ✅ ƯU TIÊN DÙNG PROPS TỪ PAGE, FALLBACK TỪ SESSION
+  const sessionRole = session?.user?.role?.toUpperCase() || "STUDENT";
+  const userRole = propUserRole || sessionRole;
+  const canManage =
+    propCanManage !== undefined
+      ? propCanManage
+      : userRole === "ADMIN" || userRole === "TEACHER";
+
+  const isAdmin = userRole === "ADMIN";
+  const isTeacher = userRole === "TEACHER";
+  const isStudent = userRole === "STUDENT";
+
+  // ✅ Quyền
+  const canView = isAdmin || isTeacher || isStudent;
+  const canDelete = canManage;
+  const canUpload = canManage;
+  const canCreateFolder = canManage;
+  const canRename = canManage;
+
+  // ✅ Debug - CHỈ 1 LẦN
+  useEffect(() => {
+    if (!initDoneRef.current) {
+      console.log(
+        "🔍 [FolderExplorer] Role:",
+        userRole,
+        "canManage:",
+        canManage,
+      );
+      initDoneRef.current = true;
+    }
+  }, [userRole, canManage]);
+
+  // 📂 Lấy tất cả bài giảng - CHỈ 1 LẦN
   const fetchAllLectures = useCallback(async () => {
+    if (fetchInProgressRef.current || hasFetchedRef.current) {
+      return;
+    }
+
+    if (!canView) {
+      setLoading(false);
+      return;
+    }
+
+    fetchInProgressRef.current = true;
     setLoading(true);
+
     try {
-      console.log("🔍 FolderExplorer: Fetching lectures from API...");
+      console.log("🔍 [FolderExplorer] Fetching lectures...");
       const response = await fetch("/api/lectures");
       const data = await response.json();
 
@@ -51,19 +124,29 @@ export function FolderExplorer({
         throw new Error(data.error || "Không thể tải dữ liệu");
       }
 
-      console.log(`📂 FolderExplorer: Fetched ${data?.length || 0} lectures`);
-      setAllLectures(data || []);
+      console.log(`📂 [FolderExplorer] Fetched ${data?.length || 0} lectures`);
+
+      if (isMountedRef.current) {
+        setAllLectures(data || []);
+        hasFetchedRef.current = true;
+      }
     } catch (error: any) {
-      console.error("Error fetching lectures:", error);
+      console.error("❌ [FolderExplorer] Error:", error);
       toast.error("Không thể tải danh sách");
     } finally {
-      setLoading(false);
+      if (isMountedRef.current) {
+        setLoading(false);
+      }
+      fetchInProgressRef.current = false;
     }
-  }, []);
+  }, [canView]);
 
   // 📂 Tạo cây thư mục
   useEffect(() => {
-    console.log(`📂 Building folder tree from ${allLectures.length} items`);
+    if (allLectures.length === 0) {
+      setFolders([]);
+      return;
+    }
 
     const rootFolders: FolderNode[] = [];
     const folderMap = new Map<string, FolderNode>();
@@ -117,6 +200,7 @@ export function FolderExplorer({
         title: "Chưa phân loại",
         type: "folder",
         children: [],
+        isVirtual: true,
       };
 
       filesWithoutFolder.forEach((lecture) => {
@@ -135,9 +219,15 @@ export function FolderExplorer({
     setFolders(rootFolders);
   }, [allLectures]);
 
-  const displayNodes = (() => {
+  // Lấy nodes hiển thị
+  const displayNodes = useCallback(() => {
     if (!currentFolderId) {
       return folders;
+    }
+
+    if (currentFolderId === "uncategorized") {
+      const virtualFolder = folders.find((f) => f.id === "uncategorized");
+      return virtualFolder?.children || [];
     }
 
     const findFolder = (nodes: FolderNode[]): FolderNode | null => {
@@ -153,17 +243,75 @@ export function FolderExplorer({
 
     const folder = findFolder(folders);
     return folder?.children || [];
-  })();
+  }, [folders, currentFolderId]);
 
+  // ✅ CHỈ FETCH 1 LẦN
   useEffect(() => {
-    if (canView) {
+    isMountedRef.current = true;
+
+    if (canView && !hasFetchedRef.current) {
       fetchAllLectures();
     }
-  }, [canView, fetchAllLectures]);
+
+    return () => {
+      isMountedRef.current = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // ✅ RENAME FOLDER
+  const handleRenameFolder = useCallback(
+    async (node: FolderNode, newTitle: string) => {
+      if (!canRename) {
+        toast.error("Bạn không có quyền đổi tên thư mục");
+        return;
+      }
+      if (!session?.user?.id) {
+        toast.error("Vui lòng đăng nhập");
+        return;
+      }
+      if (node.isVirtual || node.id === "uncategorized") {
+        toast.error("Không thể đổi tên thư mục này");
+        return;
+      }
+
+      const isOwner = node.lecture?.teacher_id === session.user.id;
+      if (!isAdmin && !isOwner) {
+        toast.error("Bạn không có quyền đổi tên thư mục này");
+        return;
+      }
+
+      try {
+        const response = await fetch(`/api/lectures?id=${node.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ title: newTitle.trim() }),
+        });
+
+        const data = await response.json();
+        if (!response.ok) {
+          throw new Error(data.error || "Không thể đổi tên thư mục");
+        }
+
+        toast.success(`Đã đổi tên thành "${newTitle}"`);
+        hasFetchedRef.current = false;
+        await fetchAllLectures();
+        if (onRefresh) onRefresh();
+      } catch (error: any) {
+        console.error("❌ [FolderExplorer] Error renaming folder:", error);
+        toast.error(error.message || "Không thể đổi tên thư mục");
+      }
+    },
+    [session, canRename, isAdmin, fetchAllLectures, onRefresh],
+  );
 
   // ➕ Tạo folder
   const handleCreateFolder = useCallback(
     async (title: string) => {
+      if (!canCreateFolder) {
+        toast.error("Bạn không có quyền tạo thư mục");
+        return;
+      }
       if (!session?.user?.id) {
         toast.error("Vui lòng đăng nhập");
         return;
@@ -174,7 +322,7 @@ export function FolderExplorer({
         const formData = new FormData();
         formData.append("isFolder", "true");
         formData.append("title", title.trim());
-        if (currentFolderId) {
+        if (currentFolderId && currentFolderId !== "uncategorized") {
           formData.append("parentId", currentFolderId);
         }
 
@@ -184,72 +332,129 @@ export function FolderExplorer({
         });
 
         const data = await response.json();
-
         if (!response.ok) {
           throw new Error(data.error || "Không thể tạo thư mục");
         }
 
         toast.success(`Đã tạo thư mục "${title}"`);
+        hasFetchedRef.current = false;
         await fetchAllLectures();
         if (onRefresh) onRefresh();
       } catch (error: any) {
-        console.error("Error creating folder:", error);
+        console.error("❌ [FolderExplorer] Error creating folder:", error);
         toast.error(error.message || "Không thể tạo thư mục");
       } finally {
         setIsCreating(false);
       }
     },
-    [session, fetchAllLectures, onRefresh, currentFolderId],
+    [session, canCreateFolder, fetchAllLectures, onRefresh, currentFolderId],
   );
 
   // 🗑️ Xóa folder
   const handleDeleteFolder = useCallback(
-    async (node: FolderNode) => {
-      if (!session?.user?.id) {
-        toast.error("Vui lòng đăng nhập");
+    (node: FolderNode) => {
+      if (!canDelete) {
+        toast.error("Bạn không có quyền xóa");
+        return;
+      }
+      if (node.isVirtual || node.id === "uncategorized") {
+        toast.error("Không thể xóa thư mục này");
         return;
       }
 
-      if (
-        !confirm(
-          `Bạn có chắc muốn xóa thư mục "${node.title}" và tất cả nội dung bên trong?`,
-        )
-      ) {
-        return;
-      }
+      setConfirmDialog({
+        isOpen: true,
+        title: `Xóa thư mục "${node.title}"`,
+        description: `Bạn có chắc chắn muốn xóa thư mục "${node.title}" và tất cả nội dung bên trong? Hành động này không thể hoàn tác.`,
+        onConfirm: async () => {
+          setConfirmDialog((prev) => ({ ...prev, isLoading: true }));
+          try {
+            const response = await fetch(`/api/lectures?id=${node.id}`, {
+              method: "DELETE",
+            });
 
-      try {
-        const response = await fetch(`/api/lectures?id=${node.id}`, {
-          method: "DELETE",
-        });
+            const data = await response.json();
+            if (!response.ok) {
+              throw new Error(data.error || "Không thể xóa thư mục");
+            }
 
-        const data = await response.json();
+            toast.success(`Đã xóa thư mục "${node.title}"`);
+            hasFetchedRef.current = false;
+            await fetchAllLectures();
+            if (onRefresh) onRefresh();
 
-        if (!response.ok) {
-          throw new Error(data.error || "Không thể xóa thư mục");
-        }
-
-        toast.success(`Đã xóa thư mục "${node.title}"`);
-        await fetchAllLectures();
-        if (onRefresh) onRefresh();
-
-        // Nếu đang ở trong folder bị xóa, quay về root
-        if (currentFolderId === node.id) {
-          navigateToFolder(null);
-        }
-      } catch (error: any) {
-        console.error("Error deleting folder:", error);
-        toast.error(error.message || "Không thể xóa thư mục");
-      }
+            if (currentFolderId === node.id) {
+              navigateToFolder(null);
+            }
+          } catch (error: any) {
+            console.error("❌ [FolderExplorer] Error deleting folder:", error);
+            toast.error(error.message || "Không thể xóa thư mục");
+          } finally {
+            setConfirmDialog((prev) => ({
+              ...prev,
+              isOpen: false,
+              isLoading: false,
+            }));
+          }
+        },
+      });
     },
-    [session, fetchAllLectures, onRefresh, currentFolderId],
+    [canDelete, fetchAllLectures, onRefresh, currentFolderId],
+  );
+
+  // 🗑️ Xóa file
+  const handleDeleteFile = useCallback(
+    (node: FolderNode) => {
+      if (!canDelete) {
+        toast.error("Bạn không có quyền xóa");
+        return;
+      }
+
+      setConfirmDialog({
+        isOpen: true,
+        title: `Xóa file "${node.title}"`,
+        description: `Bạn có chắc chắn muốn xóa file "${node.title}"? Hành động này không thể hoàn tác.`,
+        onConfirm: async () => {
+          setConfirmDialog((prev) => ({ ...prev, isLoading: true }));
+          try {
+            const response = await fetch(`/api/lectures?id=${node.id}`, {
+              method: "DELETE",
+            });
+
+            const data = await response.json();
+            if (!response.ok) {
+              throw new Error(data.error || "Không thể xóa file");
+            }
+
+            toast.success(`Đã xóa file "${node.title}"`);
+            hasFetchedRef.current = false;
+            await fetchAllLectures();
+            if (onRefresh) onRefresh();
+          } catch (error: any) {
+            console.error("❌ [FolderExplorer] Error deleting file:", error);
+            toast.error(error.message || "Không thể xóa file");
+          } finally {
+            setConfirmDialog((prev) => ({
+              ...prev,
+              isOpen: false,
+              isLoading: false,
+            }));
+          }
+        },
+      });
+    },
+    [canDelete, fetchAllLectures, onRefresh],
   );
 
   // 📤 Tải xuống folder
   const handleDownloadFolder = useCallback(async (node: FolderNode) => {
+    if (node.isVirtual || node.id === "uncategorized") {
+      toast.error("Không thể tải thư mục này");
+      return;
+    }
+
     try {
       const toastId = toast.loading(`Đang nén thư mục "${node.title}"...`);
-
       const response = await fetch(
         `/api/lectures/download-folder?folderId=${node.id}`,
       );
@@ -271,7 +476,7 @@ export function FolderExplorer({
 
       toast.success(`Đã tải xuống thư mục "${node.title}"`, { id: toastId });
     } catch (error: any) {
-      console.error("Error downloading folder:", error);
+      console.error("❌ [FolderExplorer] Error downloading folder:", error);
       toast.error(error.message || "Không thể tải thư mục");
     }
   }, []);
@@ -279,6 +484,10 @@ export function FolderExplorer({
   // 📤 Upload file
   const handleUploadFiles = useCallback(
     async (files: FileList) => {
+      if (!canUpload) {
+        toast.error("Bạn không có quyền tải lên file");
+        return;
+      }
       if (!session?.user?.id) {
         toast.error("Vui lòng đăng nhập");
         return;
@@ -299,7 +508,7 @@ export function FolderExplorer({
           formData.append("teacher", session.user.name || "Giảng viên");
           formData.append("subject", "Chưa phân loại");
           formData.append("tags", JSON.stringify([]));
-          if (currentFolderId) {
+          if (currentFolderId && currentFolderId !== "uncategorized") {
             formData.append("parentId", currentFolderId);
           }
 
@@ -322,16 +531,15 @@ export function FolderExplorer({
         } else {
           toast.warning(
             `Tải lên: ${successCount} thành công, ${failCount} thất bại`,
-            {
-              id: toastId,
-            },
+            { id: toastId },
           );
         }
 
+        hasFetchedRef.current = false;
         await fetchAllLectures();
         if (onRefresh) onRefresh();
       } catch (error: any) {
-        console.error("Upload error:", error);
+        console.error("❌ [FolderExplorer] Upload error:", error);
         toast.error(error.message || "Có lỗi xảy ra khi tải lên", {
           id: toastId,
         });
@@ -339,7 +547,7 @@ export function FolderExplorer({
         setIsUploading(false);
       }
     },
-    [session, fetchAllLectures, onRefresh, currentFolderId],
+    [session, canUpload, fetchAllLectures, onRefresh, currentFolderId],
   );
 
   // 🧭 Điều hướng
@@ -352,6 +560,19 @@ export function FolderExplorer({
           { id: null, title: "📁 Thư viện bài giảng", path: [] },
         ]);
         if (onNavigate) onNavigate(null);
+        return;
+      }
+
+      if (folderId === "uncategorized") {
+        setBreadcrumbs([
+          { id: null, title: "📁 Thư viện bài giảng", path: [] },
+          {
+            id: "uncategorized",
+            title: "Chưa phân loại",
+            path: ["Chưa phân loại"],
+          },
+        ]);
+        if (onNavigate) onNavigate(folderId);
         return;
       }
 
@@ -403,51 +624,67 @@ export function FolderExplorer({
     [onLectureClick],
   );
 
+  const currentDisplayNodes = displayNodes();
+
   if (!canView) return null;
 
   return (
-    <>
+    <div>
       <div className="bg-black/20 backdrop-blur-sm rounded-2xl border border-white/5 overflow-hidden">
-        <div className="flex flex-wrap items-center gap-2 p-3 border-b border-white/5 bg-black/40">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="gap-2 text-white/70 hover:text-white hover:bg-white/5"
-            onClick={() => setIsCreateFolderOpen(true)}
-            disabled={isCreating}
-          >
-            <FolderPlus className="w-4 h-4" />
-            <span className="hidden sm:inline">Thư mục mới</span>
-          </Button>
+        {canManage && (
+          <div className="flex flex-wrap items-center gap-2 p-3 border-b border-white/5 bg-black/40">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="gap-2 text-white/70 hover:text-white hover:bg-white/5"
+              onClick={() => setIsCreateFolderOpen(true)}
+              disabled={isCreating}
+            >
+              <FolderPlus className="w-4 h-4" />
+              <span className="hidden sm:inline">Thư mục mới</span>
+            </Button>
 
-          <Button
-            variant="ghost"
-            size="sm"
-            className="gap-2 text-white/70 hover:text-white hover:bg-white/5"
-            onClick={() => setIsUploadFileOpen(true)}
-            disabled={isUploading}
-          >
-            {isUploading ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : (
-              <Upload className="w-4 h-4" />
-            )}
-            <span className="hidden sm:inline">
-              {isUploading ? "Đang tải..." : "Tải lên"}
+            <Button
+              variant="ghost"
+              size="sm"
+              className="gap-2 text-white/70 hover:text-white hover:bg-white/5"
+              onClick={() => setIsUploadFileOpen(true)}
+              disabled={isUploading}
+            >
+              {isUploading ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Upload className="w-4 h-4" />
+              )}
+              <span className="hidden sm:inline">
+                {isUploading ? "Đang tải..." : "Tải lên"}
+              </span>
+            </Button>
+
+            <div className="flex-1" />
+
+            <Button
+              variant="ghost"
+              size="sm"
+              className="gap-2 text-white/40 hover:text-white hover:bg-white/5"
+              onClick={() => {
+                hasFetchedRef.current = false;
+                fetchAllLectures();
+              }}
+            >
+              <span className="text-xs">🔄 Làm mới</span>
+            </Button>
+          </div>
+        )}
+
+        {isStudent && (
+          <div className="flex items-center gap-2 px-4 py-2 bg-blue-500/10 border-b border-blue-500/20">
+            <Eye className="w-4 h-4 text-blue-400" />
+            <span className="text-sm text-blue-400">
+              👁️ Chế độ xem - Bạn chỉ có thể xem và tải xuống bài giảng
             </span>
-          </Button>
-
-          <div className="flex-1" />
-
-          <Button
-            variant="ghost"
-            size="sm"
-            className="gap-2 text-white/40 hover:text-white hover:bg-white/5"
-            onClick={fetchAllLectures}
-          >
-            <span className="text-xs">🔄 Làm mới</span>
-          </Button>
-        </div>
+          </div>
+        )}
 
         <FolderBreadcrumbs items={breadcrumbs} onNavigate={navigateToFolder} />
 
@@ -457,7 +694,7 @@ export function FolderExplorer({
               <div className="animate-spin rounded-full h-8 w-8 border-2 border-cyan-400 border-t-transparent" />
               <span className="ml-3 text-white/50">Đang tải...</span>
             </div>
-          ) : displayNodes.length === 0 ? (
+          ) : currentDisplayNodes.length === 0 ? (
             <div className="text-center py-16">
               <div className="w-20 h-20 mx-auto rounded-full bg-white/5 flex items-center justify-center mb-4">
                 <Folder className="w-10 h-10 text-white/20" />
@@ -468,39 +705,84 @@ export function FolderExplorer({
               <p className="text-white/40">
                 {currentFolderId
                   ? "Thư mục này chưa có nội dung"
-                  : "Tạo thư mục mới hoặc tải file lên để bắt đầu"}
+                  : "Chưa có bài giảng nào được tải lên"}
               </p>
-              <div className="flex gap-3 mt-4 justify-center">
-                <Button
-                  size="sm"
-                  className="gap-2 bg-gradient-to-r from-cyan-500 to-blue-500"
-                  onClick={() => setIsCreateFolderOpen(true)}
-                >
-                  <FolderPlus className="w-4 h-4" />
-                  Tạo thư mục
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="gap-2 border-white/20 text-white/60 hover:text-white"
-                  onClick={() => setIsUploadFileOpen(true)}
-                >
-                  <Upload className="w-4 h-4" />
-                  Tải lên
-                </Button>
-              </div>
+              {canManage && (
+                <div className="flex gap-3 mt-4 justify-center">
+                  <Button
+                    size="sm"
+                    className="gap-2 bg-gradient-to-r from-cyan-500 to-blue-500"
+                    onClick={() => setIsCreateFolderOpen(true)}
+                  >
+                    <FolderPlus className="w-4 h-4" />
+                    Tạo thư mục
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="gap-2 border-white/20 text-white/60 hover:text-white"
+                    onClick={() => setIsUploadFileOpen(true)}
+                  >
+                    <Upload className="w-4 h-4" />
+                    Tải lên
+                  </Button>
+                </div>
+              )}
             </div>
           ) : (
             <FolderTree
-              nodes={displayNodes}
+              nodes={currentDisplayNodes}
               onNodeClick={handleNodeClick}
               onFileClick={handleFileClick}
-              onDeleteFolder={handleDeleteFolder}
+              onDeleteFolder={canDelete ? handleDeleteFolder : undefined}
+              onDeleteFile={canDelete ? handleDeleteFile : undefined}
               onDownloadFolder={handleDownloadFolder}
+              onRenameFolder={canRename ? handleRenameFolder : undefined}
+              canManage={canManage}
+              isReadOnly={isStudent}
             />
           )}
         </div>
       </div>
+
+      <AlertDialog
+        open={confirmDialog.isOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            setConfirmDialog((prev) => ({ ...prev, isOpen: false }));
+          }
+        }}
+      >
+        <AlertDialogContent className="bg-slate-900 border border-white/10 text-white">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-xl font-bold text-white">
+              {confirmDialog.title}
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-white/60">
+              {confirmDialog.description}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="gap-3">
+            <AlertDialogCancel className="bg-white/5 border-white/10 text-white/60 hover:bg-white/10 hover:text-white">
+              Hủy
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDialog.onConfirm}
+              disabled={confirmDialog.isLoading}
+              className="bg-red-500 hover:bg-red-600 text-white border-0"
+            >
+              {confirmDialog.isLoading ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Đang xóa...
+                </>
+              ) : (
+                "Xóa"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <CreateFolderModal
         isOpen={isCreateFolderOpen}
@@ -515,6 +797,6 @@ export function FolderExplorer({
         onUpload={handleUploadFiles}
         isLoading={isUploading}
       />
-    </>
+    </div>
   );
 }
