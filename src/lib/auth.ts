@@ -281,8 +281,29 @@ export const authOptions: NextAuthOptions = {
       return true;
     },
     async redirect({ url, baseUrl }) {
-      if (url.startsWith("/")) return `${baseUrl}${url}`;
-      else if (new URL(url).origin === baseUrl) return url;
+      console.log("🔀 [Auth] Redirect callback:", { url, baseUrl });
+
+      // ✅ Nếu URL bắt đầu bằng /, return full URL
+      if (url.startsWith("/")) {
+        const redirectUrl = `${baseUrl}${url}`;
+        console.log("🔀 [Auth] Redirecting to:", redirectUrl);
+        return redirectUrl;
+      }
+
+      // ✅ Nếu URL cùng origin với baseUrl, return URL
+      try {
+        const urlObj = new URL(url);
+        if (urlObj.origin === baseUrl) {
+          console.log("🔀 [Auth] Redirecting to same origin:", url);
+          return url;
+        }
+      } catch (e) {
+        console.log("🔀 [Auth] Invalid URL, redirecting to baseUrl");
+        return baseUrl;
+      }
+
+      // ✅ Default redirect to baseUrl
+      console.log("🔀 [Auth] Default redirect to baseUrl:", baseUrl);
       return baseUrl;
     },
   },
@@ -291,6 +312,9 @@ export const authOptions: NextAuthOptions = {
     signOut: "/login",
     error: "/login",
   },
+  // ✅ NEXTAUTH_URL CHO PRODUCTION
+  // Đảm bảo URL đúng cho production
+  ...(NEXTAUTH_URL && { url: NEXTAUTH_URL }),
   session: {
     strategy: "jwt",
     maxAge: 30 * 24 * 60 * 60,

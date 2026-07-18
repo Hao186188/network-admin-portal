@@ -9,13 +9,13 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { motion } from "framer-motion";
 import {
-  ArrowRight,
-  Eye,
-  EyeOff,
-  Lock,
-  Mail,
-  Sparkles,
-  User,
+    ArrowRight,
+    Eye,
+    EyeOff,
+    Lock,
+    Mail,
+    Sparkles,
+    User,
 } from "lucide-react";
 import { signIn, useSession } from "next-auth/react";
 import Link from "next/link";
@@ -39,6 +39,36 @@ export default function LoginPage() {
   const [mounted, setMounted] = useState(false);
 
   const callbackUrl = searchParams?.get("callbackUrl") || "/dashboard";
+  const error = searchParams?.get("error");
+
+  // ✅ Show error message if present
+  useEffect(() => {
+    if (error) {
+      const errorMessages: Record<string, string> = {
+        "CredentialsSignin": "Email/Tên đăng nhập hoặc mật khẩu không đúng",
+        "OAuthSignin": "Đăng nhập OAuth thất bại",
+        "OAuthCallback": "Lỗi callback từ OAuth provider",
+        "OAuthCreateAccount": "Không thể tạo tài khoản từ OAuth",
+        "EmailCreateAccount": "Không thể tạo tài khoản với email",
+        "Callback": "Lỗi callback",
+        "OAuthAccountNotLinked": "Tài khoản này đã được liên kết với provider khác",
+        "SessionRequired": "Vui lòng đăng nhập để tiếp tục",
+        "Default": "Có lỗi xảy ra khi đăng nhập",
+      };
+
+      toast.error(errorMessages[error] || errorMessages.Default);
+    }
+  }, [error, toast]);
+
+  // ✅ Convert callbackUrl to absolute URL on production
+  const getAbsoluteCallbackUrl = (url: string) => {
+    if (process.env.NODE_ENV === "production" && url.startsWith("/")) {
+      return `${window.location.origin}${url}`;
+    }
+    return url;
+  };
+
+  const absoluteCallbackUrl = getAbsoluteCallbackUrl(callbackUrl);
 
   useEffect(() => {
     setMounted(true);
@@ -88,7 +118,7 @@ export default function LoginPage() {
         identifier: formData.identifier.trim(),
         password: formData.password,
         redirect: false,
-        callbackUrl: callbackUrl,
+        callbackUrl: absoluteCallbackUrl,
       });
 
       console.log("🔐 Login result:", result);
@@ -121,14 +151,26 @@ export default function LoginPage() {
         }
 
         console.log(`🔀 Redirecting to: ${redirectUrl} (Role: ${role})`);
-        window.location.href = redirectUrl;
+
+        // ✅ Sử dụng window.location.href với absolute URL cho production
+        // Đảm bảo URL đầy đủ cho production
+        const isProduction = process.env.NODE_ENV === "production";
+        const finalUrl = isProduction && redirectUrl.startsWith("/")
+          ? `${window.location.origin}${redirectUrl}`
+          : redirectUrl;
+
+        console.log(`🔀 Final redirect URL: ${finalUrl}`);
+
+        setTimeout(() => {
+          window.location.href = finalUrl;
+        }, 500);
       } else {
         toast.error("Đăng nhập thất bại, vui lòng thử lại");
+        setIsLoading(false);
       }
     } catch (error) {
       console.error("❌ Login error:", error);
       toast.error("Có lỗi xảy ra, vui lòng thử lại");
-    } finally {
       setIsLoading(false);
     }
   };
