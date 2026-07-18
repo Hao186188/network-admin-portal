@@ -1,10 +1,17 @@
 // next.config.js
-// HOÀN CHỈNH - THÊM allowedDevOrigins CHO IP
+// HOÀN CHỈNH - THÊM allowedDevOrigins CHO IP + NGROK SUPPORT
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // ✅ ALLOWED DEV ORIGINS - QUAN TRỌNG CHO IP
-  allowedDevOrigins: ["192.168.1.52", "localhost", "127.0.0.1"],
+  // ✅ ALLOWED DEV ORIGINS - QUAN TRỌNG CHO IP VÀ NGROK
+  allowedDevOrigins: [
+    "192.168.1.54",
+    "192.168.1.52",
+    "localhost",
+    "127.0.0.1",
+    "*.ngrok-free.dev",
+    "*.ngrok.io",
+  ],
 
   // ✅ Images
   images: {
@@ -33,19 +40,32 @@ const nextConfig = {
         protocol: "https",
         hostname: "i.ytimg.com",
       },
+      // ✅ Thêm ngrok cho images
+      {
+        protocol: "https",
+        hostname: "*.ngrok-free.dev",
+      },
+      {
+        protocol: "https",
+        hostname: "*.ngrok.io",
+      },
     ],
     formats: ["image/avif", "image/webp"],
     deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
     imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
   },
 
-  // ✅ Experimental - TĂNG GIỚI HẠN
+  // ✅ Experimental - TĂNG GIỚI HẠN + NGROK
   experimental: {
     serverActions: {
       allowedOrigins: [
         "localhost:3000",
+        "127.0.0.1:3000",
+        "192.168.1.54:3000",
         "192.168.1.52:3000",
         "qtm3k14.vercel.app",
+        "*.ngrok-free.dev",
+        "*.ngrok.io",
       ],
       bodySizeLimit: "10mb",
     },
@@ -106,7 +126,12 @@ const nextConfig = {
           },
           {
             key: "Access-Control-Allow-Headers",
-            value: "Content-Type, Authorization",
+            value: "Content-Type, Authorization, ngrok-skip-browser-warning",
+          },
+          // ✅ NGROK SKIP WARNING
+          {
+            key: "ngrok-skip-browser-warning",
+            value: "true",
           },
         ],
       },
@@ -146,7 +171,12 @@ const nextConfig = {
           },
           {
             key: "Access-Control-Allow-Headers",
-            value: "Content-Type, Authorization",
+            value: "Content-Type, Authorization, ngrok-skip-browser-warning",
+          },
+          // ✅ NGROK SKIP WARNING
+          {
+            key: "ngrok-skip-browser-warning",
+            value: "true",
           },
         ],
       },

@@ -1,5 +1,5 @@
 // src/app/(auth)/login/page.tsx
-// Vai trò: Trang đăng nhập - FIX AUTO LOGIN & UPDATE SESSION
+// Vai trò: Trang đăng nhập - HOÀN CHỈNH VỚI OAuth
 
 "use client";
 
@@ -21,12 +21,14 @@ import { signIn, useSession } from "next-auth/react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
+import { FaGithub } from "react-icons/fa";
+import { FcGoogle } from "react-icons/fc";
 
 export default function LoginPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { toast } = useToast();
-  const { data: session, status, update } = useSession(); // ✅ THÊM update
+  const { data: session, status, update } = useSession();
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [loginType, setLoginType] = useState<"email" | "username">("email");
@@ -54,6 +56,22 @@ export default function LoginPage() {
       router.replace(callbackUrl);
     }
   }, [status, session, router, callbackUrl, mounted]);
+
+  // ✅ Handle OAuth Login
+  const handleOAuthSignIn = async (provider: "google" | "github") => {
+    setIsLoading(true);
+    try {
+      console.log(`🔐 Attempting OAuth login with ${provider}...`);
+      await signIn(provider, {
+        callbackUrl: callbackUrl,
+        redirect: true,
+      });
+    } catch (error: any) {
+      console.error(`❌ ${provider} login error:`, error);
+      toast.error(error?.message || `Đăng nhập với ${provider} thất bại`);
+      setIsLoading(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -83,7 +101,6 @@ export default function LoginPage() {
       }
 
       if (result?.ok) {
-        // ✅ QUAN TRỌNG: Update session để lấy role mới nhất
         console.log("🔄 Updating session after login...");
         const updatedSession = await update();
         console.log("✅ Session updated:", {
@@ -94,7 +111,6 @@ export default function LoginPage() {
         toast.success("Đăng nhập thành công!");
         sessionStorage.removeItem("isLoggingOut");
 
-        // ✅ Redirect dựa trên role
         const role = updatedSession?.user?.role?.toUpperCase() || "STUDENT";
         let redirectUrl = callbackUrl;
 
@@ -271,6 +287,49 @@ export default function LoginPage() {
                   )}
                 </Button>
               </form>
+
+              {/* ✅ OAuth Divider */}
+              <div className="relative my-6">
+                <div className="absolute inset-0 flex items-center">
+                  <span className="w-full border-t border-gray-200 dark:border-gray-700" />
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="bg-background px-2 text-muted-foreground">
+                    Hoặc đăng nhập với
+                  </span>
+                </div>
+              </div>
+
+              {/* ✅ OAuth Buttons */}
+              <div className="flex flex-col gap-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="lg"
+                  className="w-full gap-3 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all"
+                  onClick={() => handleOAuthSignIn("google")}
+                  disabled={isLoading}
+                >
+                  <FcGoogle className="w-5 h-5" />
+                  <span className="flex-1 text-center">
+                    Đăng nhập với Google
+                  </span>
+                </Button>
+
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="lg"
+                  className="w-full gap-3 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all"
+                  onClick={() => handleOAuthSignIn("github")}
+                  disabled={isLoading}
+                >
+                  <FaGithub className="w-5 h-5" />
+                  <span className="flex-1 text-center">
+                    Đăng nhập với GitHub
+                  </span>
+                </Button>
+              </div>
 
               <p className="text-center text-sm text-gray-500 dark:text-gray-400 mt-6">
                 Chưa có tài khoản?{" "}

@@ -1,5 +1,5 @@
 // src/proxy.ts
-// Vai trò: Proxy/Middleware bảo vệ routes - HOÀN CHỈNH (THÊM CORS)
+// Vai trò: Proxy/Middleware bảo vệ routes - HOÀN CHỈNH (THÊM CORS + NGROK)
 
 import { withAuth } from "next-auth/middleware";
 import { NextResponse } from "next/server";
@@ -28,18 +28,41 @@ const PUBLIC_ROUTES = [
 const STATIC_EXTENSIONS =
   /\.(svg|png|jpg|jpeg|gif|webp|css|js|ico|json|woff|woff2|ttf|eot|xml|txt|mp4|webm|m3u8)$/;
 
-// ✅ Allowed origins (cho phép từ IP và localhost)
+// ✅ Allowed origins (cho phép từ IP, localhost, ngrok)
 const ALLOWED_ORIGINS = [
   "http://localhost:3000",
   "http://127.0.0.1:3000",
   "http://192.168.1.52:3000",
+  "http://192.168.1.54:3000",
   "https://qtm3k14.vercel.app",
+  // ✅ Thêm ngrok URLs (tự động detect)
+  "https://*.ngrok-free.dev",
+  "https://*.ngrok.io",
 ];
 
-// ✅ Hàm kiểm tra origin
+// ✅ Hàm kiểm tra origin (hỗ trợ wildcard)
 function isAllowedOrigin(origin: string | null): boolean {
   if (!origin) return false;
-  return ALLOWED_ORIGINS.some((allowed) => origin === allowed);
+
+  // Kiểm tra chính xác
+  if (ALLOWED_ORIGINS.includes(origin)) return true;
+
+  // Kiểm tra wildcard cho ngrok
+  if (origin.includes("ngrok-free.dev") || origin.includes("ngrok.io")) {
+    return true;
+  }
+
+  // Kiểm tra local network IP
+  if (origin.match(/^http:\/\/192\.168\.[0-9]+\.[0-9]+:[0-9]+$/)) {
+    return true;
+  }
+
+  // Kiểm tra localhost với các cổng khác
+  if (origin.match(/^http:\/\/localhost:[0-9]+$/)) {
+    return true;
+  }
+
+  return false;
 }
 
 // ✅ Hàm tạo CORS headers
@@ -47,9 +70,12 @@ function getCorsHeaders(origin: string | null) {
   const headers: Record<string, string> = {
     "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, PATCH, OPTIONS",
     "Access-Control-Allow-Headers":
-      "Content-Type, Authorization, X-Requested-With",
+      "Content-Type, Authorization, X-Requested-With, ngrok-skip-browser-warning",
     "Access-Control-Max-Age": "86400",
   };
+
+  // ✅ Thêm header để bỏ qua cảnh báo ngrok
+  headers["ngrok-skip-browser-warning"] = "true";
 
   if (origin && isAllowedOrigin(origin)) {
     headers["Access-Control-Allow-Origin"] = origin;
@@ -76,6 +102,8 @@ export default withAuth(
     // ✅ 1. XỬ LÝ PREFLIGHT OPTIONS REQUEST
     if (req.method === "OPTIONS") {
       const headers = getCorsHeaders(origin);
+      // ✅ Thêm headers cho ngrok
+      headers["ngrok-skip-browser-warning"] = "true";
       return new NextResponse(null, {
         status: 204,
         headers: {
@@ -95,6 +123,9 @@ export default withAuth(
         response.headers.set(key, value);
       });
 
+      // ✅ Thêm header bỏ qua cảnh báo ngrok
+      response.headers.set("ngrok-skip-browser-warning", "true");
+
       return response;
     }
 
@@ -107,6 +138,9 @@ export default withAuth(
         response.headers.set(key, value);
       });
 
+      // ✅ Thêm header bỏ qua cảnh báo ngrok
+      response.headers.set("ngrok-skip-browser-warning", "true");
+
       return response;
     }
 
@@ -118,6 +152,9 @@ export default withAuth(
       Object.entries(corsHeaders).forEach(([key, value]) => {
         response.headers.set(key, value);
       });
+
+      // ✅ Thêm header bỏ qua cảnh báo ngrok
+      response.headers.set("ngrok-skip-browser-warning", "true");
 
       return response;
     }
@@ -135,6 +172,9 @@ export default withAuth(
         response.headers.set(key, value);
       });
 
+      // ✅ Thêm header bỏ qua cảnh báo ngrok
+      response.headers.set("ngrok-skip-browser-warning", "true");
+
       return response;
     }
 
@@ -142,7 +182,10 @@ export default withAuth(
     if (!token) {
       const loginUrl = new URL("/login", req.url);
       loginUrl.searchParams.set("callbackUrl", path);
-      return NextResponse.redirect(loginUrl);
+      // ✅ Thêm header vào redirect response
+      const response = NextResponse.redirect(loginUrl);
+      response.headers.set("ngrok-skip-browser-warning", "true");
+      return response;
     }
 
     // ✅ 7. Kiểm tra quyền
@@ -150,7 +193,10 @@ export default withAuth(
 
     // Admin routes
     if (path.startsWith("/admin") && userRole !== "ADMIN") {
-      return NextResponse.redirect(new URL("/dashboard", req.url));
+      const redirectUrl = new URL("/dashboard", req.url);
+      const response = NextResponse.redirect(redirectUrl);
+      response.headers.set("ngrok-skip-browser-warning", "true");
+      return response;
     }
 
     // Teacher routes
@@ -161,7 +207,10 @@ export default withAuth(
       userRole !== "TEACHER" &&
       userRole !== "ADMIN"
     ) {
-      return NextResponse.redirect(new URL("/dashboard", req.url));
+      const redirectUrl = new URL("/dashboard", req.url);
+      const response = NextResponse.redirect(redirectUrl);
+      response.headers.set("ngrok-skip-browser-warning", "true");
+      return response;
     }
 
     // ✅ 8. Profile route - cho phép truy cập
@@ -172,6 +221,8 @@ export default withAuth(
       Object.entries(corsHeaders).forEach(([key, value]) => {
         response.headers.set(key, value);
       });
+
+      response.headers.set("ngrok-skip-browser-warning", "true");
 
       return response;
     }
@@ -186,16 +237,91 @@ export default withAuth(
         response.headers.set(key, value);
       });
 
+      response.headers.set("ngrok-skip-browser-warning", "true");
+
       return response;
     }
 
-    // ✅ 10. Các routes khác - yêu cầu đã đăng nhập
+    // ✅ 10. Assignments - Student có thể xem, chỉ Teacher/Admin mới được quản lý
+    if (path.startsWith("/assignments")) {
+      const response = NextResponse.next();
+      const corsHeaders = getCorsHeaders(origin);
+
+      Object.entries(corsHeaders).forEach(([key, value]) => {
+        response.headers.set(key, value);
+      });
+
+      response.headers.set("ngrok-skip-browser-warning", "true");
+
+      return response;
+    }
+
+    // ✅ 11. Dashboard - yêu cầu đã đăng nhập
+    if (path.startsWith("/dashboard")) {
+      const response = NextResponse.next();
+      const corsHeaders = getCorsHeaders(origin);
+
+      Object.entries(corsHeaders).forEach(([key, value]) => {
+        response.headers.set(key, value);
+      });
+
+      response.headers.set("ngrok-skip-browser-warning", "true");
+
+      return response;
+    }
+
+    // ✅ 12. Documents - yêu cầu đã đăng nhập
+    if (path.startsWith("/documents")) {
+      const response = NextResponse.next();
+      const corsHeaders = getCorsHeaders(origin);
+
+      Object.entries(corsHeaders).forEach(([key, value]) => {
+        response.headers.set(key, value);
+      });
+
+      response.headers.set("ngrok-skip-browser-warning", "true");
+
+      return response;
+    }
+
+    // ✅ 13. Forum - yêu cầu đã đăng nhập
+    if (path.startsWith("/forum")) {
+      const response = NextResponse.next();
+      const corsHeaders = getCorsHeaders(origin);
+
+      Object.entries(corsHeaders).forEach(([key, value]) => {
+        response.headers.set(key, value);
+      });
+
+      response.headers.set("ngrok-skip-browser-warning", "true");
+
+      return response;
+    }
+
+    // ✅ 14. Chat - yêu cầu đã đăng nhập
+    if (path.startsWith("/chat")) {
+      const response = NextResponse.next();
+      const corsHeaders = getCorsHeaders(origin);
+
+      Object.entries(corsHeaders).forEach(([key, value]) => {
+        response.headers.set(key, value);
+      });
+
+      response.headers.set("ngrok-skip-browser-warning", "true");
+
+      return response;
+    }
+
+    // ✅ 15. Các routes khác - yêu cầu đã đăng nhập
     const response = NextResponse.next();
     const corsHeaders = getCorsHeaders(origin);
 
     Object.entries(corsHeaders).forEach(([key, value]) => {
       response.headers.set(key, value);
     });
+
+    // ✅ Thêm header bỏ qua cảnh báo ngrok cho tất cả response
+    response.headers.set("ngrok-skip-browser-warning", "true");
 
     return response;
   },
