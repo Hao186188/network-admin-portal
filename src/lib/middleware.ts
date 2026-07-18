@@ -2,26 +2,40 @@ import { getToken } from 'next-auth/jwt'
 import { NextResponse, type NextRequest } from 'next/server'
 
 export async function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl
+
+  // ✅ QUAN TRỌNG: Cho phép tất cả NextAuth API routes
+  // Không apply middleware cho /api/auth/*
+  if (pathname.startsWith('/api/auth')) {
+    console.log("🔓 [Middleware] Allowing NextAuth API route:", pathname)
+    return NextResponse.next()
+  }
+
+  // ✅ Cho phép các API routes khác
+  if (pathname.startsWith('/api')) {
+    return NextResponse.next()
+  }
+
+  // ✅ Cho phép static files
+  if (pathname.startsWith('/_next') || pathname.startsWith('/public')) {
+    return NextResponse.next()
+  }
+
   // ✅ Sử dụng NextAuth JWT thay vì Supabase auth
-  // Vì project dùng NextAuth cho authentication
   const token = await getToken({
     req: request,
     secret: process.env.NEXTAUTH_SECRET || 'default-secret-change-in-production',
   })
 
-  const { pathname } = request.nextUrl
+  console.log("🔐 [Middleware] Path:", pathname, "Has token:", !!token)
 
   // ✅ Public routes - không cần authentication
   const publicPaths = ['/login', '/register', '/forgot-password', '/reset-password']
   const isPublicPath = publicPaths.some(path => pathname.startsWith(path))
 
-  // ✅ API routes và NextAuth routes - không cần middleware
-  if (pathname.startsWith('/api') || pathname.startsWith('/_next')) {
-    return NextResponse.next()
-  }
-
   // ✅ Nếu không có token và không phải public path, redirect về login
   if (!token && !isPublicPath) {
+    console.log("🔐 [Middleware] No token, redirecting to login")
     const url = request.nextUrl.clone()
     url.pathname = '/login'
     // ✅ Thêm callbackUrl để redirect sau khi login
@@ -31,6 +45,7 @@ export async function middleware(request: NextRequest) {
 
   // ✅ Nếu có token và đang ở login/register, redirect về dashboard
   if (token && isPublicPath) {
+    console.log("🔐 [Middleware] Has token on public path, redirecting to dashboard")
     const url = request.nextUrl.clone()
     url.pathname = '/dashboard'
     return NextResponse.redirect(url)

@@ -41,6 +41,9 @@ export default function LoginPage() {
   const callbackUrl = searchParams?.get("callbackUrl") || "/dashboard";
   const error = searchParams?.get("error");
 
+  console.log("🔗 [Login] callbackUrl:", callbackUrl);
+  console.log("🔗 [Login] window.location.origin:", window.location.origin);
+
   // ✅ Show error message if present
   useEffect(() => {
     if (error) {
@@ -62,10 +65,18 @@ export default function LoginPage() {
 
   // ✅ Convert callbackUrl to absolute URL on production
   const getAbsoluteCallbackUrl = (url: string) => {
-    if (process.env.NODE_ENV === "production" && url.startsWith("/")) {
-      return `${window.location.origin}${url}`;
+    console.log("🔗 [Login] getAbsoluteCallbackUrl input:", url);
+
+    // ✅ Nếu URL đã là absolute URL, return luôn
+    if (url.startsWith("http://") || url.startsWith("https://")) {
+      console.log("🔗 [Login] URL is already absolute:", url);
+      return url;
     }
-    return url;
+
+    // ✅ Nếu là relative URL, convert thành absolute
+    const absoluteUrl = `${window.location.origin}${url.startsWith("/") ? "" : "/"}${url}`;
+    console.log("🔗 [Login] Converted to absolute:", absoluteUrl);
+    return absoluteUrl;
   };
 
   const absoluteCallbackUrl = getAbsoluteCallbackUrl(callbackUrl);
@@ -152,13 +163,23 @@ export default function LoginPage() {
 
         console.log(`🔀 Redirecting to: ${redirectUrl} (Role: ${role})`);
 
-        // ✅ Sử dụng window.location.href với absolute URL cho production
-        // Đảm bảo URL đầy đủ cho production
-        const isProduction = process.env.NODE_ENV === "production";
-        const finalUrl = isProduction && redirectUrl.startsWith("/")
-          ? `${window.location.origin}${redirectUrl}`
-          : redirectUrl;
+        // ✅ Convert redirectUrl thành absolute URL
+        const getAbsoluteRedirectUrl = (url: string) => {
+          console.log("🔀 [Login] getAbsoluteRedirectUrl input:", url);
 
+          // ✅ Nếu URL đã là absolute URL, return luôn
+          if (url.startsWith("http://") || url.startsWith("https://")) {
+            console.log("🔀 [Login] URL is already absolute:", url);
+            return url;
+          }
+
+          // ✅ Nếu là relative URL, convert thành absolute
+          const absoluteUrl = `${window.location.origin}${url.startsWith("/") ? "" : "/"}${url}`;
+          console.log("🔀 [Login] Converted to absolute:", absoluteUrl);
+          return absoluteUrl;
+        };
+
+        const finalUrl = getAbsoluteRedirectUrl(redirectUrl);
         console.log(`🔀 Final redirect URL: ${finalUrl}`);
 
         setTimeout(() => {

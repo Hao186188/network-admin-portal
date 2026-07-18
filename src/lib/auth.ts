@@ -9,11 +9,13 @@ import GitHubProvider from "next-auth/providers/github";
 import GoogleProvider from "next-auth/providers/google";
 
 // ✅ NEXTAUTH_URL CHO PRODUCTION
-const NEXTAUTH_URL = process.env.NEXTAUTH_URL || process.env.VERCEL_URL
-  ? `https://${process.env.VERCEL_URL}`
-  : "http://localhost:3000";
+const NEXTAUTH_URL = process.env.NEXTAUTH_URL ||
+  (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000");
 
 console.log("🔗 [Auth] NEXTAUTH_URL:", NEXTAUTH_URL);
+console.log("🔗 [Auth] process.env.NEXTAUTH_URL:", process.env.NEXTAUTH_URL);
+console.log("🔗 [Auth] process.env.VERCEL_URL:", process.env.VERCEL_URL);
+console.log("🔗 [Auth] NODE_ENV:", process.env.NODE_ENV);
 
 function sanitizeIdentifier(input: string): string {
   return input
@@ -23,8 +25,6 @@ function sanitizeIdentifier(input: string): string {
 }
 
 export const authOptions: NextAuthOptions = {
-  // ✅ SET NEXTAUTH URL CHO PRODUCTION
-  ...(NEXTAUTH_URL && { url: NEXTAUTH_URL }),
   providers: [
     CredentialsProvider({
       name: "credentials",
@@ -135,8 +135,8 @@ export const authOptions: NextAuthOptions = {
 
     // ✅ GitHub OAuth Provider
     GitHubProvider({
-      clientId: process.env.GITHUB_CLIENT_ID!,
-      clientSecret: process.env.GITHUB_CLIENT_SECRET!,
+      clientId: process.env.GITHUB_ID!,
+      clientSecret: process.env.GITHUB_SECRET!,
       authorization: {
         params: {
           scope: "read:user user:email",
@@ -312,48 +312,70 @@ export const authOptions: NextAuthOptions = {
     signOut: "/login",
     error: "/login",
   },
-  // ✅ NEXTAUTH_URL CHO PRODUCTION
-  // Đảm bảo URL đúng cho production
-  ...(NEXTAUTH_URL && { url: NEXTAUTH_URL }),
   session: {
     strategy: "jwt",
     maxAge: 30 * 24 * 60 * 60,
   },
   secret: process.env.NEXTAUTH_SECRET || "default-secret-change-in-production",
   debug: process.env.NODE_ENV === "development",
-  // ✅ NEXTAUTH_URL CHO PRODUCTION
-  // Trên Vercel, NEXTAUTH_URL sẽ tự động được set
-  // Nếu không, dùng fallback từ origin
-  ...(process.env.NODE_ENV === "production" && {
-    useSecureCookies: true,
-  }),
   // ✅ FIX PRODUCTION COOKIE CONFIG
-  cookies: {
-    sessionToken: {
-      name: `next-auth.session-token`,
-      options: {
-        httpOnly: true,
-        sameSite: "lax",
-        path: "/",
-        secure: process.env.NODE_ENV === "production",
+  // Trên production (HTTPS), cookie cần prefix __Secure-
+  // Trên development (HTTP), dùng prefix thường
+  cookies: process.env.NODE_ENV === "production"
+    ? {
+        sessionToken: {
+          name: `__Secure-next-auth.session-token`,
+          options: {
+            httpOnly: true,
+            sameSite: "lax",
+            path: "/",
+            secure: true,
+          },
+        },
+        callbackUrl: {
+          name: `__Secure-next-auth.callback-url`,
+          options: {
+            sameSite: "lax",
+            path: "/",
+            secure: true,
+          },
+        },
+        csrfToken: {
+          name: `__Host-next-auth.csrf-token`,
+          options: {
+            httpOnly: true,
+            sameSite: "lax",
+            path: "/",
+            secure: true,
+          },
+        },
+      }
+    : {
+        sessionToken: {
+          name: `next-auth.session-token`,
+          options: {
+            httpOnly: true,
+            sameSite: "lax",
+            path: "/",
+            secure: false,
+          },
+        },
+        callbackUrl: {
+          name: `next-auth.callback-url`,
+          options: {
+            sameSite: "lax",
+            path: "/",
+            secure: false,
+          },
+        },
+        csrfToken: {
+          name: `next-auth.csrf-token`,
+          options: {
+            httpOnly: true,
+            sameSite: "lax",
+            path: "/",
+            secure: false,
+          },
+        },
       },
-    },
-    callbackUrl: {
-      name: `next-auth.callback-url`,
-      options: {
-        sameSite: "lax",
-        path: "/",
-        secure: process.env.NODE_ENV === "production",
-      },
-    },
-    csrfToken: {
-      name: `next-auth.csrf-token`,
-      options: {
-        httpOnly: true,
-        sameSite: "lax",
-        path: "/",
-        secure: process.env.NODE_ENV === "production",
-      },
-    },
-  },
 };
