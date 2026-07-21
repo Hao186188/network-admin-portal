@@ -7,15 +7,16 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { motion } from "framer-motion";
 import {
-    ArrowRight,
-    CheckCircle,
-    GraduationCap,
-    Lock,
-    Mail,
-    Phone,
-    Shield,
-    User,
-} from "lucide-react"; // ✅ Thêm Lock
+  ArrowRight,
+  CheckCircle,
+  GraduationCap,
+  IdCard,
+  Lock,
+  Mail,
+  Phone,
+  Shield,
+  User,
+} from "lucide-react";
 import Link from "next/link";
 import { useRegister } from "../hooks/useRegister";
 import { RegisterInput } from "./RegisterInput";
@@ -99,6 +100,16 @@ export function RegisterForm() {
             required
             disabled={isLoading}
             placeholder="0123456789"
+          />
+
+          {/* Mã số sinh viên */}
+          <RegisterInput
+            label="Mã số sinh viên (không bắt buộc)"
+            value={formData.student_id || ""}
+            onChange={(v) => updateField("student_id", v)}
+            icon={IdCard}
+            disabled={isLoading}
+            placeholder="SV001234"
           />
 
           {/* Mật khẩu */}

@@ -1,7 +1,7 @@
 // src/lib/auth.ts
 // HOÀN CHỈNH - THÊM CORS SUPPORT & OAuth
 
-import { supabase } from "@/lib/db/supabase-client";
+import { supabase, supabaseAdmin } from "@/lib/db/supabase-client";
 import bcrypt from "bcryptjs";
 import type { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
@@ -9,8 +9,11 @@ import GitHubProvider from "next-auth/providers/github";
 import GoogleProvider from "next-auth/providers/google";
 
 // ✅ NEXTAUTH_URL CHO PRODUCTION
-const NEXTAUTH_URL = process.env.NEXTAUTH_URL ||
-  (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000");
+const NEXTAUTH_URL =
+  process.env.NEXTAUTH_URL ||
+  (process.env.VERCEL_URL
+    ? `https://${process.env.VERCEL_URL}`
+    : "http://localhost:3000");
 
 console.log("🔗 [Auth] NEXTAUTH_URL:", NEXTAUTH_URL);
 console.log("🔗 [Auth] process.env.NEXTAUTH_URL:", process.env.NEXTAUTH_URL);
@@ -40,7 +43,10 @@ export const authOptions: NextAuthOptions = {
 
           const identifier = credentials.identifier.trim().toLowerCase();
 
-          console.log("🔍 [Auth] Searching for user with identifier:", identifier);
+          console.log(
+            "🔍 [Auth] Searching for user with identifier:",
+            identifier,
+          );
 
           // ✅ Tìm user bằng email trước
           const { data: userByEmail, error: emailError } = await supabase
@@ -49,19 +55,26 @@ export const authOptions: NextAuthOptions = {
             .eq("email", identifier)
             .maybeSingle();
 
-          console.log("🔍 [Auth] Search by email result:", userByEmail ? "Found" : "Not found");
+          console.log(
+            "🔍 [Auth] Search by email result:",
+            userByEmail ? "Found" : "Not found",
+          );
 
           let user = userByEmail;
 
           // ✅ Nếu không tìm thấy bằng email, tìm bằng username
           if (!user && !emailError) {
-            const { data: userByUsername, error: usernameError } = await supabase
-              .from("users")
-              .select("*")
-              .eq("username", identifier)
-              .maybeSingle();
+            const { data: userByUsername, error: usernameError } =
+              await supabase
+                .from("users")
+                .select("*")
+                .eq("username", identifier)
+                .maybeSingle();
 
-            console.log("🔍 [Auth] Search by username result:", userByUsername ? "Found" : "Not found");
+            console.log(
+              "🔍 [Auth] Search by username result:",
+              userByUsername ? "Found" : "Not found",
+            );
 
             if (usernameError) {
               console.error("❌ Username search error:", usernameError);
@@ -206,8 +219,8 @@ export const authOptions: NextAuthOptions = {
         try {
           console.log(`🔐 OAuth login with ${account.provider}:`, user.email);
 
-          // Kiểm tra user đã tồn tại chưa
-          const { data: existingUser, error: findError } = await supabase
+          // Kiểm tra user đã tồn tại chưa (dùng admin client để bypass RLS)
+          const { data: existingUser, error: findError } = await supabaseAdmin
             .from("users")
             .select("*")
             .eq("email", user.email)
@@ -225,7 +238,7 @@ export const authOptions: NextAuthOptions = {
             const username = user.email?.split("@")[0] || `user_${Date.now()}`;
             const randomPassword = Math.random().toString(36).slice(-8);
 
-            const { data: newUser, error: createError } = await supabase
+            const { data: newUser, error: createError } = await supabaseAdmin
               .from("users")
               .insert({
                 username: username,
@@ -261,7 +274,7 @@ export const authOptions: NextAuthOptions = {
 
             // Cập nhật avatar nếu chưa có
             if (!existingUser.avatar && user.image) {
-              await supabase
+              await supabaseAdmin
                 .from("users")
                 .update({
                   avatar: user.image,
@@ -321,61 +334,62 @@ export const authOptions: NextAuthOptions = {
   // ✅ FIX PRODUCTION COOKIE CONFIG
   // Trên production (HTTPS), cookie cần prefix __Secure-
   // Trên development (HTTP), dùng prefix thường
-  cookies: process.env.NODE_ENV === "production"
-    ? {
-        sessionToken: {
-          name: `__Secure-next-auth.session-token`,
-          options: {
-            httpOnly: true,
-            sameSite: "lax",
-            path: "/",
-            secure: true,
+  cookies:
+    process.env.NODE_ENV === "production"
+      ? {
+          sessionToken: {
+            name: `__Secure-next-auth.session-token`,
+            options: {
+              httpOnly: true,
+              sameSite: "lax",
+              path: "/",
+              secure: true,
+            },
+          },
+          callbackUrl: {
+            name: `__Secure-next-auth.callback-url`,
+            options: {
+              sameSite: "lax",
+              path: "/",
+              secure: true,
+            },
+          },
+          csrfToken: {
+            name: `__Host-next-auth.csrf-token`,
+            options: {
+              httpOnly: true,
+              sameSite: "lax",
+              path: "/",
+              secure: true,
+            },
+          },
+        }
+      : {
+          sessionToken: {
+            name: `next-auth.session-token`,
+            options: {
+              httpOnly: true,
+              sameSite: "lax",
+              path: "/",
+              secure: false,
+            },
+          },
+          callbackUrl: {
+            name: `next-auth.callback-url`,
+            options: {
+              sameSite: "lax",
+              path: "/",
+              secure: false,
+            },
+          },
+          csrfToken: {
+            name: `next-auth.csrf-token`,
+            options: {
+              httpOnly: true,
+              sameSite: "lax",
+              path: "/",
+              secure: false,
+            },
           },
         },
-        callbackUrl: {
-          name: `__Secure-next-auth.callback-url`,
-          options: {
-            sameSite: "lax",
-            path: "/",
-            secure: true,
-          },
-        },
-        csrfToken: {
-          name: `__Host-next-auth.csrf-token`,
-          options: {
-            httpOnly: true,
-            sameSite: "lax",
-            path: "/",
-            secure: true,
-          },
-        },
-      }
-    : {
-        sessionToken: {
-          name: `next-auth.session-token`,
-          options: {
-            httpOnly: true,
-            sameSite: "lax",
-            path: "/",
-            secure: false,
-          },
-        },
-        callbackUrl: {
-          name: `next-auth.callback-url`,
-          options: {
-            sameSite: "lax",
-            path: "/",
-            secure: false,
-          },
-        },
-        csrfToken: {
-          name: `next-auth.csrf-token`,
-          options: {
-            httpOnly: true,
-            sameSite: "lax",
-            path: "/",
-            secure: false,
-          },
-        },
-      },
 };

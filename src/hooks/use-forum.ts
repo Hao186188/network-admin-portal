@@ -1,7 +1,7 @@
 // src/hooks/use-forum.ts
 // Vai trò: Hook quản lý forum - GỌI ĐÚNG THỨ TỰ
 
-import { supabase } from "@/lib/db/supabase-client";
+import { supabase, supabaseAdmin } from "@/lib/db/supabase-client";
 import { useSession } from "next-auth/react";
 import { useCallback, useEffect, useState } from "react";
 import { useToast } from "./use-toast";
@@ -215,7 +215,7 @@ export function useForum() {
     }
   };
 
-  // THÊM TRẢ LỜI - THỨ TỰ ĐÚNG
+  // THÊM TRẢ LỜI - RPC INSERT REPLY, DÙNG ADMIN CLIENT ĐỂ SET COUNT CHÍNH XÁC
   const addReply = async (postId: string, content: string) => {
     try {
       if (!session?.user) {
@@ -226,9 +226,9 @@ export function useForum() {
         throw new Error("Nội dung không được để trống");
       }
 
-      console.log("📝 Adding reply via RPC:", { postId, content });
+      console.log("📝 Adding reply:", { postId, content });
 
-      // THỨ TỰ: post_id, user_id, user_name, content, user_avatar
+      // Dùng RPC để insert reply (bypass RLS)
       const { data: result, error } = await supabase.rpc("add_forum_reply", {
         p_post_id: postId,
         p_user_id: session.user.id,
@@ -250,13 +250,21 @@ export function useForum() {
         throw new Error("Không nhận được phản hồi từ server");
       }
 
-      console.log("✅ Reply added via RPC:", result);
+      // Dùng admin client (bypass RLS) để lấy đúng replies count từ DB
+      // và set nó = count thực tế (số replies trong DB)
+      const { count: actualReplyCount, error: countError } = await supabaseAdmin
+        .from("forum_replies")
+        .select("*", { count: "exact", head: true })
+        .eq("post_id", postId);
 
-      setPosts((prev) =>
-        prev.map((post) =>
-          post.id === postId ? { ...post, replies: post.replies + 1 } : post,
-        ),
-      );
+      if (!countError && actualReplyCount !== null) {
+        await supabaseAdmin
+          .from("forum_posts")
+          .update({ replies: actualReplyCount })
+          .eq("id", postId);
+      }
+
+      console.log("✅ Reply added:", result);
 
       toast.success("✅ Đã thêm trả lời!");
       return result as ForumReply;
@@ -305,12 +313,27 @@ export function useForum() {
   };
 
   const incrementViews = async (postId: string) => {
+    console.log("👁️ [incrementViews] Called for post:", postId);
     try {
-      await supabase.rpc("increment_forum_views", {
-        p_post_id: postId,
+      // Gọi API route server-side (dùng service_role key) để tăng views đúng +1
+      console.log("👁️ [incrementViews] Calling API...");
+      const response = await fetch("/api/forum/views", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ postId }),
       });
+
+      console.log("👁️ [incrementViews] API response status:", response.status);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.warn("👁️ [incrementViews] API failed:", errorText);
+      } else {
+        const data = await response.json();
+        console.log("👁️ [incrementViews] API success:", data);
+      }
     } catch (error) {
-      console.error("Error incrementing views:", error);
+      console.error("👁️ [incrementViews] Error:", error);
     }
   };
 

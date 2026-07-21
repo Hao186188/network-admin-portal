@@ -100,7 +100,7 @@ export function useNotifications() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session?.user?.id]);
 
-  // ✅ BẬT REALTIME
+  // ✅ BẬT REALTIME - FIX VỚI CLEANUP ĐÚNG
   useEffect(() => {
     if (!session?.user?.id) {
       return;
@@ -108,11 +108,23 @@ export function useNotifications() {
 
     // First clean up existing channel before creating new one
     if (channelRef.current) {
+      console.log("🔄 [Notifications] Cleaning up old channel");
       supabase.removeChannel(channelRef.current);
+      channelRef.current = null;
     }
 
+    console.log(
+      "🔄 [Notifications] Setting up real-time channel for user:",
+      session.user.id,
+    );
+
     const channel = supabase
-      .channel(channelIdRef.current)
+      .channel(channelIdRef.current, {
+        config: {
+          broadcast: { self: true },
+          presence: { key: session.user.id },
+        },
+      })
       .on(
         "postgres_changes",
         {
@@ -122,13 +134,21 @@ export function useNotifications() {
           filter: `user_id=eq.${session.user.id}`,
         },
         async (payload) => {
-          console.log("Notification change received:", payload);
+          console.log(
+            "📨 [Notifications] Real-time update:",
+            payload.eventType,
+          );
           // Refetch notifications when there is a change
-          fetchNotifications(true);
+          await fetchNotifications(true);
+
           if (payload.eventType === "INSERT") {
             // Show a toast for new notifications
             const newNotification = payload.new as Notification;
             if (!newNotification.read) {
+              console.log(
+                "🔔 [Notifications] New notification:",
+                newNotification.title,
+              );
               toast.info(
                 `${newNotification.title}: ${newNotification.message}`,
               );
@@ -136,11 +156,17 @@ export function useNotifications() {
           }
         },
       )
-      .subscribe();
+      .subscribe((status, err) => {
+        console.log("📡 [Notifications] Channel status:", status);
+        if (err) {
+          console.error("❌ [Notifications] Channel error:", err);
+        }
+      });
 
     channelRef.current = channel;
 
     return () => {
+      console.log("🔄 [Notifications] Cleaning up channel");
       if (channelRef.current) {
         supabase.removeChannel(channelRef.current);
         channelRef.current = null;

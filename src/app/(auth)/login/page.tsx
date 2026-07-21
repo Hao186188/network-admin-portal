@@ -41,9 +41,6 @@ export default function LoginPage() {
   const callbackUrl = searchParams?.get("callbackUrl") || "/dashboard";
   const error = searchParams?.get("error");
 
-  console.log("🔗 [Login] callbackUrl:", callbackUrl);
-  console.log("🔗 [Login] window.location.origin:", window.location.origin);
-
   // ✅ Show error message if present
   useEffect(() => {
     if (error) {
@@ -63,23 +60,11 @@ export default function LoginPage() {
     }
   }, [error, toast]);
 
-  // ✅ Convert callbackUrl to absolute URL on production
-  const getAbsoluteCallbackUrl = (url: string) => {
-    console.log("🔗 [Login] getAbsoluteCallbackUrl input:", url);
-
-    // ✅ Nếu URL đã là absolute URL, return luôn
-    if (url.startsWith("http://") || url.startsWith("https://")) {
-      console.log("🔗 [Login] URL is already absolute:", url);
-      return url;
-    }
-
-    // ✅ Nếu là relative URL, convert thành absolute
-    const absoluteUrl = `${window.location.origin}${url.startsWith("/") ? "" : "/"}${url}`;
-    console.log("🔗 [Login] Converted to absolute:", absoluteUrl);
-    return absoluteUrl;
+  // ✅ Convert relative URL to absolute (only runs client-side)
+  const getAbsoluteUrl = (url: string) => {
+    if (url.startsWith("http://") || url.startsWith("https://")) return url;
+    return `${window.location.origin}${url.startsWith("/") ? "" : "/"}${url}`;
   };
-
-  const absoluteCallbackUrl = getAbsoluteCallbackUrl(callbackUrl);
 
   useEffect(() => {
     setMounted(true);
@@ -129,7 +114,7 @@ export default function LoginPage() {
         identifier: formData.identifier.trim(),
         password: formData.password,
         redirect: false,
-        callbackUrl: absoluteCallbackUrl,
+        callbackUrl: getAbsoluteUrl(callbackUrl),
       });
 
       console.log("🔐 Login result:", result);
@@ -157,33 +142,10 @@ export default function LoginPage() {
 
         if (role === "ADMIN" && callbackUrl === "/dashboard") {
           redirectUrl = "/admin";
-        } else if (role === "TEACHER" && callbackUrl === "/dashboard") {
-          redirectUrl = "/dashboard";
         }
 
-        console.log(`🔀 Redirecting to: ${redirectUrl} (Role: ${role})`);
-
-        // ✅ Convert redirectUrl thành absolute URL
-        const getAbsoluteRedirectUrl = (url: string) => {
-          console.log("🔀 [Login] getAbsoluteRedirectUrl input:", url);
-
-          // ✅ Nếu URL đã là absolute URL, return luôn
-          if (url.startsWith("http://") || url.startsWith("https://")) {
-            console.log("🔀 [Login] URL is already absolute:", url);
-            return url;
-          }
-
-          // ✅ Nếu là relative URL, convert thành absolute
-          const absoluteUrl = `${window.location.origin}${url.startsWith("/") ? "" : "/"}${url}`;
-          console.log("🔀 [Login] Converted to absolute:", absoluteUrl);
-          return absoluteUrl;
-        };
-
-        const finalUrl = getAbsoluteRedirectUrl(redirectUrl);
-        console.log(`🔀 Final redirect URL: ${finalUrl}`);
-
         setTimeout(() => {
-          window.location.href = finalUrl;
+          window.location.href = getAbsoluteUrl(redirectUrl);
         }, 500);
       } else {
         toast.error("Đăng nhập thất bại, vui lòng thử lại");

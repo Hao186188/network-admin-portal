@@ -219,9 +219,9 @@ export function Navbar() {
     };
   }, []);
 
-  // ✅ Cập nhật userRole và store khi session thay đổi
+  // ✅ Cập nhật userRole và store khi session thay đổi - CHỈ 1 LẦN
   useEffect(() => {
-    if (session?.user?.role) {
+    if (session?.user?.role && !storeSyncedRef.current) {
       const role = session.user.role.toUpperCase();
       console.log(`🔄 [Navbar] Session changed, role: ${role}`);
 
@@ -231,12 +231,10 @@ export function Navbar() {
       }
 
       // ✅ SYNC VÀO ZUSTAND STORE
-      if (!storeSyncedRef.current) {
-        setRole(role);
-        setCanManage(role === "ADMIN" || role === "TEACHER");
-        storeSyncedRef.current = true;
-        console.log(`✅ [Navbar] Synced role to store: ${role}`);
-      }
+      setRole(role);
+      setCanManage(role === "ADMIN" || role === "TEACHER");
+      storeSyncedRef.current = true;
+      console.log(`✅ [Navbar] Synced role to store: ${role}`);
     }
   }, [session?.user?.role, setRole, setCanManage]);
 
@@ -246,7 +244,8 @@ export function Navbar() {
       syncDoneRef.current ||
       syncInProgressRef.current ||
       !mounted ||
-      !session?.user?.id
+      !session?.user?.id ||
+      storeSyncedRef.current
     ) {
       return;
     }
@@ -268,24 +267,24 @@ export function Navbar() {
         const dbRoleValue = data?.role?.toUpperCase() || "STUDENT";
         const sessionRole = session.user.role?.toUpperCase() || "STUDENT";
 
-        console.log(`📊 [Navbar] DB: ${dbRoleValue}, Session: ${sessionRole}`);
-
         // ✅ LUÔN CẬP NHẬT userRole với role từ database
         if (dbRoleValue !== userRole) {
           console.log(
             `🔄 [Navbar] Updating role from ${userRole} to ${dbRoleValue}`,
           );
           setUserRole(dbRoleValue);
-
-          // ✅ Cập nhật store
-          setRole(dbRoleValue);
-          setCanManage(dbRoleValue === "ADMIN" || dbRoleValue === "TEACHER");
-          console.log(`✅ [Navbar] Updated store role to: ${dbRoleValue}`);
         }
 
-        if (dbRoleValue !== sessionRole) {
-          console.log(`🔄 [Navbar] Updating session to: ${dbRoleValue}`);
+        // ✅ Cập nhật store
+        setRole(dbRoleValue);
+        setCanManage(dbRoleValue === "ADMIN" || dbRoleValue === "TEACHER");
+        storeSyncedRef.current = true;
 
+        // ✅ CHỈ UPDATE SESSION NẾU KHÁC VỚI DATABASE
+        if (dbRoleValue !== sessionRole) {
+          console.log(
+            `🔄 [Navbar] Updating session from ${sessionRole} to ${dbRoleValue}`,
+          );
           await update({
             ...session,
             user: {
@@ -293,34 +292,41 @@ export function Navbar() {
               role: dbRoleValue,
             },
           });
-
-          console.log(`✅ [Navbar] Session updated to: ${dbRoleValue}`);
-        } else {
-          console.log(`✅ [Navbar] Role already synced: ${sessionRole}`);
         }
 
         syncDoneRef.current = true;
-        storeSyncedRef.current = true;
+        console.log("✅ [Navbar] Role sync completed");
       } catch (error) {
         console.error("❌ [Navbar] Error syncing role:", error);
         syncDoneRef.current = true;
+        storeSyncedRef.current = true; // Mark as synced even on error to prevent retry loops
       } finally {
         syncInProgressRef.current = false;
       }
     };
 
-    const timeoutId = setTimeout(syncRole, 200);
+    // ✅ Tăng timeout lên 2 giây để giảm số lần gọi API
+    const timeoutId = setTimeout(syncRole, 2000);
     return () => clearTimeout(timeoutId);
-  }, [mounted, session, update, userRole, setRole, setCanManage]);
+  }, [
+    mounted,
+    session?.user?.id,
+    userRole,
+    session,
+    update,
+    setRole,
+    setCanManage,
+  ]);
 
-  // ✅ Lắng nghe sự kiện storage - KHÔNG RESET STATE
+  // ✅ Lắng nghe sự kiện storage - CHỈ UPDATE KHI CẦN
   useEffect(() => {
     const handleStorageChange = (e: StorageEvent) => {
       if (e.key === "nextauth.message" || e.key === "nextauth.state") {
         console.log("🔄 [Navbar] Storage changed, checking session...");
-        update().then(() => {
-          console.log("✅ [Navbar] Session refreshed from storage event");
-        });
+        // ✅ Debounce: Chỉ update sau 5 giây không có event nào
+        setTimeout(() => {
+          update();
+        }, 5000);
       }
     };
 
@@ -328,14 +334,15 @@ export function Navbar() {
     return () => window.removeEventListener("storage", handleStorageChange);
   }, [update]);
 
-  // ✅ Lắng nghe sự kiện visibility change
+  // ✅ Lắng nghe sự kiện visibility change - CHỈ KHI CẦN
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (document.visibilityState === "visible") {
         console.log("🔄 [Navbar] Tab visible, checking session...");
-        update().then(() => {
-          console.log("✅ [Navbar] Session refreshed from visibility change");
-        });
+        // ✅ Debounce: Chỉ update sau 10 giây không có event nào
+        setTimeout(() => {
+          update();
+        }, 10000);
       }
     };
 
@@ -347,6 +354,11 @@ export function Navbar() {
   // ✅ Reset sync khi đăng nhập/đăng xuất
   useEffect(() => {
     if (status === "authenticated") {
+      syncDoneRef.current = false;
+      syncInProgressRef.current = false;
+      storeSyncedRef.current = false;
+    } else if (status === "unauthenticated") {
+      // ✅ Reset tất cả refs khi đăng xuất
       syncDoneRef.current = false;
       syncInProgressRef.current = false;
       storeSyncedRef.current = false;

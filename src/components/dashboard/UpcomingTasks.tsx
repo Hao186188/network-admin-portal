@@ -15,15 +15,17 @@ import Link from "next/link";
 const formatDate = (dateString: string) => {
   const date = new Date(dateString);
   const now = new Date();
-  const diff = now.getTime() - date.getTime();
+  const diff = date.getTime() - now.getTime(); // thời gian còn lại (tương lai - hiện tại)
+
+  if (diff < 0) return "Quá hạn";
+
   const minutes = Math.floor(diff / 60000);
   const hours = Math.floor(minutes / 60);
   const days = Math.floor(hours / 24);
 
-  if (minutes < 60) return `${minutes} phút trước`;
-  if (hours < 24) return `${hours} giờ trước`;
-  if (days < 7) return `${days} ngày trước`;
-  return date.toLocaleDateString("vi-VN");
+  if (days > 0) return `Còn ${days} ngày`;
+  if (hours > 0) return `Còn ${hours} giờ`;
+  return `Còn ${minutes} phút`;
 };
 
 const STATUS_CONFIG = {
@@ -88,8 +90,19 @@ export function UpcomingTasks() {
             ))
           ) : upcomingTasks.length > 0 ? (
             upcomingTasks.map((task, index) => {
-              const status = task.status as keyof typeof STATUS_CONFIG;
-              const config = STATUS_CONFIG[status] || STATUS_CONFIG.upcoming;
+              // Tính status dựa trên due_date thực tế
+              const daysLeft = Math.floor(
+                (new Date(task.due_date).getTime() - Date.now()) / 86400000
+              );
+              const status: keyof typeof STATUS_CONFIG =
+                daysLeft < 0
+                  ? "urgent"
+                  : daysLeft <= 2
+                    ? "urgent"
+                    : daysLeft <= 7
+                      ? "pending"
+                      : "upcoming";
+              const config = STATUS_CONFIG[status];
 
               return (
                 <motion.div

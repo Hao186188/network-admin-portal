@@ -1,5 +1,5 @@
 // src/app/(routes)/forum/[id]/page.tsx
-// Vai trò: Trang chi tiết bài viết với ảnh
+// Vai trò: Trang chi tiết bài viết với ảnh + ADMIN FEATURES
 
 "use client";
 
@@ -19,43 +19,26 @@ import { motion } from "framer-motion";
 import {
   AlertCircle,
   ArrowLeft,
+  Edit3,
   Eye,
   Lock,
   MessageCircle,
   Pin,
   Share2,
   ThumbsUp,
-  ThumbsUp as ThumbsUpFilled
+  ThumbsUp as ThumbsUpFilled,
+  Trash2,
 } from "lucide-react";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 const isValidUUID = (str: string) => {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
     str,
   );
 };
-
-// Hook để kiểm tra đã view chưa
-function useHasViewed(postId: string) {
-  const [hasViewed, setHasViewed] = useState(false);
-
-  useEffect(() => {
-    if (postId) {
-      setHasViewed(sessionStorage.getItem(`viewed_post_${postId}`) === "true");
-    }
-  }, [postId]);
-
-  const markAsViewed = useCallback(() => {
-    if (postId) {
-      sessionStorage.setItem(`viewed_post_${postId}`, "true");
-    }
-  }, [postId]);
-
-  return { hasViewed, markAsViewed };
-}
 
 export default function ForumDetailPage() {
   const params = useParams();
@@ -72,9 +55,12 @@ export default function ForumDetailPage() {
   const [replyContent, setReplyContent] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showGuide, setShowGuide] = useState(true);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editTitle, setEditTitle] = useState("");
+  const [editContent, setEditContent] = useState("");
 
   const postId = params.id as string;
-  const { hasViewed, markAsViewed } = useHasViewed(postId);
+  const viewedRef = useRef(false);
 
   const {
     isLiked,
@@ -84,7 +70,6 @@ export default function ForumDetailPage() {
     loading: likeLoading,
   } = useLikeStatus(postId, session?.user?.id);
 
-  // Lấy danh sách ảnh
   const images = attachments
     .filter((att) => att.file_type?.startsWith("image/"))
     .map((att) => att.file_url);
@@ -105,12 +90,6 @@ export default function ForumDetailPage() {
         setLoading(true);
         setError(null);
 
-        // Chỉ tăng view nếu chưa view
-        if (!hasViewed) {
-          await incrementViews(postId);
-          markAsViewed();
-        }
-
         const postData = await getPostDetail(postId);
         if (!postData) {
           setError("Không tìm thấy bài viết");
@@ -130,6 +109,13 @@ export default function ForumDetailPage() {
 
         setAttachments(attachmentsData || []);
 
+        if (!viewedRef.current) {
+          viewedRef.current = true;
+          await incrementViews(postId);
+          const updatedPost = await getPostDetail(postId);
+          if (updatedPost) setPost(updatedPost);
+        }
+
         setLoading(false);
       } catch (err) {
         console.error("Error fetching post:", err);
@@ -139,7 +125,8 @@ export default function ForumDetailPage() {
     };
 
     fetchData();
-  }, [postId, hasViewed, markAsViewed]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [postId]);
 
   const handleLike = async () => {
     if (!session?.user) {
@@ -168,14 +155,100 @@ export default function ForumDetailPage() {
     try {
       const result = await addReply(postId, replyContent);
       if (result) {
-        setReplies([...replies, result]);
+        setReplies((prev) => [...prev, result]);
         setReplyContent("");
+        const updated = await getPostDetail(postId);
+        if (updated) setPost(updated);
         toast.success("Đã thêm trả lời!");
       }
     } catch (error) {
       toast.error("Có lỗi xảy ra");
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  // ✅ Admin: Toggle pin
+  const handleTogglePin = async () => {
+    if (
+      !session?.user ||
+      (session.user.role !== "ADMIN" && session.user.role !== "TEACHER")
+    ) {
+      toast.error("Bạn không có quyền thực hiện hành động này");
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from("forum_posts")
+        .update({
+          is_pinned: !post.is_pinned,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", postId);
+
+      if (error) throw error;
+
+      setPost((prev: any) => ({ ...prev, is_pinned: !prev.is_pinned }));
+      toast.success(
+        post.is_pinned ? "Đã bỏ ghim bài viết" : "Đã ghim bài viết",
+      );
+    } catch (error: any) {
+      toast.error(error.message || "Có lỗi xảy ra");
+    }
+  };
+
+  // ✅ Admin: Edit post
+  const handleEdit = () => {
+    setEditTitle(post.title);
+    setEditContent(post.content);
+    setIsEditing(true);
+  };
+
+  const handleEditSubmit = async () => {
+    if (!editTitle.trim() || !editContent.trim()) {
+      toast.error("Tiêu đề và nội dung không được để trống");
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from("forum_posts")
+        .update({
+          title: editTitle.trim(),
+          content: editContent.trim(),
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", postId);
+
+      if (error) throw error;
+
+      setPost((prev: any) => ({
+        ...prev,
+        title: editTitle,
+        content: editContent,
+      }));
+      setIsEditing(false);
+      toast.success("Đã cập nhật bài viết");
+    } catch (error: any) {
+      toast.error(error.message || "Có lỗi xảy ra");
+    }
+  };
+
+  // ✅ Admin: Delete post
+  const handleDelete = async () => {
+    try {
+      const { error } = await supabase
+        .from("forum_posts")
+        .delete()
+        .eq("id", postId);
+
+      if (error) throw error;
+
+      toast.success("Đã xóa bài viết");
+      router.push("/forum");
+    } catch (error: any) {
+      toast.error(error.message || "Có lỗi xảy ra khi xóa");
     }
   };
 
@@ -322,10 +395,37 @@ export default function ForumDetailPage() {
                 <MessageCircle className="w-5 h-5" />
                 {post.replies}
               </Button>
-              <Button variant="ghost" className="gap-2 rounded-full ml-auto">
+              <Button variant="ghost" className="gap-2 rounded-full">
                 <Share2 className="w-5 h-5" />
                 Chia sẻ
               </Button>
+
+              {/* Admin Actions */}
+              {(session?.user?.role === "ADMIN" ||
+                session?.user?.role === "TEACHER") && (
+                <div className="flex items-center gap-1 ml-auto">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleTogglePin}
+                    className={cn("gap-1", post.is_pinned && "text-yellow-500")}
+                  >
+                    <Pin className="w-4 h-4" />
+                    {post.is_pinned ? "Bỏ ghim" : "Ghim"}
+                  </Button>
+                  <Button variant="ghost" size="sm" onClick={handleEdit}>
+                    <Edit3 className="w-4 h-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleDelete}
+                    className="text-red-500 hover:text-red-600"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                </div>
+              )}
             </div>
           </motion.div>
 

@@ -4,9 +4,9 @@
 "use client";
 
 import {
-    isServiceRoleEnabled,
-    supabase,
-    supabaseAdmin,
+  isServiceRoleEnabled,
+  supabase,
+  supabaseAdmin,
 } from "@/lib/db/supabase-client";
 import { logger } from "@/lib/logger";
 import { useSession } from "next-auth/react";
@@ -68,8 +68,8 @@ export function useAssignments() {
 
   // ✅ Lấy danh sách bài tập với count thực tế
   const fetchAssignments = useCallback(async () => {
-    if (hasFetched.current || isFetching.current) {
-      logger.log("⏭️ Skip fetchAssignments - already fetched or fetching");
+    if (isFetching.current) {
+      logger.log("⏭️ Skip fetchAssignments - already fetching");
       return;
     }
 
@@ -90,7 +90,17 @@ export function useAssignments() {
 
       if (fetchError) throw fetchError;
 
-      // ✅ Đếm submissions thực tế cho mỗi assignment
+      // ✅ Lấy danh sách submissions của user hiện tại
+      const { data: userSubmissions } = await supabase
+        .from("submissions")
+        .select("assignment_id, id")
+        .eq("user_id", session.user.id);
+
+      const submittedIds = new Set(
+        (userSubmissions || []).map((s) => s.assignment_id),
+      );
+
+      // ✅ Đếm submissions thực tế cho mỗi assignment + check hasSubmitted
       const assignmentsWithRealCount = await Promise.all(
         (data || []).map(async (assignment) => {
           const { count, error: countError } = await supabase
@@ -100,9 +110,10 @@ export function useAssignments() {
 
           return {
             ...assignment,
-            submissions: countError ? assignment.submissions : (count || 0),
+            submissions: countError ? assignment.submissions : count || 0,
+            hasSubmitted: submittedIds.has(assignment.id),
           };
-        })
+        }),
       );
 
       setAssignments(assignmentsWithRealCount);
@@ -348,6 +359,20 @@ export function useAssignments() {
     [],
   );
 
+  // Helper: sanitize tên file để loại bỏ ký tự đặc biệt, khoảng trắng
+  const sanitizeFileName = (fileName: string): string => {
+    // Giữ nguyên extension, loại bỏ ký tự đặc biệt và khoảng trắng
+    const ext = fileName.substring(fileName.lastIndexOf("."));
+    const baseName = fileName.substring(0, fileName.lastIndexOf("."));
+    const sanitized = baseName
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "") // bỏ dấu tiếng Việt
+      .replace(/[^a-zA-Z0-9_-]/g, "_") // thay ký tự đặc biệt bằng _
+      .replace(/_+/g, "_") // gộp nhiều _ liên tiếp
+      .replace(/^_|_$/g, ""); // xóa _ đầu/cuối
+    return `${sanitized}${ext}`;
+  };
+
   const uploadFiles = useCallback(
     async (files: File[], assignmentId: string): Promise<string[]> => {
       const urls: string[] = [];
@@ -355,7 +380,8 @@ export function useAssignments() {
 
       for (const file of files) {
         try {
-          const path = `assignments/${assignmentId}/attachments/${Date.now()}_${file.name}`;
+          const safeName = sanitizeFileName(file.name);
+          const path = `assignments/${assignmentId}/attachments/${Date.now()}_${safeName}`;
           const url = await uploadFile(file, path);
           if (url) {
             urls.push(url);
@@ -372,6 +398,113 @@ export function useAssignments() {
       return urls;
     },
     [uploadFile, toast],
+  );
+  // ✅ Cập nhật bài tập
+  const updateAssignment = useCallback(
+    async (
+      id: string,
+      data: Partial<Assignment> & { max_submissions?: number },
+    ) => {
+      if (!session?.user) {
+        toast.error("Vui lòng đăng nhập");
+        return null;
+      }
+
+      if (session.user.role !== "TEACHER" && session.user.role !== "ADMIN") {
+        toast.error("Chỉ giảng viên và quản trị viên mới có thể sửa bài tập");
+        return null;
+      }
+
+      try {
+        const updateData: any = {
+          title: data.title,
+          description: data.description,
+          subject: data.subject,
+          type: data.type,
+          due_date: data.due_date,
+          points: data.points,
+          total_students: data.total_students,
+          updated_at: new Date().toISOString(),
+        };
+
+        if (data.max_submissions !== undefined) {
+          updateData.max_submissions = data.max_submissions;
+        }
+
+        if (data.attachment_urls) {
+          updateData.attachment_urls = data.attachment_urls;
+          updateData.attachments = data.attachment_urls.length;
+        }
+
+        const client = isServiceRoleEnabled ? supabaseAdmin : supabase;
+        const { data: updated, error } = await client
+          .from("assignments")
+          .update(updateData)
+          .eq("id", id)
+          .select()
+          .single();
+
+        if (error) throw error;
+
+        setAssignments((prev) =>
+          prev.map((a) => (a.id === id ? { ...a, ...updated } : a)),
+        );
+        toast.success("Đã cập nhật bài tập thành công!");
+        refresh();
+        return updated;
+      } catch (error: any) {
+        logger.error("Error updating assignment:", error);
+        toast.error(error.message || "Có lỗi xảy ra khi cập nhật bài tập");
+        return null;
+      }
+    },
+    [session?.user, toast, refresh],
+  );
+
+  // ✅ Xóa bài tập
+  const deleteAssignment = useCallback(
+    async (id: string) => {
+      if (!session?.user) {
+        toast.error("Vui lòng đăng nhập");
+        return false;
+      }
+
+      if (session.user.role !== "TEACHER" && session.user.role !== "ADMIN") {
+        toast.error("Chỉ giảng viên và quản trị viên mới có thể xóa bài tập");
+        return false;
+      }
+
+      try {
+        // ✅ Xóa submissions trước
+        const { error: subError } = await supabase
+          .from("submissions")
+          .delete()
+          .eq("assignment_id", id);
+
+        if (subError) {
+          logger.error("Error deleting submissions:", subError);
+        }
+
+        // ✅ Xóa assignment
+        const client = isServiceRoleEnabled ? supabaseAdmin : supabase;
+        const { error } = await client
+          .from("assignments")
+          .delete()
+          .eq("id", id);
+
+        if (error) throw error;
+
+        // ✅ Cập nhật local state
+        setAssignments((prev) => prev.filter((a) => a.id !== id));
+        toast.success("Đã xóa bài tập thành công!");
+        return true;
+      } catch (error: any) {
+        logger.error("Error deleting assignment:", error);
+        toast.error(error.message || "Có lỗi xảy ra khi xóa bài tập");
+        return false;
+      }
+    },
+    [session?.user, toast],
   );
 
   // ✅ Nộp bài tập
@@ -413,8 +546,9 @@ export function useAssignments() {
           }
         }
 
-        // ✅ Upload file
-        const filePath = `assignments/${assignment_id}/submissions/${user_id}/${Date.now()}_${file.name}`;
+        // ✅ Upload file (sanitize tên file để tránh lỗi Invalid key)
+        const safeName = sanitizeFileName(file.name);
+        const filePath = `assignments/${assignment_id}/submissions/${user_id}/${Date.now()}_${safeName}`;
         const fileUrl = await uploadFile(file, filePath);
 
         if (!fileUrl) {
@@ -454,8 +588,22 @@ export function useAssignments() {
             .eq("id", assignment_id);
         }
 
+        // ✅ Cập nhật local state ngay lập tức
+        setAssignments((prev) =>
+          prev.map((a) =>
+            a.id === assignment_id
+              ? {
+                  ...a,
+                  hasSubmitted: true,
+                  submissions: actualCount || a.submissions + 1,
+                }
+              : a,
+          ),
+        );
+
         toast.success("Nộp bài thành công!");
-        refresh();
+        // Refresh để đồng bộ với DB
+        setTimeout(() => refresh(), 500);
 
         return true;
       } catch (error: any) {
@@ -480,6 +628,8 @@ export function useAssignments() {
     getAssignmentSubmissions,
     downloadFile,
     createAssignment,
+    updateAssignment,
+    deleteAssignment,
     submitAssignment,
     uploadFile,
     uploadFiles,

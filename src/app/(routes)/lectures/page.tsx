@@ -13,7 +13,7 @@ import { motion } from "framer-motion";
 import { FolderOpen, Plus } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { FolderExplorer } from "./components/FolderExplorer";
 import { LectureFilters } from "./components/LectureFilters";
 import { LectureHero } from "./components/LectureHero";
@@ -51,17 +51,17 @@ export default function LecturesPage() {
     toggleLike,
   } = useLectures();
 
-  // ✅ Kiểm tra quyền
   const isAdmin = userRole === "ADMIN";
   const isTeacher = userRole === "TEACHER";
   const isStudent = userRole === "STUDENT";
   const canView = isAdmin || isTeacher || isStudent;
 
-  // ✅ Chuyển hướng nếu không có quyền xem
-  if (status === "authenticated" && !canView) {
-    router.push("/dashboard");
-    return null;
-  }
+  // ✅ Redirect nếu không có quyền - dùng useEffect thay vì gọi trong render
+  useEffect(() => {
+    if (status === "authenticated" && !canView) {
+      router.push("/dashboard");
+    }
+  }, [status, canView, router]);
 
   const typedLectures = lectures as Lecture[];
   const filteredLectures = filterLectures(typedLectures, filter);

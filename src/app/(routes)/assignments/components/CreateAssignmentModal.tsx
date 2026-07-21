@@ -11,12 +11,12 @@ import { logger } from "@/lib/logger";
 import { cn } from "@/lib/utils";
 import { AnimatePresence, motion } from "framer-motion";
 import {
-    Calendar,
-    ChevronDown,
-    FileText,
-    Plus,
-    UsersRound,
-    X,
+  Calendar,
+  ChevronDown,
+  FileText,
+  Plus,
+  UsersRound,
+  X,
 } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { useRef, useState } from "react";
@@ -178,7 +178,8 @@ function DateTimePicker({
     const [hours, minutes] = selectedTime.split(":").map(Number);
     newDate.setHours(hours, minutes);
     onChange(newDate.toISOString());
-    setIsOpen(false);
+    // ✅ KHÔNG tự động close popup để người dùng có thể chọn giờ trước
+    // Chỉ close khi click ra ngoài hoặc chọn nút xác nhận
   };
 
   const handleTimeChange = (time: string) => {

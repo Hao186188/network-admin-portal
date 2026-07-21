@@ -1,5 +1,5 @@
 // src/app/(routes)/assignments/page.tsx
-// HOÀN CHỈNH - XÓA TRÙNG LẶP
+// HOÀN CHỈNH - THÊM XÓA/SỬA/SORT + FIX GRADE PERMISSION
 
 "use client";
 
@@ -21,15 +21,16 @@ import { useAssignments } from "@/hooks/use-assignments";
 import { useToast } from "@/hooks/use-toast";
 import { supabase, supabaseAdmin } from "@/lib/db/supabase-client";
 import { motion } from "framer-motion";
-import { FileText, Plus, Star } from "lucide-react";
+import { AlertTriangle, FileText, Plus, Star, Trash2 } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { AssignmentCard } from "./components/AssignmentCard";
 import { AssignmentFilters } from "./components/AssignmentFilters";
 import { AssignmentHero } from "./components/AssignmentHero";
 import { AssignmentSkeleton } from "./components/AssignmentSkeleton";
 import { CreateAssignmentModal } from "./components/CreateAssignmentModal";
+import { EditAssignmentModal } from "./components/EditAssignmentModal";
 import { SubmitAssignmentModal } from "./components/SubmitAssignmentModal";
 
 // ============================================
@@ -197,13 +198,104 @@ function GradeModal({
 }
 
 // ============================================
+// DELETE CONFIRMATION MODAL
+// ============================================
+
+interface DeleteConfirmModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  assignment: any;
+  onConfirm: (id: string) => void;
+  isDeleting: boolean;
+}
+
+function DeleteConfirmModal({
+  isOpen,
+  onClose,
+  assignment,
+  onConfirm,
+  isDeleting,
+}: DeleteConfirmModalProps) {
+  if (!isOpen || !assignment) return null;
+
+  return (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="bg-slate-900 border border-white/10 text-white max-w-md">
+        <DialogHeader>
+          <DialogTitle className="text-xl font-bold text-white flex items-center gap-2">
+            <AlertTriangle className="w-5 h-5 text-red-400" />
+            Xác nhận xóa bài tập
+          </DialogTitle>
+          <DialogDescription className="text-white/40">
+            Bạn có chắc chắn muốn xóa bài tập này? Hành động này không thể hoàn
+            tác.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="py-4 space-y-3">
+          <div className="p-4 rounded-xl bg-white/5 border border-white/10">
+            <p className="font-medium text-white">{assignment.title}</p>
+            <p className="text-sm text-white/60 mt-1">
+              Môn: {assignment.subject} | Loại: {assignment.type}
+            </p>
+            <p className="text-sm text-white/60">
+              Đã nộp: {assignment.submissions || 0} sinh viên
+            </p>
+          </div>
+          <p className="text-sm text-red-400 flex items-center gap-2">
+            <Trash2 className="w-4 h-4" />
+            Tất cả bài nộp của sinh viên cũng sẽ bị xóa.
+          </p>
+        </div>
+
+        <DialogFooter className="gap-3">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={onClose}
+            className="border-white/10 text-white/60 hover:text-white hover:border-white/20"
+            disabled={isDeleting}
+          >
+            Hủy
+          </Button>
+          <Button
+            type="button"
+            className="gap-2 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700"
+            onClick={() => onConfirm(assignment.id)}
+            disabled={isDeleting}
+          >
+            {isDeleting ? (
+              <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+            ) : (
+              <>
+                <Trash2 className="w-4 h-4" />
+                Xóa bài tập
+              </>
+            )}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ============================================
 // MAIN PAGE
 // ============================================
+
+type SortOption =
+  | "due_date_asc"
+  | "due_date_desc"
+  | "created_at_desc"
+  | "created_at_asc"
+  | "points_desc"
+  | "points_asc";
 
 export default function AssignmentsPage() {
   const { data: session, status } = useSession();
   const { toast } = useToast();
-  const { assignments, loading, error, refresh } = useAssignments();
+  const { assignments, loading, error, refresh, deleteAssignment } =
+    useAssignments();
   const router = useRouter();
 
   const [searchQuery, setSearchQuery] = useState("");
@@ -211,9 +303,13 @@ export default function AssignmentsPage() {
   const [selectedStatus, setSelectedStatus] = useState<string>("Tất cả");
   const [selectedType, setSelectedType] = useState<string>("Tất cả");
   const [showFilters, setShowFilters] = useState(false);
+  const [sortBy, setSortBy] = useState<SortOption>("due_date_asc");
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isSubmitModalOpen, setIsSubmitModalOpen] = useState(false);
   const [isGradeModalOpen, setIsGradeModalOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [selectedAssignment, setSelectedAssignment] = useState<any>(null);
 
   const [userSubmissions, setUserSubmissions] = useState<Set<string>>(
@@ -274,8 +370,9 @@ export default function AssignmentsPage() {
     return { total, pending, submitted, graded, overdue, completedPercentage };
   }, [assignments]);
 
+  // ✅ Sắp xếp và lọc
   const filteredAssignments = useMemo(() => {
-    return assignmentsWithStatus.filter((item: any) => {
+    let result = assignmentsWithStatus.filter((item: any) => {
       const matchesSearch =
         item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
         item.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -286,7 +383,43 @@ export default function AssignmentsPage() {
         selectedType === "Tất cả" || item.type === selectedType;
       return matchesSearch && matchesStatus && matchesType;
     });
-  }, [assignmentsWithStatus, searchQuery, selectedStatus, selectedType]);
+
+    // ✅ Sắp xếp
+    result.sort((a: any, b: any) => {
+      switch (sortBy) {
+        case "due_date_asc":
+          return (
+            new Date(a.due_date).getTime() - new Date(b.due_date).getTime()
+          );
+        case "due_date_desc":
+          return (
+            new Date(b.due_date).getTime() - new Date(a.due_date).getTime()
+          );
+        case "created_at_desc":
+          return (
+            new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+          );
+        case "created_at_asc":
+          return (
+            new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+          );
+        case "points_desc":
+          return (b.points || 0) - (a.points || 0);
+        case "points_asc":
+          return (a.points || 0) - (b.points || 0);
+        default:
+          return 0;
+      }
+    });
+
+    return result;
+  }, [
+    assignmentsWithStatus,
+    searchQuery,
+    selectedStatus,
+    selectedType,
+    sortBy,
+  ]);
 
   const handleUpload = (assignment: any) => {
     if (userSubmissions.has(assignment.id)) {
@@ -321,6 +454,40 @@ export default function AssignmentsPage() {
     setIsGradeModalOpen(true);
   };
 
+  const handleEdit = (assignment: any) => {
+    if (!canManage) {
+      toast.error("Bạn không có quyền sửa bài tập");
+      return;
+    }
+    setSelectedAssignment(assignment);
+    setIsEditModalOpen(true);
+  };
+
+  const handleDeleteClick = (assignment: any) => {
+    if (!canManage) {
+      toast.error("Bạn không có quyền xóa bài tập");
+      return;
+    }
+    setSelectedAssignment(assignment);
+    setIsDeleteModalOpen(true);
+  };
+
+  const handleDeleteConfirm = useCallback(
+    async (id: string) => {
+      setIsDeleting(true);
+      try {
+        const success = await deleteAssignment(id);
+        if (success) {
+          setIsDeleteModalOpen(false);
+          setSelectedAssignment(null);
+        }
+      } finally {
+        setIsDeleting(false);
+      }
+    },
+    [deleteAssignment],
+  );
+
   const handleCreateSuccess = () => {
     refresh();
     toast.success("Đã cập nhật danh sách bài tập");
@@ -352,6 +519,11 @@ export default function AssignmentsPage() {
     toast.success("Đã cập nhật danh sách bài tập");
   };
 
+  const handleEditSuccess = () => {
+    refresh();
+    toast.success("Đã cập nhật danh sách bài tập");
+  };
+
   if (status === "loading" || loading) {
     return (
       <>
@@ -375,7 +547,7 @@ export default function AssignmentsPage() {
       <Navbar />
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50 dark:from-slate-950 dark:via-slate-900 dark:to-slate-800 pt-16 md:pt-20">
         <div className="max-w-7xl mx-auto p-4 md:p-8 space-y-8">
-          {/* ✅ Hero - Chỉ hiển thị 1 lần */}
+          {/* Hero */}
           <AssignmentHero
             totalAssignments={stats.total}
             pendingCount={stats.pending}
@@ -386,7 +558,7 @@ export default function AssignmentsPage() {
             onCreateClick={() => setIsCreateModalOpen(true)}
           />
 
-          {/* ✅ Filters */}
+          {/* Filters */}
           <AssignmentFilters
             searchQuery={searchQuery}
             setSearchQuery={setSearchQuery}
@@ -401,7 +573,32 @@ export default function AssignmentsPage() {
             assignments={assignments}
           />
 
-          {/* ✅ List assignments - CHỈ 1 LẦN */}
+          {/* ✅ Sort Controls */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-sm text-muted-foreground">Sắp xếp:</span>
+            {[
+              { value: "due_date_asc", label: "Hạn nộp (tăng dần)" },
+              { value: "due_date_desc", label: "Hạn nộp (giảm dần)" },
+              { value: "created_at_desc", label: "Mới nhất" },
+              { value: "created_at_asc", label: "Cũ nhất" },
+              { value: "points_desc", label: "Điểm (cao->thấp)" },
+              { value: "points_asc", label: "Điểm (thấp->cao)" },
+            ].map((option) => (
+              <button
+                key={option.value}
+                onClick={() => setSortBy(option.value as SortOption)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 ${
+                  sortBy === option.value
+                    ? "bg-primary text-white shadow-md"
+                    : "bg-muted/50 text-muted-foreground hover:bg-muted border border-border/50"
+                }`}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+
+          {/* List assignments */}
           <motion.div
             layout
             className={
@@ -451,6 +648,8 @@ export default function AssignmentsPage() {
                   onViewDetail={handleViewDetail}
                   onUpload={handleUpload}
                   onGrade={canGrade ? handleGrade : undefined}
+                  onEdit={canManage ? handleEdit : undefined}
+                  onDelete={canManage ? handleDeleteClick : undefined}
                   index={index}
                   viewMode={viewMode}
                   canGrade={canGrade}
@@ -468,6 +667,18 @@ export default function AssignmentsPage() {
         onClose={() => setIsCreateModalOpen(false)}
         onSuccess={handleCreateSuccess}
       />
+
+      {selectedAssignment && (
+        <EditAssignmentModal
+          isOpen={isEditModalOpen}
+          onClose={() => {
+            setIsEditModalOpen(false);
+            setSelectedAssignment(null);
+          }}
+          assignment={selectedAssignment}
+          onSuccess={handleEditSuccess}
+        />
+      )}
 
       <SubmitAssignmentModal
         isOpen={isSubmitModalOpen}
@@ -487,6 +698,17 @@ export default function AssignmentsPage() {
         }}
         assignment={selectedAssignment}
         onSuccess={handleGradeSuccess}
+      />
+
+      <DeleteConfirmModal
+        isOpen={isDeleteModalOpen}
+        onClose={() => {
+          setIsDeleteModalOpen(false);
+          setSelectedAssignment(null);
+        }}
+        assignment={selectedAssignment}
+        onConfirm={handleDeleteConfirm}
+        isDeleting={isDeleting}
       />
     </>
   );

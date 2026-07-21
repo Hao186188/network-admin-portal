@@ -19,6 +19,7 @@ import { Navbar } from "@/components/layout/navbar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useAnnouncements } from "@/hooks/use-announcements";
+import { useDashboard } from "@/hooks/use-dashboard";
 import { useStats } from "@/hooks/use-stats";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
@@ -57,39 +58,36 @@ const STAT_ITEMS = [
   },
 ];
 
-// Thông báo chạy trên Network Ticker
-const TICKER_MESSAGES = [
-  "🚀 [SYSTEM]: Hệ thống đang hoạt động ổn định - Uptime: 99.9%",
-  "📢 [THÔNG BÁO]: Hạn nộp bài tập Cisco Lab - 23:00 tối nay",
-  "📚 [TÀI LIỆU]: Đã cập nhật ISO Ubuntu Server 24.04 LTS",
-  "🔔 [SỰ KIỆN]: Workshop Network Automation - Thứ 7 tuần này",
-  "⚡ [UPDATE]: Bản vá bảo mật mới đã được cài đặt",
-];
+// Thông báo mặc định khi chưa load xong
+const FALLBACK_TICKER = ["🚀 [SYSTEM]: Hệ thống đang hoạt động ổn định - Uptime: 99.9%"];
 
 export default function DashboardPage() {
   const { data: session, status } = useSession();
   const { toast } = useToast();
   const stats = useStats();
+  const { recentAnnouncements, refresh: refreshDashboard } = useDashboard();
   const { refresh: refreshAnnouncements } = useAnnouncements();
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
+  // Tạo ticker messages từ announcements thật
+  const tickerMessages = recentAnnouncements.length > 0
+    ? recentAnnouncements.map(
+        (a: any) => `📢 [${a.category?.toUpperCase() || "THÔNG BÁO"}]: ${a.title}`
+      )
+    : FALLBACK_TICKER;
+
   useEffect(() => {
     setMounted(true);
   }, []);
-
-  useEffect(() => {
-    if (status === "authenticated" && session?.user) {
-      console.log("✅ Session loaded:", session.user.email);
-    }
-  }, [status, session]);
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
     toast.info("Đang làm mới dữ liệu...");
     await Promise.all([
       refreshAnnouncements(),
+      refreshDashboard(),
       new Promise((resolve) => setTimeout(resolve, 1000)),
     ]);
     setIsRefreshing(false);
@@ -106,11 +104,11 @@ export default function DashboardPage() {
     return typeof value === "number" ? value : 0;
   };
 
+  // Không dùng Math.random() trong render → hydration mismatch
+  // Hiển thị "+" đơn giản thay vì random
   const getChange = (key: string): string => {
     const value = getStatValue(key);
-    if (value === 0) return "0%";
-    const change = Math.floor(Math.random() * 20 + 5);
-    return `+${change}%`;
+    return value > 0 ? "+" : "0%";
   };
 
   if (!mounted) {
@@ -131,7 +129,7 @@ export default function DashboardPage() {
       {/* Network Ticker - Hiển thị bên dưới Navbar */}
       <div className="sticky top-16 z-40">
         <NetworkTicker
-          messages={TICKER_MESSAGES}
+          messages={tickerMessages}
           className="mx-2 md:mx-8 mt-2"
           speed={35}
         />

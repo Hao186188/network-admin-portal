@@ -1,4 +1,5 @@
 // src/app/(routes)/documents/components/FileExplorer/index.tsx
+// FIXED: Optimistic navigation + Optimized fetching
 
 "use client";
 
@@ -19,10 +20,9 @@ import { BreadcrumbItem, FileExplorerProps } from "./types";
 // CONSTANTS
 // ============================================
 
-const MAX_FILE_SIZE = 4 * 1024 * 1024; // 4MB (giới hạn Vercel)
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 
 const SUPPORTED_EXTENSIONS = [
-  // Documents
   "pdf",
   "doc",
   "docx",
@@ -33,7 +33,6 @@ const SUPPORTED_EXTENSIONS = [
   "txt",
   "rtf",
   "odt",
-  // Archives
   "zip",
   "rar",
   "7z",
@@ -41,7 +40,6 @@ const SUPPORTED_EXTENSIONS = [
   "gz",
   "bz2",
   "xz",
-  // Images
   "jpg",
   "jpeg",
   "png",
@@ -52,7 +50,6 @@ const SUPPORTED_EXTENSIONS = [
   "ico",
   "tiff",
   "tif",
-  // Videos
   "mp4",
   "avi",
   "mov",
@@ -62,7 +59,6 @@ const SUPPORTED_EXTENSIONS = [
   "webm",
   "m4v",
   "3gp",
-  // Audio
   "mp3",
   "wav",
   "aac",
@@ -70,7 +66,6 @@ const SUPPORTED_EXTENSIONS = [
   "ogg",
   "m4a",
   "wma",
-  // Code
   "js",
   "ts",
   "jsx",
@@ -93,18 +88,16 @@ const SUPPORTED_EXTENSIONS = [
   "sh",
   "bat",
   "ps1",
-  // Network
   "pkt",
   "pka",
   "cfg",
   "conf",
   "log",
-  // URL
   "url",
 ];
 
 // ============================================
-// CONFIRM DIALOG COMPONENT
+// CONFIRM DIALOG
 // ============================================
 
 interface ConfirmDialogProps {
@@ -129,13 +122,11 @@ function ConfirmDialog({
   variant = "danger",
 }: ConfirmDialogProps) {
   if (!isOpen) return null;
-
   const colors = {
     danger: "bg-red-500 hover:bg-red-600",
     warning: "bg-yellow-500 hover:bg-yellow-600",
     info: "bg-blue-500 hover:bg-blue-600",
   };
-
   return (
     <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70 backdrop-blur-sm">
       <div className="bg-slate-900 rounded-2xl shadow-2xl w-full max-w-md mx-4 p-6 border border-white/10">
@@ -164,7 +155,7 @@ function ConfirmDialog({
 }
 
 // ============================================
-// ERROR DIALOG COMPONENT
+// ERROR DIALOG
 // ============================================
 
 interface ErrorDialogProps {
@@ -183,7 +174,6 @@ function ErrorDialog({
   details = [],
 }: ErrorDialogProps) {
   if (!isOpen) return null;
-
   return (
     <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70 backdrop-blur-sm">
       <div className="bg-slate-900 rounded-2xl shadow-2xl w-full max-w-md mx-4 p-6 border border-red-500/20">
@@ -240,12 +230,10 @@ export function FileExplorer({
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [isNewFolderModalOpen, setIsNewFolderModalOpen] = useState(false);
   const [selectedItems, setSelectedItems] = useState<string[]>([]);
+  const [isInitialized, setIsInitialized] = useState(false);
 
-  // ✅ Refs để kiểm soát
-  const isNavigating = useRef(false);
-  const isInitialized = useRef(false);
+  // Refs
   const isFetching = useRef(false);
-  const initialFetchDone = useRef(false);
   const abortControllerRef = useRef<AbortController | null>(null);
   const isMounted = useRef(true);
 
@@ -270,15 +258,10 @@ export function FileExplorer({
     title: string;
     message: string;
     details?: string[];
-  }>({
-    isOpen: false,
-    title: "",
-    message: "",
-    details: [],
-  });
+  }>({ isOpen: false, title: "", message: "", details: [] });
 
   // ============================================
-  // ✅ HANDLE RENAME FOLDER
+  // HANDLE RENAME
   // ============================================
 
   const handleRenameFolder = useCallback(
@@ -287,32 +270,19 @@ export function FileExplorer({
         toast.error("Vui lòng đăng nhập");
         return;
       }
-
       if (!newTitle.trim()) {
         toast.error("Tên không được để trống");
         return;
       }
-
       try {
-        console.log(`📝 [Rename] Renaming folder ${id} to "${newTitle}"`);
-
         const response = await fetch(`/api/documents?id=${id}`, {
           method: "PATCH",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            title: newTitle.trim(),
-          }),
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ title: newTitle.trim() }),
         });
-
         const data = await response.json();
-
-        if (!response.ok) {
+        if (!response.ok)
           throw new Error(data.error || "Không thể đổi tên thư mục");
-        }
-
-        // Refresh nội dung folder hiện tại
         await fetchFolderContents(currentFolderId);
         await fetchBreadcrumbs(currentFolderId);
       } catch (error: any) {
@@ -324,7 +294,7 @@ export function FileExplorer({
   );
 
   // ============================================
-  // 📂 FETCH FOLDER CONTENTS
+  // FETCH FOLDER CONTENTS (async, non-blocking UI)
   // ============================================
 
   const fetchFolderContents = useCallback(async (folderId: string | null) => {
@@ -332,21 +302,13 @@ export function FileExplorer({
       console.log("⏭️ Already fetching, skipping...");
       return;
     }
-
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
     }
-
     abortControllerRef.current = new AbortController();
     isFetching.current = true;
 
-    if (isMounted.current) {
-      setLoading(true);
-    }
-
     try {
-      console.log(`🔄 Fetching folder contents for: ${folderId}`);
-
       let query = supabase
         .from("documents")
         .select("*")
@@ -361,26 +323,14 @@ export function FileExplorer({
 
       const { data, error } = await query;
 
-      if (abortControllerRef.current?.signal.aborted) {
-        console.log("⏭️ Request aborted");
-        return;
-      }
-
+      if (abortControllerRef.current?.signal.aborted) return;
       if (error) throw error;
 
       if (isMounted.current) {
-        const documentData = (data || []) as Document[];
-        console.log(`📂 Fetched ${documentData.length} items`);
-        setItems(documentData);
-        initialFetchDone.current = true;
-        isInitialized.current = true;
+        setItems((data || []) as Document[]);
       }
     } catch (error: any) {
-      if (error.name === "AbortError" || error.code === "ABORT_ERR") {
-        console.log("⏭️ Fetch aborted");
-        return;
-      }
-
+      if (error.name === "AbortError" || error.code === "ABORT_ERR") return;
       console.error("Error fetching folder contents:", error);
       if (isMounted.current) {
         setErrorDialog({
@@ -390,39 +340,31 @@ export function FileExplorer({
         });
       }
     } finally {
-      if (isMounted.current) {
-        console.log("✅ Setting loading to false");
-        setLoading(false);
-      }
+      if (isMounted.current) setLoading(false);
       isFetching.current = false;
     }
   }, []);
 
   // ============================================
-  // 🧭 FETCH BREADCRUMBS
+  // FETCH BREADCRUMBS
   // ============================================
 
   const fetchBreadcrumbs = useCallback(async (folderId: string | null) => {
     if (!folderId) {
-      if (isMounted.current) {
+      if (isMounted.current)
         setBreadcrumbs([{ id: null, title: "📁 Thư viện" }]);
-      }
       return;
     }
-
     try {
       const crumbs: BreadcrumbItem[] = [{ id: null, title: "📁 Thư viện" }];
       let currentId: string | null = folderId;
-
       while (currentId) {
         const { data, error } = await supabase
           .from("documents")
           .select("id, title, parent_id")
           .eq("id", currentId)
           .single();
-
         if (error) break;
-
         const item = data as {
           id: string;
           title: string;
@@ -431,53 +373,36 @@ export function FileExplorer({
         crumbs.splice(1, 0, { id: item.id, title: item.title });
         currentId = item.parent_id;
       }
-
-      if (isMounted.current) {
-        setBreadcrumbs(crumbs);
-      }
+      if (isMounted.current) setBreadcrumbs(crumbs);
     } catch (error) {
       console.error("Error fetching breadcrumbs:", error);
     }
   }, []);
 
   // ============================================
-  // 📍 NAVIGATE TO FOLDER
+  // NAVIGATE TO FOLDER - OPTIMISTIC UI
   // ============================================
 
   const navigateToFolder = useCallback(
     async (folderId: string | null) => {
-      if (isNavigating.current) {
-        console.log("⏭️ Skipping navigation - already navigating");
-        return;
-      }
+      // ✅ OPTIMISTIC: Cập nhật UI ngay lập tức
+      setCurrentFolderId(folderId);
+      setLoading(true);
+      setItems([]);
 
-      if (isInitialized.current && folderId === currentFolderId) {
-        console.log("⏭️ Skipping navigation - already at this folder");
-        return;
-      }
+      // ✅ Fetch breadcrumbs & contents song song (không await nhau)
+      const breadcrumbPromise = fetchBreadcrumbs(folderId);
+      const contentPromise = fetchFolderContents(folderId);
 
-      console.log(`📂 Navigated to folder: ${folderId}`);
+      await Promise.all([breadcrumbPromise, contentPromise]);
 
-      isNavigating.current = true;
-
-      try {
-        setCurrentFolderId(folderId);
-        await fetchFolderContents(folderId);
-        await fetchBreadcrumbs(folderId);
-        if (onNavigate) {
-          onNavigate(folderId);
-        }
-      } catch (error) {
-        console.error("Error navigating:", error);
-      } finally {
-        isNavigating.current = false;
-      }
+      if (onNavigate) onNavigate(folderId);
     },
-    [currentFolderId, fetchFolderContents, fetchBreadcrumbs, onNavigate],
+    [fetchFolderContents, fetchBreadcrumbs, onNavigate],
   );
 
   // ============================================
-  // ➕ CREATE FOLDER
+  // CREATE FOLDER
   // ============================================
 
   const createFolder = useCallback(
@@ -486,36 +411,24 @@ export function FileExplorer({
         toast.error("Vui lòng đăng nhập");
         return;
       }
-
       if (!title.trim()) {
         toast.error("Vui lòng nhập tên thư mục");
         return;
       }
-
       try {
-        console.log("📁 Creating folder via API:", title);
-
         const response = await fetch("/api/documents", {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             title: title.trim(),
             parent_id: currentFolderId,
             is_folder: true,
           }),
         });
-
         const data = await response.json();
-
-        if (!response.ok) {
+        if (!response.ok)
           throw new Error(data.error || "Không thể tạo thư mục");
-        }
-
-        console.log("✅ Folder created:", data);
         toast.success(`Đã tạo thư mục "${title}"`);
-
         await fetchFolderContents(currentFolderId);
         setIsNewFolderModalOpen(false);
       } catch (error: any) {
@@ -531,14 +444,13 @@ export function FileExplorer({
   );
 
   // ============================================
-  // 🗑️ DELETE ITEM
+  // DELETE ITEM
   // ============================================
 
   const deleteItem = useCallback(
     (id: string) => {
       const item = items.find((i) => i.id === id);
       if (!item) return;
-
       setConfirmDialog({
         isOpen: true,
         title: `Xóa ${item.is_folder ? "thư mục" : "file"}`,
@@ -546,22 +458,17 @@ export function FileExplorer({
         variant: "danger",
         onConfirm: async () => {
           try {
-            console.log("🗑️ Deleting item via API:", id);
-
             const response = await fetch(`/api/documents?id=${id}`, {
               method: "DELETE",
             });
-
             if (!response.ok) {
-              const data = await response.json();
-              throw new Error(data.error || "Không thể xóa");
+              const d = await response.json();
+              throw new Error(d.error || "Không thể xóa");
             }
-
             toast.success(`Đã xóa "${item.title}"`);
             await fetchFolderContents(currentFolderId);
             setSelectedItems([]);
           } catch (error: any) {
-            console.error("Error deleting item:", error);
             setErrorDialog({
               isOpen: true,
               title: "Không thể xóa",
@@ -575,7 +482,7 @@ export function FileExplorer({
   );
 
   // ============================================
-  // 📤 UPLOAD FILES
+  // UPLOAD FILES
   // ============================================
 
   const uploadFiles = useCallback(
@@ -584,62 +491,43 @@ export function FileExplorer({
         toast.error("Vui lòng đăng nhập");
         return;
       }
-
       const fileArray = Array.from(files);
 
-      // ✅ 1. Kiểm tra file quá lớn (4MB)
       const largeFiles = fileArray.filter((file) => file.size > MAX_FILE_SIZE);
       if (largeFiles.length > 0) {
-        const names = largeFiles.map((f) => f.name).join(", ");
         setErrorDialog({
           isOpen: true,
           title: "📁 File quá lớn",
-          message: `Các file sau vượt quá giới hạn 4MB: ${names}`,
+          message: `Các file sau vượt quá giới hạn ${MAX_FILE_SIZE / (1024 * 1024)}MB: ${largeFiles.map((f) => f.name).join(", ")}`,
           details: [
             "💡 Sử dụng chức năng kéo thả thư mục để upload file lớn hơn",
-            "📦 File tối đa 4MB cho upload đơn",
-            "🔄 Hoặc chia nhỏ file thành nhiều phần",
+            `📦 File tối đa ${MAX_FILE_SIZE / (1024 * 1024)}MB cho upload đơn`,
           ],
         });
         return;
       }
 
-      // ✅ 2. Kiểm tra định dạng file
       const invalidFiles = fileArray.filter(
         (file) =>
           !SUPPORTED_EXTENSIONS.includes(
             file.name.split(".").pop()?.toLowerCase() || "",
           ),
       );
-
       if (invalidFiles.length > 0) {
-        const invalidNames = invalidFiles.map((f) => f.name).join(", ");
         setErrorDialog({
           isOpen: true,
           title: "⚠️ Định dạng file không được hỗ trợ",
-          message: `Có ${invalidFiles.length} file không được hỗ trợ: ${invalidNames}`,
+          message: `Có ${invalidFiles.length} file không được hỗ trợ: ${invalidFiles.map((f) => f.name).join(", ")}`,
           details: SUPPORTED_EXTENSIONS,
         });
         return;
       }
 
-      if (fileArray.length === 0) {
-        setErrorDialog({
-          isOpen: true,
-          title: "❌ Không có file hợp lệ",
-          message: "Vui lòng chọn file có định dạng được hỗ trợ",
-          details: SUPPORTED_EXTENSIONS,
-        });
-        return;
-      }
-
-      // ✅ 3. Upload từng file
       const toastId = toast.loading(
         `📤 Đang tải lên ${fileArray.length} file...`,
       );
-
-      let successCount = 0;
-      let failCount = 0;
+      let successCount = 0,
+        failCount = 0;
 
       try {
         for (const file of fileArray) {
@@ -656,34 +544,26 @@ export function FileExplorer({
             method: "POST",
             body: formData,
           });
-
-          if (!response.ok) {
-            const data = await response.json();
-            console.error(`❌ Upload failed: ${file.name}`, data);
-            failCount++;
-          } else {
-            successCount++;
-          }
+          if (!response.ok) failCount++;
+          else successCount++;
         }
 
-        if (failCount === 0) {
+        if (failCount === 0)
           toast.success(`✅ Tải lên thành công ${successCount} file!`, {
             id: toastId,
           });
-        } else if (successCount > 0) {
+        else if (successCount > 0)
           toast.warning(
             `⚠️ Tải lên: ${successCount} thành công, ${failCount} thất bại`,
             { id: toastId },
           );
-        } else {
+        else
           toast.error(`❌ Tải lên thất bại: ${failCount} file`, {
             id: toastId,
           });
-        }
 
         await fetchFolderContents(currentFolderId);
       } catch (error: any) {
-        console.error("Upload error:", error);
         setErrorDialog({
           isOpen: true,
           title: "❌ Lỗi tải lên",
@@ -696,32 +576,20 @@ export function FileExplorer({
   );
 
   // ============================================
-  // 🎯 EFFECTS
+  // EFFECTS
   // ============================================
 
-  // Mount effect
   useEffect(() => {
     isMounted.current = true;
-
-    console.log("🚀 Component mounted, initializing...");
-
-    const init = async () => {
-      await navigateToFolder(initialFolderId || null);
-    };
-    init();
-
+    if (!isInitialized) {
+      setIsInitialized(true);
+      navigateToFolder(initialFolderId || null);
+    }
     return () => {
       isMounted.current = false;
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
-      }
+      if (abortControllerRef.current) abortControllerRef.current.abort();
     };
-  }, [initialFolderId, navigateToFolder]);
-
-  // Debug effect
-  useEffect(() => {
-    console.log(`📊 State - items: ${items.length}, loading: ${loading}`);
-  }, [items, loading]);
+  }, [initialFolderId]);
 
   // ============================================
   // RENDER
@@ -730,31 +598,23 @@ export function FileExplorer({
   return (
     <>
       <div className="bg-black/20 backdrop-blur-sm rounded-2xl border border-white/5 overflow-hidden">
-        {/* Toolbar */}
         <Toolbar
           viewMode={viewMode}
           onViewModeChange={setViewMode}
           onNewFolder={() => setIsNewFolderModalOpen(true)}
           onUpload={uploadFiles}
           onRefresh={() => {
-            console.log("🔄 Manual refresh triggered");
             isFetching.current = false;
             fetchFolderContents(currentFolderId);
           }}
           currentFolderId={currentFolderId}
           onNavigateUp={() => {
             const parentBreadcrumb = breadcrumbs[breadcrumbs.length - 2];
-            if (parentBreadcrumb) {
-              navigateToFolder(parentBreadcrumb.id);
-            }
+            if (parentBreadcrumb) navigateToFolder(parentBreadcrumb.id);
           }}
           onNavigateHome={() => navigateToFolder(null)}
         />
-
-        {/* Breadcrumbs */}
         <Breadcrumbs items={breadcrumbs} onNavigate={navigateToFolder} />
-
-        {/* Content */}
         <div className="p-4">
           {loading ? (
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
@@ -797,8 +657,6 @@ export function FileExplorer({
             />
           )}
         </div>
-
-        {/* New Folder Modal */}
         <NewFolderModal
           isOpen={isNewFolderModalOpen}
           onClose={() => setIsNewFolderModalOpen(false)}
@@ -806,7 +664,6 @@ export function FileExplorer({
         />
       </div>
 
-      {/* Confirm Dialog */}
       <ConfirmDialog
         isOpen={confirmDialog.isOpen}
         onClose={() => setConfirmDialog((prev) => ({ ...prev, isOpen: false }))}
@@ -815,8 +672,6 @@ export function FileExplorer({
         description={confirmDialog.description}
         variant={confirmDialog.variant}
       />
-
-      {/* Error Dialog */}
       <ErrorDialog
         isOpen={errorDialog.isOpen}
         onClose={() => setErrorDialog((prev) => ({ ...prev, isOpen: false }))}

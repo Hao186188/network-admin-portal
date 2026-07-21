@@ -25,10 +25,13 @@ export function TerminalTyping({
   const [isComplete, setIsComplete] = useState(false);
 
   useEffect(() => {
+    setDisplayText("");
+    setIsComplete(false);
+    const chars = Array.from(text);
     let index = 0;
     const interval = setInterval(() => {
-      if (index < text.length) {
-        setDisplayText((prev) => prev + text.charAt(index));
+      if (index < chars.length) {
+        setDisplayText((prev) => prev + chars[index]);
         index++;
       } else {
         setIsComplete(true);
@@ -38,7 +41,8 @@ export function TerminalTyping({
     }, speed);
 
     return () => clearInterval(interval);
-  }, [text, speed, onComplete]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [text, speed]); // không đưa onComplete vào deps để tránh re-render loop
 
   return (
     <span className={`font-mono ${className}`}>

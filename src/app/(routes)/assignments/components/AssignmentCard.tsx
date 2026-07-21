@@ -1,5 +1,5 @@
 // src/app/(routes)/assignments/components/AssignmentCard.tsx
-// CẬP NHẬT - THÊM PROGRESS COMPONENT
+// CẬP NHẬT - THÊM NÚT XÓA/SỬA CHO TEACHER/ADMIN
 
 "use client";
 
@@ -10,9 +10,11 @@ import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
 import {
   Clock,
+  Edit,
   Eye,
   File,
   Star,
+  Trash2,
   Upload,
   Users,
   UsersRound,
@@ -49,6 +51,8 @@ interface AssignmentCardProps {
   onViewDetail: (assignment: any) => void;
   onUpload: (assignment: any) => void;
   onGrade?: (assignment: any) => void;
+  onEdit?: (assignment: any) => void;
+  onDelete?: (assignment: any) => void;
   index: number;
   viewMode: "grid" | "list";
   canGrade?: boolean;
@@ -84,6 +88,8 @@ export function AssignmentCard({
   onViewDetail,
   onUpload,
   onGrade,
+  onEdit,
+  onDelete,
   index,
   viewMode,
   canGrade = false,
@@ -154,7 +160,6 @@ export function AssignmentCard({
           )}
           onClick={() => onViewDetail(assignment)}
         >
-          {/* Cyber Border Glow Effect */}
           <div
             className={cn(
               "absolute inset-0 rounded-2xl pointer-events-none transition-all duration-500",
@@ -173,7 +178,6 @@ export function AssignmentCard({
             }}
           />
 
-          {/* Scan Line Effect */}
           {isHovered && (
             <motion.div
               className="absolute inset-0 pointer-events-none overflow-hidden"
@@ -225,7 +229,7 @@ export function AssignmentCard({
               {assignment.description}
             </p>
 
-            {/* ✅ Progress Component */}
+            {/* Progress Component */}
             <div className="mb-4">
               <AssignmentProgress
                 submissions={assignment.submissions}
@@ -324,9 +328,38 @@ export function AssignmentCard({
                       e.stopPropagation();
                       onViewDetail(assignment);
                     }}
+                    title="Chi tiết"
                   >
                     <Eye className="w-4 h-4" />
                   </Button>
+                  {onEdit && (
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="shrink-0 border-blue-500/30 text-blue-500 hover:bg-blue-500/10"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onEdit(assignment);
+                      }}
+                      title="Chỉnh sửa"
+                    >
+                      <Edit className="w-4 h-4" />
+                    </Button>
+                  )}
+                  {onDelete && (
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="shrink-0 border-red-500/30 text-red-500 hover:bg-red-500/10"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onDelete(assignment);
+                      }}
+                      title="Xóa"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  )}
                 </>
               ) : (
                 <>
@@ -467,7 +500,7 @@ export function AssignmentCard({
                 {assignment.description}
               </p>
 
-              {/* ✅ Progress Component - List View */}
+              {/* Progress Component - List View */}
               <div className="mt-3 max-w-md">
                 <AssignmentProgress
                   submissions={assignment.submissions}
@@ -560,6 +593,34 @@ export function AssignmentCard({
                     <Eye className="w-4 h-4" />
                     Chi tiết
                   </Button>
+                  {onEdit && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="gap-1 border-blue-500/30 text-blue-500 hover:bg-blue-500/10"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onEdit(assignment);
+                      }}
+                    >
+                      <Edit className="w-4 h-4" />
+                      Sửa
+                    </Button>
+                  )}
+                  {onDelete && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="gap-1 border-red-500/30 text-red-500 hover:bg-red-500/10"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onDelete(assignment);
+                      }}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                      Xóa
+                    </Button>
+                  )}
                 </>
               ) : (
                 <>

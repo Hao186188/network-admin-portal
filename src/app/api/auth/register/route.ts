@@ -1,11 +1,12 @@
 // src/app/api/auth/register/route.ts
-// HOÀN CHỈNH - XỬ LÝ LỖI KHI THIẾU SERVICE KEY
+// HOÀN CHỈNH - XỬ LÝ LỖI KHI THIẾU SERVICE KEY + EMAIL VERIFICATION
 
 import {
   isServiceRoleEnabled,
   supabase,
   supabaseAdmin,
 } from "@/lib/db/supabase-client";
+import { sendVerificationEmail } from "@/lib/email";
 import bcrypt from "bcryptjs";
 import { NextResponse } from "next/server";
 
@@ -26,6 +27,7 @@ export async function POST(request: Request) {
       phone,
       password,
       role: requestedRole,
+      student_id,
     } = body;
 
     // Validate input
@@ -124,8 +126,11 @@ export async function POST(request: Request) {
     }
     console.log("🔑 Role assigned:", finalRole);
 
+    // ✅ Tạo verification token
+    const verificationToken = `${Date.now()}-${Math.random().toString(36).slice(-8)}`;
+
     // ✅ Tạo user
-    const userData = {
+    const userData: any = {
       username: username.trim(),
       name: name.trim(),
       email: email.toLowerCase().trim(),
@@ -133,12 +138,21 @@ export async function POST(request: Request) {
       password: hashedPassword,
       role: finalRole,
       is_verified: false,
+      verification_token: verificationToken,
+      verification_token_expires: new Date(
+        Date.now() + 24 * 60 * 60 * 1000,
+      ).toISOString(),
       reputation: 0,
       total_lectures: 0,
       total_likes_received: 0,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
+
+    // ✅ Thêm student_id nếu có
+    if (student_id && student_id.trim()) {
+      userData.student_id = student_id.trim();
+    }
 
     const { data: newUser, error: insertError } = await client
       .from("users")
@@ -173,10 +187,20 @@ export async function POST(request: Request) {
 
         console.log("✅ User created with supabaseAdmin:", retryUser.id);
 
+        // ✅ Gửi email xác thực (không chặn response)
+        sendVerificationEmail(
+          retryUser.email,
+          retryUser.name,
+          verificationToken,
+        ).catch((emailError) => {
+          console.error("❌ Failed to send verification email:", emailError);
+        });
+
         return NextResponse.json(
           {
             success: true,
-            message: "Đăng ký thành công",
+            message:
+              "Đăng ký thành công! Vui lòng kiểm tra email để xác thực tài khoản.",
             user: {
               id: retryUser.id,
               username: retryUser.username,
@@ -210,10 +234,18 @@ export async function POST(request: Request) {
     console.log("✅ User created successfully:", newUser.id);
     console.log("✅ User role:", newUser.role);
 
+    // ✅ Gửi email xác thực (không chặn response)
+    sendVerificationEmail(newUser.email, newUser.name, verificationToken).catch(
+      (emailError) => {
+        console.error("❌ Failed to send verification email:", emailError);
+      },
+    );
+
     return NextResponse.json(
       {
         success: true,
-        message: "Đăng ký thành công",
+        message:
+          "Đăng ký thành công! Vui lòng kiểm tra email để xác thực tài khoản.",
         user: {
           id: newUser.id,
           username: newUser.username,

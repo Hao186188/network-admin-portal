@@ -80,9 +80,20 @@ export function FileList({
     setRenamingId(null);
   };
 
-  const handleDownload = (e: React.MouseEvent, item: Document) => {
+  const handleDownload = async (e: React.MouseEvent, item: Document) => {
     e.stopPropagation();
     if (item.file_url) {
+      // Increment download counter
+      try {
+        await fetch("/api/documents/increment", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ document_id: item.id, type: "download" }),
+        });
+      } catch (error) {
+        console.error("Failed to increment download count:", error);
+      }
+
       window.open(item.file_url, "_blank");
     }
   };

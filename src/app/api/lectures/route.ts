@@ -19,7 +19,8 @@ export async function GET(req: NextRequest) {
 
     const isAdmin = session.user.role === "ADMIN";
     const isTeacher = session.user.role === "TEACHER";
-    const canView = isAdmin || isTeacher;
+    const isStudent = session.user.role === "STUDENT";
+    const canView = isAdmin || isTeacher || isStudent;
 
     if (!canView) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -70,7 +71,8 @@ export async function POST(req: NextRequest) {
 
     const isAdmin = session.user.role === "ADMIN";
     const isTeacher = session.user.role === "TEACHER";
-    const canView = isAdmin || isTeacher;
+    const isStudent = session.user.role === "STUDENT";
+    const canView = isAdmin || isTeacher || isStudent;
 
     if (!canView) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });

@@ -460,6 +460,10 @@ export default function AssignmentDetailPage() {
   };
 
   const handleGradeClick = (submission: any) => {
+    if (!isTeacher) {
+      toast.error("Bạn không có quyền chấm điểm");
+      return;
+    }
     console.log("📝 Opening grade modal for submission:", submission.id);
     setSelectedSubmission(submission);
     setIsGradeModalOpen(true);

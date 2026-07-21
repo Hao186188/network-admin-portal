@@ -4,7 +4,7 @@
 "use client";
 
 import { supabase } from "@/lib/db/supabase-client";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 interface DashboardData {
   documents: number;
@@ -15,10 +15,11 @@ interface DashboardData {
   upcomingTasks: any[];
   loading: boolean;
   error: string | null;
+  refresh: () => void;
 }
 
 export function useDashboard() {
-  const [data, setData] = useState<DashboardData>({
+  const [data, setData] = useState<Omit<DashboardData, "refresh">>({
     documents: 0,
     lectures: 0,
     students: 0,
@@ -29,70 +30,52 @@ export function useDashboard() {
     error: null,
   });
 
-  useEffect(() => {
-    const fetchDashboardData = async () => {
-      try {
-        setData((prev) => ({ ...prev, loading: true }));
+  const fetchDashboardData = useCallback(async () => {
+    try {
+      setData((prev) => ({ ...prev, loading: true }));
 
-        // Lấy số lượng tài liệu
-        const { count: docCount } = await supabase
-          .from("documents")
-          .select("*", { count: "exact", head: true });
+      const [docRes, lectureRes, studentRes, teacherRes, announcementsRes, tasksRes] =
+        await Promise.all([
+          supabase.from("documents").select("*", { count: "exact", head: true }),
+          supabase.from("lectures").select("*", { count: "exact", head: true }),
+          supabase.from("users").select("*", { count: "exact", head: true }).eq("role", "STUDENT"),
+          supabase.from("users").select("*", { count: "exact", head: true }).eq("role", "TEACHER"),
+          supabase
+            .from("announcements")
+            .select("id, title, category, created_at")
+            .order("created_at", { ascending: false })
+            .limit(10),
+          supabase
+            .from("assignments")
+            .select("*")
+            .gte("due_date", new Date().toISOString()) // chỉ lấy bài chưa quá hạn
+            .order("due_date", { ascending: true })
+            .limit(5),
+        ]);
 
-        // Lấy số lượng bài giảng
-        const { count: lectureCount } = await supabase
-          .from("lectures")
-          .select("*", { count: "exact", head: true });
-
-        // Lấy số lượng sinh viên
-        const { count: studentCount } = await supabase
-          .from("users")
-          .select("*", { count: "exact", head: true })
-          .eq("role", "STUDENT");
-
-        // Lấy số lượng giảng viên
-        const { count: teacherCount } = await supabase
-          .from("users")
-          .select("*", { count: "exact", head: true })
-          .eq("role", "TEACHER");
-
-        // Lấy thông báo gần đây
-        const { data: announcements } = await supabase
-          .from("announcements")
-          .select("*")
-          .order("created_at", { ascending: false })
-          .limit(5);
-
-        // Lấy bài tập sắp đến hạn
-        const { data: tasks } = await supabase
-          .from("assignments")
-          .select("*")
-          .order("due_date", { ascending: true })
-          .limit(5);
-
-        setData({
-          documents: docCount || 0,
-          lectures: lectureCount || 0,
-          students: studentCount || 0,
-          teachers: teacherCount || 0,
-          recentAnnouncements: announcements || [],
-          upcomingTasks: tasks || [],
-          loading: false,
-          error: null,
-        });
-      } catch (error) {
-        console.error("Error fetching dashboard data:", error);
-        setData((prev) => ({
-          ...prev,
-          loading: false,
-          error:
-            error instanceof Error ? error.message : "Không thể tải dữ liệu",
-        }));
-      }
-    };
-
-    fetchDashboardData();
+      setData({
+        documents: docRes.count || 0,
+        lectures: lectureRes.count || 0,
+        students: studentRes.count || 0,
+        teachers: teacherRes.count || 0,
+        recentAnnouncements: announcementsRes.data || [],
+        upcomingTasks: tasksRes.data || [],
+        loading: false,
+        error: null,
+      });
+    } catch (error) {
+      console.error("Error fetching dashboard data:", error);
+      setData((prev) => ({
+        ...prev,
+        loading: false,
+        error: error instanceof Error ? error.message : "Không thể tải dữ liệu",
+      }));
+    }
   }, []);
 
-  return data;
+  useEffect(() => {
+    fetchDashboardData();
+  }, [fetchDashboardData]);
+
+  return { ...data, refresh: fetchDashboardData };
 }

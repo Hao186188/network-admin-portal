@@ -14,6 +14,7 @@ export interface RegisterFormData {
   name: string;
   email: string;
   phone: string;
+  student_id?: string;
   password: string;
   confirmPassword: string;
   role: "TEACHER" | "STUDENT";
@@ -32,6 +33,7 @@ export function useRegister() {
     name: "",
     email: "",
     phone: "",
+    student_id: "",
     password: "",
     confirmPassword: "",
     role: "STUDENT",

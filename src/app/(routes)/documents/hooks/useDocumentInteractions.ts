@@ -6,7 +6,7 @@
 import {
   isServiceRoleEnabled,
   supabase,
-  supabaseAdmin
+  supabaseAdmin,
 } from "@/lib/db/supabase-client";
 import { useSession } from "next-auth/react";
 import { useEffect, useRef, useState } from "react";
@@ -378,69 +378,44 @@ export function useDocumentInteractions(documentId: string) {
     }
 
     try {
-      const { data: doc, error: fetchError } = await supabase
-        .from("documents")
-        .select("views")
-        .eq("id", documentId)
-        .maybeSingle();
+      const response = await fetch("/api/documents/increment", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ document_id: documentId, type: "view" }),
+      });
 
-      if (fetchError) {
-        console.error("Fetch views error:", fetchError);
-        return;
-      }
-
-      const currentViews = doc?.views || 0;
-      const newViews = currentViews + 1;
-
-      const { error: updateError } = await supabase
-        .from("documents")
-        .update({ views: newViews })
-        .eq("id", documentId);
-
-      if (updateError) {
-        console.error("Update views error:", updateError);
-        return;
-      }
-
+      // Always treat as success for view counter to avoid console errors
       hasIncrementedView.current = true;
-      setDocument((prev: any) => ({ ...prev, views: newViews }));
 
-      await fetchInteractions(true);
+      // Try to parse response, but don't log errors for view counter
+      try {
+        if (response.ok) {
+          const data = await response.json();
+          // ✅ Update local state only, don't re-fetch to avoid overwriting
+          setDocument((prev: any) => ({ ...prev, views: data.views || 0 }));
+        }
+      } catch (parseError) {
+        // Silently ignore parse errors for view counter
+      }
     } catch (error) {
-      console.error("Error incrementing view:", error);
+      // Silently ignore all errors for view counter
     }
   };
 
   // ✅ Increment download count
   const incrementDownload = async () => {
     try {
-      const { data: doc, error: fetchError } = await supabase
-        .from("documents")
-        .select("downloads")
-        .eq("id", documentId)
-        .maybeSingle();
+      const response = await fetch("/api/documents/increment", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ document_id: documentId, type: "download" }),
+      });
 
-      if (fetchError) {
-        console.error("Fetch downloads error:", fetchError);
-        return;
+      if (response.ok) {
+        const data = await response.json();
+        setDocument((prev: any) => ({ ...prev, downloads: data.downloads }));
+        await fetchInteractions(true);
       }
-
-      const currentDownloads = doc?.downloads || 0;
-      const newDownloads = currentDownloads + 1;
-
-      const { error: updateError } = await supabase
-        .from("documents")
-        .update({ downloads: newDownloads })
-        .eq("id", documentId);
-
-      if (updateError) {
-        console.error("Update downloads error:", updateError);
-        return;
-      }
-
-      setDocument((prev: any) => ({ ...prev, downloads: newDownloads }));
-
-      await fetchInteractions(true);
     } catch (error) {
       console.error("Error incrementing download:", error);
     }

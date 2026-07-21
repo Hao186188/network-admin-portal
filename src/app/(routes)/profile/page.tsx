@@ -21,13 +21,17 @@ import {
   BookOpen,
   Calendar,
   Camera,
+  ClipboardList,
   Edit,
   FileText,
   Globe,
   Mail,
+  MessageCircle,
   Phone,
   Save,
   School,
+  Settings,
+  ThumbsUp,
   Users,
   X,
 } from "lucide-react";
@@ -65,6 +69,27 @@ export default function ProfilePage() {
   });
   const [statsLoading, setStatsLoading] = useState(true);
   const [isChangingRole, setIsChangingRole] = useState(false);
+  const [userActivity, setUserActivity] = useState({
+    posts: 0,
+    comments: 0,
+    likes: 0,
+    assignments: 0,
+  });
+  const [activityLoading, setActivityLoading] = useState(true);
+  const [showSettings, setShowSettings] = useState(false);
+  const [settingsData, setSettingsData] = useState({
+    phone: "",
+    student_id: "",
+    bio: "",
+    specialties: [] as string[],
+    social_links: {
+      facebook: "",
+      github: "",
+      linkedin: "",
+      twitter: "",
+    },
+  });
+  const [settingsLoading, setSettingsLoading] = useState(false);
 
   // ✅ Refs để kiểm soát
   const sessionUpdatedRef = useRef(false);
@@ -107,6 +132,67 @@ export default function ProfilePage() {
 
     fetchStats();
   }, [profile?.id]);
+
+  // ✅ Fetch user activity - CHỈ CHẠY 1 LẦN
+  useEffect(() => {
+    const fetchUserActivity = async () => {
+      if (!profile?.id) return;
+
+      setActivityLoading(true);
+      try {
+        const [userPosts, userComments, userLikes, userAssignments] =
+          await Promise.all([
+            supabase
+              .from("forum_posts")
+              .select("*", { count: "exact", head: true })
+              .eq("author_id", profile.id),
+            supabase
+              .from("forum_replies")
+              .select("*", { count: "exact", head: true })
+              .eq("user_id", profile.id),
+            supabase
+              .from("forum_likes")
+              .select("*", { count: "exact", head: true })
+              .eq("user_id", profile.id),
+            supabase
+              .from("submissions")
+              .select("*", { count: "exact", head: true })
+              .eq("user_id", profile.id),
+          ]);
+
+        setUserActivity({
+          posts: userPosts.count || 0,
+          comments: userComments.count || 0,
+          likes: userLikes.count || 0,
+          assignments: userAssignments.count || 0,
+        });
+      } catch (error) {
+        console.error("Error fetching user activity:", error);
+      } finally {
+        setActivityLoading(false);
+      }
+    };
+
+    fetchUserActivity();
+  }, [profile?.id]);
+
+  // ✅ Load settings data
+  useEffect(() => {
+    if (profile) {
+      setSettingsData({
+        phone: profile.phone || "",
+        student_id: profile.student_id || "",
+        bio: profile.bio || "",
+        specialties: profile.specialties || [],
+        social_links: (profile as any).social_links || {
+          facebook: "",
+          github: "",
+          linkedin: "",
+          twitter: "",
+        },
+      });
+    }
+  }, [profile]);
 
   // ✅ Sync form data với profile
   useEffect(() => {
@@ -331,6 +417,29 @@ export default function ProfilePage() {
     [session?.user?.id, updateProfile, toast, refresh],
   );
 
+  // ✅ Save settings
+  const handleSaveSettings = useCallback(async () => {
+    if (!session?.user?.id) return;
+
+    setSettingsLoading(true);
+    try {
+      await updateProfile({
+        phone: settingsData.phone,
+        student_id: settingsData.student_id,
+        bio: settingsData.bio,
+        specialties: settingsData.specialties,
+        social_links: settingsData.social_links,
+      });
+      toast.success("Đã lưu cài đặt thành công");
+      setShowSettings(false);
+      refresh();
+    } catch (error: any) {
+      toast.error(error.message || "Không thể lưu cài đặt");
+    } finally {
+      setSettingsLoading(false);
+    }
+  }, [session?.user?.id, settingsData, updateProfile, toast, refresh]);
+
   // ✅ Kiểm tra role - ưu tiên từ profile (database) hơn session
   const isAdmin =
     profile?.role?.toUpperCase() === "ADMIN" ||
@@ -345,7 +454,7 @@ export default function ProfilePage() {
       <>
         <Navbar />
         <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50 dark:from-slate-950 dark:via-slate-900 dark:to-slate-800 pt-16 md:pt-20">
-          <div className="max-w-4xl mx-auto p-4 md:p-8 space-y-6">
+          <div className="max-w-4xl mx-auto p-3 sm:p-4 md:p-6 lg:p-8 space-y-4 sm:space-y-6">
             <div className="flex items-center gap-4">
               <Skeleton className="w-24 h-24 rounded-full" />
               <div className="flex-1 space-y-2">
@@ -395,14 +504,14 @@ export default function ProfilePage() {
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="bg-card rounded-2xl border border-border/50 p-6 shadow-sm"
+            className="bg-card rounded-2xl border border-border/50 p-4 sm:p-6 shadow-sm"
           >
-            <div className="flex flex-col md:flex-row items-start md:items-center gap-6">
+            <div className="flex flex-col items-center md:items-start gap-4 sm:gap-6">
               {/* Avatar */}
-              <div className="relative group">
-                <Avatar className="w-24 h-24 border-4 border-primary/20">
+              <div className="relative group mx-auto md:mx-0">
+                <Avatar className="w-20 h-20 sm:w-24 sm:h-24 border-4 border-primary/20">
                   <AvatarImage src={profile.image || undefined} />
-                  <AvatarFallback className="bg-gradient-to-r from-primary to-secondary text-white text-3xl">
+                  <AvatarFallback className="bg-gradient-to-r from-primary to-secondary text-white text-2xl sm:text-3xl">
                     {profile.name?.charAt(0).toUpperCase() || "U"}
                   </AvatarFallback>
                 </Avatar>
@@ -413,7 +522,7 @@ export default function ProfilePage() {
                     "bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity",
                   )}
                 >
-                  <Camera className="w-8 h-8 text-white" />
+                  <Camera className="w-6 h-6 sm:w-8 sm:h-8 text-white" />
                   <input
                     type="file"
                     accept="image/*"
@@ -424,15 +533,15 @@ export default function ProfilePage() {
                 </label>
                 {isUploading && (
                   <div className="absolute inset-0 rounded-full bg-black/50 flex items-center justify-center">
-                    <div className="w-8 h-8 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    <div className="w-6 h-6 sm:w-8 sm:h-8 border-2 border-white border-t-transparent rounded-full animate-spin" />
                   </div>
                 )}
               </div>
 
               {/* Info */}
-              <div className="flex-1">
-                <div className="flex items-center gap-3 flex-wrap">
-                  <h1 className="text-2xl font-bold">
+              <div className="flex-1 text-center md:text-left w-full">
+                <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-3 flex-wrap">
+                  <h1 className="text-xl sm:text-2xl font-bold">
                     {isEditing ? (
                       <Input
                         value={formData.name}
@@ -442,7 +551,7 @@ export default function ProfilePage() {
                             name: e.target.value,
                           }))
                         }
-                        className="text-2xl font-bold h-auto py-1 px-2"
+                        className="text-xl sm:text-2xl font-bold h-auto py-1 px-2 text-center sm:text-left"
                         placeholder="Tên của bạn"
                       />
                     ) : (
@@ -451,7 +560,7 @@ export default function ProfilePage() {
                   </h1>
                   <Badge
                     className={cn(
-                      "border-0",
+                      "border-0 text-xs",
                       currentRole === "admin" && "bg-red-500/10 text-red-500",
                       currentRole === "teacher" &&
                         "bg-blue-500/10 text-blue-500",
@@ -464,46 +573,59 @@ export default function ProfilePage() {
                     {currentRole === "student" && "🎓 Student"}
                   </Badge>
                 </div>
-                <div className="flex items-center gap-4 text-sm text-muted-foreground mt-2 flex-wrap">
+                <div className="flex flex-wrap items-center justify-center md:justify-start gap-2 sm:gap-4 text-xs sm:text-sm text-muted-foreground mt-2">
                   <span className="flex items-center gap-1">
-                    <Mail className="w-4 h-4" />
+                    <Mail className="w-3 h-3 sm:w-4 sm:h-4" />
                     {profile.email}
                   </span>
                   {profile.phone && (
                     <span className="flex items-center gap-1">
-                      <Phone className="w-4 h-4" />
+                      <Phone className="w-3 h-3 sm:w-4 sm:h-4" />
                       {profile.phone}
                     </span>
                   )}
                   {profile.student_id && (
                     <span className="flex items-center gap-1">
-                      <School className="w-4 h-4" />
+                      <School className="w-3 h-3 sm:w-4 sm:h-4" />
                       {profile.student_id}
                     </span>
                   )}
-                  <span className="flex items-center gap-1">
-                    <Calendar className="w-4 h-4" />
-                    Tham gia:{" "}
-                    {new Date(profile.created_at).toLocaleDateString("vi-VN")}
-                  </span>
+                </div>
+                <div className="flex items-center justify-center md:justify-start gap-1 text-xs sm:text-sm text-muted-foreground mt-1">
+                  <Calendar className="w-3 h-3 sm:w-4 sm:h-4" />
+                  Tham gia:{" "}
+                  {new Date(profile.created_at).toLocaleDateString("vi-VN")}
                 </div>
               </div>
 
               {/* Actions */}
-              <div className="flex gap-2">
+              <div className="w-full md:w-auto flex justify-center">
                 {isEditing ? (
-                  <>
-                    <Button variant="outline" size="sm" onClick={handleCancel}>
+                  <div className="flex gap-2 w-full md:w-auto">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleCancel}
+                      className="flex-1 md:flex-none"
+                    >
                       <X className="w-4 h-4 mr-1" />
                       Hủy
                     </Button>
-                    <Button size="sm" onClick={handleSave}>
+                    <Button
+                      size="sm"
+                      onClick={handleSave}
+                      className="flex-1 md:flex-none"
+                    >
                       <Save className="w-4 h-4 mr-1" />
                       Lưu
                     </Button>
-                  </>
+                  </div>
                 ) : (
-                  <Button size="sm" onClick={handleEdit}>
+                  <Button
+                    size="sm"
+                    onClick={handleEdit}
+                    className="w-full md:w-auto"
+                  >
                     <Edit className="w-4 h-4 mr-1" />
                     Chỉnh sửa
                   </Button>
@@ -521,31 +643,31 @@ export default function ProfilePage() {
                   }
                   placeholder="Giới thiệu về bản thân..."
                   rows={3}
-                  className="w-full px-4 py-2 rounded-xl border border-input bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary resize-none"
+                  className="w-full px-3 sm:px-4 py-2 rounded-xl border border-input bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary resize-none text-sm sm:text-base"
                 />
               ) : (
-                <p className="text-muted-foreground">
+                <p className="text-muted-foreground text-sm sm:text-base">
                   {profile.bio || "Chưa có giới thiệu"}
                 </p>
               )}
             </div>
           </motion.div>
 
-          {/* Stats */}
+          {/* Global Stats */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
-            className="grid grid-cols-2 md:grid-cols-4 gap-4"
+            className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4"
           >
             {statsLoading ? (
               <>
                 {[...Array(4)].map((_, i) => (
                   <Card key={i}>
-                    <CardContent className="p-4 text-center">
-                      <Skeleton className="w-8 h-8 mx-auto mb-2 rounded-full" />
-                      <Skeleton className="h-8 w-12 mx-auto" />
-                      <Skeleton className="h-3 w-16 mx-auto mt-1" />
+                    <CardContent className="p-3 sm:p-4 text-center">
+                      <Skeleton className="w-6 h-6 sm:w-8 sm:h-8 mx-auto mb-1 sm:mb-2 rounded-full" />
+                      <Skeleton className="h-6 sm:h-8 w-10 sm:w-12 mx-auto" />
+                      <Skeleton className="h-2 sm:h-3 w-10 sm:w-16 mx-auto mt-1" />
                     </CardContent>
                   </Card>
                 ))}
@@ -553,37 +675,125 @@ export default function ProfilePage() {
             ) : (
               <>
                 <Card>
-                  <CardContent className="p-4 text-center">
-                    <Users className="w-6 h-6 mx-auto text-primary mb-2" />
-                    <p className="text-2xl font-bold">{stats.totalUsers}</p>
-                    <p className="text-xs text-muted-foreground">Thành viên</p>
+                  <CardContent className="p-3 sm:p-4 text-center">
+                    <Users className="w-5 h-5 sm:w-6 sm:h-6 mx-auto text-primary mb-1 sm:mb-2" />
+                    <p className="text-xl sm:text-2xl font-bold">
+                      {stats.totalUsers}
+                    </p>
+                    <p className="text-[10px] sm:text-xs text-muted-foreground">
+                      Thành viên
+                    </p>
                   </CardContent>
                 </Card>
                 <Card>
-                  <CardContent className="p-4 text-center">
-                    <FileText className="w-6 h-6 mx-auto text-blue-500 mb-2" />
-                    <p className="text-2xl font-bold">{stats.totalPosts}</p>
-                    <p className="text-xs text-muted-foreground">Bài viết</p>
+                  <CardContent className="p-3 sm:p-4 text-center">
+                    <FileText className="w-5 h-5 sm:w-6 sm:h-6 mx-auto text-blue-500 mb-1 sm:mb-2" />
+                    <p className="text-xl sm:text-2xl font-bold">
+                      {stats.totalPosts}
+                    </p>
+                    <p className="text-[10px] sm:text-xs text-muted-foreground">
+                      Bài viết
+                    </p>
                   </CardContent>
                 </Card>
                 <Card>
-                  <CardContent className="p-4 text-center">
-                    <BookOpen className="w-6 h-6 mx-auto text-green-500 mb-2" />
-                    <p className="text-2xl font-bold">{stats.totalCourses}</p>
-                    <p className="text-xs text-muted-foreground">Khóa học</p>
+                  <CardContent className="p-3 sm:p-4 text-center">
+                    <BookOpen className="w-5 h-5 sm:w-6 sm:h-6 mx-auto text-green-500 mb-1 sm:mb-2" />
+                    <p className="text-xl sm:text-2xl font-bold">
+                      {stats.totalCourses}
+                    </p>
+                    <p className="text-[10px] sm:text-xs text-muted-foreground">
+                      Khóa học
+                    </p>
                   </CardContent>
                 </Card>
                 <Card>
-                  <CardContent className="p-4 text-center">
-                    <Award className="w-6 h-6 mx-auto text-yellow-500 mb-2" />
-                    <p className="text-2xl font-bold">
+                  <CardContent className="p-3 sm:p-4 text-center">
+                    <Award className="w-5 h-5 sm:w-6 sm:h-6 mx-auto text-yellow-500 mb-1 sm:mb-2" />
+                    <p className="text-xl sm:text-2xl font-bold">
                       {stats.totalAssignments}
                     </p>
-                    <p className="text-xs text-muted-foreground">Bài tập</p>
+                    <p className="text-[10px] sm:text-xs text-muted-foreground">
+                      Bài tập
+                    </p>
                   </CardContent>
                 </Card>
               </>
             )}
+          </motion.div>
+
+          {/* User Activity Stats */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.15 }}
+            className="mt-3 sm:mt-4"
+          >
+            <h3 className="text-base sm:text-lg font-semibold mb-2 sm:mb-3">
+              Hoạt động của bạn
+            </h3>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-4">
+              {activityLoading ? (
+                <>
+                  {[...Array(4)].map((_, i) => (
+                    <Card key={i}>
+                      <CardContent className="p-3 sm:p-4 text-center">
+                        <Skeleton className="w-5 h-5 sm:w-8 sm:h-8 mx-auto mb-1 sm:mb-2 rounded-full" />
+                        <Skeleton className="h-5 sm:h-8 w-8 sm:w-12 mx-auto" />
+                        <Skeleton className="h-2 sm:h-3 w-10 sm:w-16 mx-auto mt-1" />
+                      </CardContent>
+                    </Card>
+                  ))}
+                </>
+              ) : (
+                <>
+                  <Card className="border-primary/20">
+                    <CardContent className="p-3 sm:p-4 text-center">
+                      <FileText className="w-4 h-4 sm:w-6 sm:h-6 mx-auto text-primary mb-1 sm:mb-2" />
+                      <p className="text-lg sm:text-2xl font-bold">
+                        {userActivity.posts}
+                      </p>
+                      <p className="text-[10px] sm:text-xs text-muted-foreground">
+                        Bài viết
+                      </p>
+                    </CardContent>
+                  </Card>
+                  <Card className="border-blue-500/20">
+                    <CardContent className="p-3 sm:p-4 text-center">
+                      <MessageCircle className="w-4 h-4 sm:w-6 sm:h-6 mx-auto text-blue-500 mb-1 sm:mb-2" />
+                      <p className="text-lg sm:text-2xl font-bold">
+                        {userActivity.comments}
+                      </p>
+                      <p className="text-[10px] sm:text-xs text-muted-foreground">
+                        Bình luận
+                      </p>
+                    </CardContent>
+                  </Card>
+                  <Card className="border-green-500/20">
+                    <CardContent className="p-3 sm:p-4 text-center">
+                      <ThumbsUp className="w-4 h-4 sm:w-6 sm:h-6 mx-auto text-green-500 mb-1 sm:mb-2" />
+                      <p className="text-lg sm:text-2xl font-bold">
+                        {userActivity.likes}
+                      </p>
+                      <p className="text-[10px] sm:text-xs text-muted-foreground">
+                        Lượt thích
+                      </p>
+                    </CardContent>
+                  </Card>
+                  <Card className="border-purple-500/20">
+                    <CardContent className="p-3 sm:p-4 text-center">
+                      <ClipboardList className="w-4 h-4 sm:w-6 sm:h-6 mx-auto text-purple-500 mb-1 sm:mb-2" />
+                      <p className="text-lg sm:text-2xl font-bold">
+                        {userActivity.assignments}
+                      </p>
+                      <p className="text-[10px] sm:text-xs text-muted-foreground">
+                        Bài nộp
+                      </p>
+                    </CardContent>
+                  </Card>
+                </>
+              )}
+            </div>
           </motion.div>
 
           {/* Specialties */}
@@ -681,6 +891,179 @@ export default function ProfilePage() {
               </Card>
             </motion.div>
           )}
+
+          {/* ✅ Settings Button */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.35 }}
+          >
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-sm font-medium flex items-center gap-2">
+                  <Settings className="w-4 h-4 text-primary" />
+                  Cài đặt hồ sơ
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {!showSettings ? (
+                  <Button
+                    onClick={() => setShowSettings(true)}
+                    className="w-full gap-2"
+                  >
+                    <Settings className="w-4 h-4" />
+                    Chỉnh sửa thông tin cá nhân
+                  </Button>
+                ) : (
+                  <div className="space-y-4">
+                    {/* Phone & Student ID */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-sm font-medium mb-2 block">
+                          Số điện thoại
+                        </label>
+                        <input
+                          type="tel"
+                          value={settingsData.phone}
+                          onChange={(e) =>
+                            setSettingsData((prev) => ({
+                              ...prev,
+                              phone: e.target.value,
+                            }))
+                          }
+                          placeholder="+84 xxx xxx xxx"
+                          className="w-full px-4 py-2 rounded-xl border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium mb-2 block">
+                          Mã số sinh viên
+                        </label>
+                        <input
+                          type="text"
+                          value={settingsData.student_id}
+                          onChange={(e) =>
+                            setSettingsData((prev) => ({
+                              ...prev,
+                              student_id: e.target.value,
+                            }))
+                          }
+                          placeholder="SV001"
+                          className="w-full px-4 py-2 rounded-xl border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Bio */}
+                    <div>
+                      <label className="text-sm font-medium mb-2 block">
+                        Giới thiệu
+                      </label>
+                      <textarea
+                        value={settingsData.bio}
+                        onChange={(e) =>
+                          setSettingsData((prev) => ({
+                            ...prev,
+                            bio: e.target.value,
+                          }))
+                        }
+                        placeholder="Giới thiệu về bản thân..."
+                        rows={3}
+                        className="w-full px-4 py-2 rounded-xl border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary resize-none"
+                      />
+                    </div>
+
+                    {/* Social Links */}
+                    <div>
+                      <label className="text-sm font-medium mb-2 block">
+                        Mạng xã hội
+                      </label>
+                      <div className="space-y-2">
+                        <input
+                          type="url"
+                          value={settingsData.social_links.facebook}
+                          onChange={(e) =>
+                            setSettingsData((prev) => ({
+                              ...prev,
+                              social_links: {
+                                ...prev.social_links,
+                                facebook: e.target.value,
+                              },
+                            }))
+                          }
+                          placeholder="Facebook URL"
+                          className="w-full px-4 py-2 rounded-xl border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary"
+                        />
+                        <input
+                          type="url"
+                          value={settingsData.social_links.github}
+                          onChange={(e) =>
+                            setSettingsData((prev) => ({
+                              ...prev,
+                              social_links: {
+                                ...prev.social_links,
+                                github: e.target.value,
+                              },
+                            }))
+                          }
+                          placeholder="GitHub URL"
+                          className="w-full px-4 py-2 rounded-xl border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary"
+                        />
+                        <input
+                          type="url"
+                          value={settingsData.social_links.linkedin}
+                          onChange={(e) =>
+                            setSettingsData((prev) => ({
+                              ...prev,
+                              social_links: {
+                                ...prev.social_links,
+                                linkedin: e.target.value,
+                              },
+                            }))
+                          }
+                          placeholder="LinkedIn URL"
+                          className="w-full px-4 py-2 rounded-xl border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary"
+                        />
+                        <input
+                          type="url"
+                          value={settingsData.social_links.twitter}
+                          onChange={(e) =>
+                            setSettingsData((prev) => ({
+                              ...prev,
+                              social_links: {
+                                ...prev.social_links,
+                                twitter: e.target.value,
+                              },
+                            }))
+                          }
+                          placeholder="Twitter URL"
+                          className="w-full px-4 py-2 rounded-xl border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Actions */}
+                    <div className="flex gap-2 pt-4">
+                      <Button
+                        variant="outline"
+                        onClick={() => setShowSettings(false)}
+                        className="flex-1"
+                      >
+                        Hủy
+                      </Button>
+                      <Button
+                        onClick={handleSaveSettings}
+                        disabled={settingsLoading}
+                        className="flex-1"
+                      >
+                        {settingsLoading ? "Đang lưu..." : "Lưu thay đổi"}
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </motion.div>
         </div>
       </div>
       <Footer />

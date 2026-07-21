@@ -6,7 +6,7 @@ import { supabaseAdmin } from "@/lib/db/supabase-client";
 import { getServerSession } from "next-auth";
 import { NextRequest, NextResponse } from "next/server";
 
-const MAX_FILE_SIZE = 4 * 1024 * 1024; // 4MB
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 
 const SUPPORTED_EXTENSIONS = [
   "pdf",

@@ -97,10 +97,8 @@ export default function ForumPage() {
             .eq("post_id", postId)
             .eq("user_id", session.user.id);
 
-          await supabase
-            .from("forum_posts")
-            .update({ likes: supabase.rpc("decrement", { x: 1 }) })
-            .eq("id", postId);
+          // Decrement likes count
+          await supabase.rpc("decrement_likes", { post_id: postId });
         } else {
           await supabase.from("forum_likes").insert({
             post_id: postId,
@@ -108,10 +106,8 @@ export default function ForumPage() {
             created_at: new Date().toISOString(),
           });
 
-          await supabase
-            .from("forum_posts")
-            .update({ likes: supabase.rpc("increment", { x: 1 }) })
-            .eq("id", postId);
+          // Increment likes count
+          await supabase.rpc("increment_likes", { post_id: postId });
         }
 
         refresh();
