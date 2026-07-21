@@ -151,6 +151,7 @@ function GradeModal({
   assignmentTitle,
   onSuccess,
 }: GradeModalProps) {
+  const { data: session } = useSession();
   const { toast } = useToast();
   const [grade, setGrade] = useState<number>(0);
   const [feedback, setFeedback] = useState("");
@@ -165,6 +166,13 @@ function GradeModal({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    const role = session?.user?.role?.toUpperCase();
+    if (role !== "TEACHER" && role !== "ADMIN") {
+      toast.error("Chỉ giảng viên hoặc quản trị viên mới có thể chấm điểm");
+      return;
+    }
+
     if (!submission) {
       toast.error("Không tìm thấy bài nộp");
       return;
@@ -516,9 +524,9 @@ export default function AssignmentDetailPage() {
   const isOverdue =
     new Date(assignment.due_date) < new Date() &&
     assignment.status === "pending";
-  const isTeacher =
-    session?.user?.role === "TEACHER" || session?.user?.role === "ADMIN";
-  const isStudent = session?.user?.role === "STUDENT";
+  const role = session?.user?.role?.toUpperCase();
+  const isTeacher = role === "TEACHER" || role === "ADMIN";
+  const isStudent = role === "STUDENT";
 
   const userSubmission = submissions.find(
     (s) => s.user_id === session?.user?.id,

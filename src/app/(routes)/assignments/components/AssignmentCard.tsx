@@ -12,7 +12,9 @@ import {
   Clock,
   Eye,
   File,
+  Pencil,
   Star,
+  Trash2,
   Upload,
   Users,
   UsersRound,
@@ -49,6 +51,8 @@ interface AssignmentCardProps {
   onViewDetail: (assignment: any) => void;
   onUpload: (assignment: any) => void;
   onGrade?: (assignment: any) => void;
+  onEdit?: (assignment: any) => void;
+  onDelete?: (assignment: any) => void;
   index: number;
   viewMode: "grid" | "list";
   canGrade?: boolean;
@@ -84,6 +88,8 @@ export function AssignmentCard({
   onViewDetail,
   onUpload,
   onGrade,
+  onEdit,
+  onDelete,
   index,
   viewMode,
   canGrade = false,
@@ -302,7 +308,7 @@ export function AssignmentCard({
                           ? "Đã đủ"
                           : "Nộp bài"}
                   </Button>
-                  {canGrade && onGrade && hasSubmitted && (
+                  {canGrade && onGrade && assignment.submissions > 0 && (
                     <Button
                       variant="outline"
                       size="icon"
@@ -314,6 +320,34 @@ export function AssignmentCard({
                       title="Chấm điểm"
                     >
                       <Star className="w-4 h-4" />
+                    </Button>
+                  )}
+                  {onEdit && (
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="shrink-0"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onEdit(assignment);
+                      }}
+                      title="Chỉnh sửa"
+                    >
+                      <Pencil className="w-4 h-4" />
+                    </Button>
+                  )}
+                  {onDelete && (
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="shrink-0 border-red-500/30 text-red-500 hover:bg-red-500/10"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onDelete(assignment);
+                      }}
+                      title="Xóa bài tập"
+                    >
+                      <Trash2 className="w-4 h-4" />
                     </Button>
                   )}
                   <Button
@@ -534,7 +568,7 @@ export function AssignmentCard({
                           ? "Đã đủ"
                           : "Nộp bài"}
                   </Button>
-                  {canGrade && onGrade && hasSubmitted && (
+                  {canGrade && onGrade && assignment.submissions > 0 && (
                     <Button
                       variant="outline"
                       size="sm"
@@ -546,6 +580,34 @@ export function AssignmentCard({
                     >
                       <Star className="w-4 h-4" />
                       Chấm
+                    </Button>
+                  )}
+                  {onEdit && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="gap-1"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onEdit(assignment);
+                      }}
+                    >
+                      <Pencil className="w-4 h-4" />
+                      Sửa
+                    </Button>
+                  )}
+                  {onDelete && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="gap-1 border-red-500/30 text-red-500 hover:bg-red-500/10"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onDelete(assignment);
+                      }}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                      Xóa
                     </Button>
                   )}
                   <Button

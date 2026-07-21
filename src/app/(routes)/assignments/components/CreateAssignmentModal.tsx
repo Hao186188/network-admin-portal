@@ -19,8 +19,9 @@ import {
     X,
 } from "lucide-react";
 import { useSession } from "next-auth/react";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
+import type { Assignment } from "@/hooks/use-assignments";
 
 // ============================================
 // CONSTANTS
@@ -115,6 +116,7 @@ function CustomSelect({
             {options.map((option) => (
               <button
                 key={option}
+                type="button"
                 className={cn(
                   "w-full px-4 py-2.5 text-left hover:bg-muted transition-colors text-sm",
                   value === option && "bg-primary/10 text-primary font-medium",
@@ -246,6 +248,7 @@ function DateTimePicker({
           >
             <div className="flex items-center justify-between mb-4">
               <Button
+                type="button"
                 variant="ghost"
                 size="sm"
                 onClick={() => changeMonth(-1)}
@@ -258,6 +261,7 @@ function DateTimePicker({
                 {selectedDate.getFullYear()}
               </span>
               <Button
+                type="button"
                 variant="ghost"
                 size="sm"
                 onClick={() => changeMonth(1)}
@@ -282,6 +286,7 @@ function DateTimePicker({
               {days.map((day, index) => (
                 <button
                   key={index}
+                  type="button"
                   onClick={() => day && handleDateSelect(day)}
                   disabled={!day}
                   className={cn(
@@ -308,6 +313,7 @@ function DateTimePicker({
                   className="px-3 py-1.5 rounded-lg border border-input bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
                 />
                 <Button
+                  type="button"
                   variant="ghost"
                   size="sm"
                   className="ml-auto text-xs hover:bg-muted"
@@ -550,15 +556,19 @@ interface CreateAssignmentModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
+  assignment?: Assignment | null;
 }
 
 export function CreateAssignmentModal({
   isOpen,
   onClose,
   onSuccess,
+  assignment,
 }: CreateAssignmentModalProps) {
   const { data: session } = useSession();
-  const { createAssignment } = useAssignments();
+  const { createAssignment, updateAssignment } = useAssignments();
+
+  const isEditMode = !!assignment;
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -571,9 +581,28 @@ export function CreateAssignmentModal({
   const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
-  const isTeacher =
-    session?.user?.role === "TEACHER" || session?.user?.role === "ADMIN";
+  const role = session?.user?.role?.toUpperCase();
+  const isTeacher = role === "TEACHER" || role === "ADMIN";
   const isAuthenticated = !!session?.user;
+
+  // ✅ Đồng bộ dữ liệu khi mở modal ở chế độ chỉnh sửa
+  useEffect(() => {
+    if (!isOpen) return;
+    if (assignment) {
+      setTitle(assignment.title || "");
+      setDescription(assignment.description || "");
+      setSubject(assignment.subject || "Quản trị Mạng 3");
+      setType((assignment.type as AssignmentType) || "homework");
+      setDueDate(assignment.due_date || "");
+      setPoints(assignment.points ?? 10);
+      setMaxSubmissions(assignment.max_submissions ?? 0);
+      setTotalStudents(assignment.total_students ?? 7);
+      setAttachedFiles([]);
+    } else {
+      resetForm();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, assignment?.id]);
 
   const subjectOptions = [
     "Quản trị Mạng 3",
@@ -658,7 +687,9 @@ export function CreateAssignmentModal({
       return;
     }
 
-    if (new Date(dueDate) < new Date()) {
+    // ✅ Cho phép giữ nguyên hạn cũ khi chỉnh sửa, chỉ chặn khi đặt hạn mới ở quá khứ
+    const dueDateChanged = !isEditMode || dueDate !== assignment?.due_date;
+    if (dueDateChanged && new Date(dueDate) < new Date()) {
       toast.error("Hạn nộp phải là thời gian trong tương lai");
       return;
     }
@@ -682,6 +713,36 @@ export function CreateAssignmentModal({
         );
         uploadedUrls = await uploadFiles(attachedFiles);
         toast.dismiss(uploadToast);
+      }
+
+      if (isEditMode && assignment) {
+        // ✅ Chế độ chỉnh sửa: chỉ thêm file mới vào danh sách đính kèm hiện có
+        const mergedUrls = [
+          ...(assignment.attachment_urls || []),
+          ...uploadedUrls,
+        ];
+
+        const updated = await updateAssignment(assignment.id, {
+          title: title.trim(),
+          description: description.trim(),
+          subject,
+          type,
+          due_date: new Date(dueDate).toISOString(),
+          points,
+          max_submissions: maxSubmissions || 0,
+          total_students: totalStudents || 7,
+          attachments: mergedUrls.length,
+          attachment_urls: mergedUrls,
+        });
+
+        if (updated) {
+          toast.success(`✅ Đã cập nhật bài tập "${title}" thành công!`);
+          onSuccess();
+          onClose();
+        } else {
+          toast.error("Không thể cập nhật bài tập, vui lòng thử lại");
+        }
+        return;
       }
 
       // ✅ THÊM max_submissions và total_students vào dữ liệu tạo
@@ -737,9 +798,11 @@ export function CreateAssignmentModal({
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-2xl font-bold gradient-text flex items-center gap-2">
-            <FileText className="w-6 h-6 text-primary" /> Tạo bài tập mới
+            <FileText className="w-6 h-6 text-primary" />{" "}
+            {isEditMode ? "Chỉnh sửa bài tập" : "Tạo bài tập mới"}
           </h2>
           <Button
+            type="button"
             variant="ghost"
             size="icon"
             onClick={onClose}
@@ -871,6 +934,12 @@ export function CreateAssignmentModal({
             <label className="text-sm font-medium text-foreground mb-2 block">
               File đính kèm
             </label>
+            {isEditMode && (assignment?.attachments || 0) > 0 && (
+              <p className="text-xs text-muted-foreground mb-2">
+                Hiện có {assignment?.attachments} file đính kèm. File thêm mới sẽ
+                được nối vào danh sách hiện tại.
+              </p>
+            )}
             <FileAttachmentUpload
               files={attachedFiles}
               onFilesChange={setAttachedFiles}
@@ -898,11 +967,16 @@ export function CreateAssignmentModal({
               {isLoading ? (
                 <>
                   <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  {attachedFiles.length > 0 ? "Đang upload..." : "Đang tạo..."}
+                  {attachedFiles.length > 0
+                    ? "Đang upload..."
+                    : isEditMode
+                      ? "Đang lưu..."
+                      : "Đang tạo..."}
                 </>
               ) : (
                 <>
-                  <Plus className="w-4 h-4" /> Tạo bài tập
+                  <Plus className="w-4 h-4" />{" "}
+                  {isEditMode ? "Lưu thay đổi" : "Tạo bài tập"}
                 </>
               )}
             </Button>

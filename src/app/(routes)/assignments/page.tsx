@@ -14,6 +14,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -49,6 +50,7 @@ function GradeModal({
   assignment,
   onSuccess,
 }: GradeModalProps) {
+  const { data: session } = useSession();
   const { toast } = useToast();
   const [grade, setGrade] = useState<number>(0);
   const [feedback, setFeedback] = useState("");
@@ -56,6 +58,13 @@ function GradeModal({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    const role = session?.user?.role?.toUpperCase();
+    if (role !== "TEACHER" && role !== "ADMIN") {
+      toast.error("Chỉ giảng viên hoặc quản trị viên mới có thể chấm điểm");
+      return;
+    }
+
     if (!assignment) {
       toast.error("Không tìm thấy bài tập");
       return;
@@ -203,7 +212,8 @@ function GradeModal({
 export default function AssignmentsPage() {
   const { data: session, status } = useSession();
   const { toast } = useToast();
-  const { assignments, loading, error, refresh } = useAssignments();
+  const { assignments, loading, error, refresh, deleteAssignment } =
+    useAssignments();
   const router = useRouter();
 
   const [searchQuery, setSearchQuery] = useState("");
@@ -215,6 +225,9 @@ export default function AssignmentsPage() {
   const [isSubmitModalOpen, setIsSubmitModalOpen] = useState(false);
   const [isGradeModalOpen, setIsGradeModalOpen] = useState(false);
   const [selectedAssignment, setSelectedAssignment] = useState<any>(null);
+  const [assignmentToEdit, setAssignmentToEdit] = useState<any>(null);
+  const [assignmentToDelete, setAssignmentToDelete] = useState<any>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const [userSubmissions, setUserSubmissions] = useState<Set<string>>(
     new Set(),
@@ -321,6 +334,42 @@ export default function AssignmentsPage() {
     setIsGradeModalOpen(true);
   };
 
+  const handleCreate = () => {
+    setAssignmentToEdit(null);
+    setIsCreateModalOpen(true);
+  };
+
+  const handleEdit = (assignment: any) => {
+    if (!canManage) {
+      toast.error("Bạn không có quyền chỉnh sửa bài tập");
+      return;
+    }
+    setAssignmentToEdit(assignment);
+    setIsCreateModalOpen(true);
+  };
+
+  const handleDelete = (assignment: any) => {
+    if (!canManage) {
+      toast.error("Bạn không có quyền xóa bài tập");
+      return;
+    }
+    setAssignmentToDelete(assignment);
+  };
+
+  const confirmDelete = async () => {
+    if (!assignmentToDelete) return;
+    setIsDeleting(true);
+    try {
+      const ok = await deleteAssignment(assignmentToDelete.id);
+      if (ok) {
+        refresh();
+      }
+    } finally {
+      setIsDeleting(false);
+      setAssignmentToDelete(null);
+    }
+  };
+
   const handleCreateSuccess = () => {
     refresh();
     toast.success("Đã cập nhật danh sách bài tập");
@@ -383,7 +432,7 @@ export default function AssignmentsPage() {
             gradedCount={stats.graded}
             overdueCount={stats.overdue}
             completedPercentage={stats.completedPercentage}
-            onCreateClick={() => setIsCreateModalOpen(true)}
+            onCreateClick={handleCreate}
           />
 
           {/* ✅ Filters */}
@@ -435,10 +484,7 @@ export default function AssignmentsPage() {
                     : "Chưa có bài tập nào"}
                 </p>
                 {canManage && (
-                  <Button
-                    className="mt-4 gap-2"
-                    onClick={() => setIsCreateModalOpen(true)}
-                  >
+                  <Button className="mt-4 gap-2" onClick={handleCreate}>
                     <Plus className="w-4 h-4" /> Tạo bài tập đầu tiên
                   </Button>
                 )}
@@ -451,6 +497,8 @@ export default function AssignmentsPage() {
                   onViewDetail={handleViewDetail}
                   onUpload={handleUpload}
                   onGrade={canGrade ? handleGrade : undefined}
+                  onEdit={canManage ? handleEdit : undefined}
+                  onDelete={canManage ? handleDelete : undefined}
                   index={index}
                   viewMode={viewMode}
                   canGrade={canGrade}
@@ -465,8 +513,25 @@ export default function AssignmentsPage() {
 
       <CreateAssignmentModal
         isOpen={isCreateModalOpen}
-        onClose={() => setIsCreateModalOpen(false)}
+        assignment={assignmentToEdit}
+        onClose={() => {
+          setIsCreateModalOpen(false);
+          setAssignmentToEdit(null);
+        }}
         onSuccess={handleCreateSuccess}
+      />
+
+      <ConfirmDialog
+        isOpen={!!assignmentToDelete}
+        onClose={() => {
+          if (!isDeleting) setAssignmentToDelete(null);
+        }}
+        onConfirm={confirmDelete}
+        title="Xóa bài tập"
+        description={`Bạn có chắc muốn xóa bài tập "${assignmentToDelete?.title ?? ""}"? Toàn bộ bài nộp liên quan cũng sẽ bị xóa. Hành động này không thể hoàn tác.`}
+        confirmText="Xóa"
+        cancelText="Hủy"
+        variant="danger"
       />
 
       <SubmitAssignmentModal

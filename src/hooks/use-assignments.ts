@@ -290,6 +290,101 @@ export function useAssignments() {
     [session?.user, toast, refresh],
   );
 
+  // ✅ Cập nhật bài tập - chỉ giảng viên & quản trị viên
+  const updateAssignment = useCallback(
+    async (id: string, data: Partial<Assignment>) => {
+      if (!session?.user) {
+        toast.error("Vui lòng đăng nhập");
+        return null;
+      }
+
+      const role = session.user.role?.toUpperCase();
+      if (role !== "TEACHER" && role !== "ADMIN") {
+        toast.error(
+          "Chỉ giảng viên và quản trị viên mới có thể chỉnh sửa bài tập",
+        );
+        return null;
+      }
+
+      try {
+        const client = isServiceRoleEnabled ? supabaseAdmin : supabase;
+
+        const updateData: Partial<Assignment> = {
+          ...data,
+          updated_at: new Date().toISOString(),
+        };
+
+        const { data: updated, error } = await client
+          .from("assignments")
+          .update(updateData)
+          .eq("id", id)
+          .select()
+          .single();
+
+        if (error) throw error;
+
+        setAssignments((prev) =>
+          prev.map((a) => (a.id === id ? { ...a, ...updated } : a)),
+        );
+        toast.success("Cập nhật bài tập thành công!");
+        refresh();
+
+        return updated as Assignment;
+      } catch (error: any) {
+        logger.error("Error updating assignment:", error);
+        toast.error(error.message || "Có lỗi xảy ra khi cập nhật bài tập");
+        return null;
+      }
+    },
+    [session?.user, toast, refresh],
+  );
+
+  // ✅ Xóa bài tập - chỉ giảng viên & quản trị viên (kèm dọn các bài nộp liên quan)
+  const deleteAssignment = useCallback(
+    async (id: string) => {
+      if (!session?.user) {
+        toast.error("Vui lòng đăng nhập");
+        return false;
+      }
+
+      const role = session.user.role?.toUpperCase();
+      if (role !== "TEACHER" && role !== "ADMIN") {
+        toast.error("Chỉ giảng viên và quản trị viên mới có thể xóa bài tập");
+        return false;
+      }
+
+      try {
+        const client = isServiceRoleEnabled ? supabaseAdmin : supabase;
+
+        // Xóa các bài nộp liên quan trước để tránh dữ liệu mồ côi
+        const { error: subError } = await client
+          .from("submissions")
+          .delete()
+          .eq("assignment_id", id);
+
+        if (subError) {
+          logger.error("Error deleting related submissions:", subError);
+        }
+
+        const { error } = await client
+          .from("assignments")
+          .delete()
+          .eq("id", id);
+
+        if (error) throw error;
+
+        setAssignments((prev) => prev.filter((a) => a.id !== id));
+        toast.success("Đã xóa bài tập");
+        return true;
+      } catch (error: any) {
+        logger.error("Error deleting assignment:", error);
+        toast.error(error.message || "Có lỗi xảy ra khi xóa bài tập");
+        return false;
+      }
+    },
+    [session?.user, toast],
+  );
+
   const uploadFile = useCallback(
     async (file: File, path: string): Promise<string | null> => {
       try {
@@ -480,6 +575,8 @@ export function useAssignments() {
     getAssignmentSubmissions,
     downloadFile,
     createAssignment,
+    updateAssignment,
+    deleteAssignment,
     submitAssignment,
     uploadFile,
     uploadFiles,
